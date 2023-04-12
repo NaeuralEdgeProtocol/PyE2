@@ -160,7 +160,7 @@ if __name__ == '__main__':
   with open(WORKER_CODE_PATH, 'rt') as fh:
     worker_code = fh.read()
     
-  e2id = 'stefan-box' # provide a known EE id
+  e2id = 'e2id' # provide a known EE id
   sess = Session(**SERVER_CONFIG, silent=True)
   sess.connect()
   
