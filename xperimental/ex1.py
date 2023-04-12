@@ -1,0 +1,120 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Reserved.
+
+
+* NOTICE:  All information contained herein is, and remains
+* the property of Knowledge Investment Group SRL.  
+* The intellectual and technical concepts contained
+* herein are proprietary to Knowledge Investment Group SRL
+* and may be covered by Romanian and Foreign Patents,
+* patents in process, and are protected by trade secret or copyright law.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Knowledge Investment Group SRL.
+
+
+@copyright: Lummetry.AI
+@author: Lummetry.AI - AID
+@project: 
+@description:
+Created on Thu Jan 26 14:57:44 2023
+"""
+
+from time import sleep
+
+from PyE2 import Payload, Session
+
+
+def instance_on_data(pipeline, data: Payload):
+  # this could refresh a UI
+  pipeline.P('Receive specific message from PERIMETER_VIOLATION_02:inst01 (hardcoded)', color='m')
+
+
+def another_instance_on_data(pipeline, data: Payload):
+  # this could refresh a UI
+  pipeline.P('Receive specific message from CUSTOM_EXEC_01:inst01 (hardcoded)')
+
+
+def yet_another_pipeline_on_data(pipeline, signature, instance, data: Payload):
+  # ...
+  return
+
+
+def pipeline_on_data(pipeline, signature, instance, data: Payload):
+  # this could refresh a UI
+  pipeline.P('Received from box {} by server {}, stream:{}, plugin: {}, instance:{}, the following data:{}'.format(
+      pipeline.e2id,
+      pipeline.session.server,
+      pipeline.name,
+      signature,
+      instance,
+      data
+  ))
+
+
+if __name__ == '__main__':
+
+  e2id = 'e2id'
+
+  dct_server = {
+      'host': "hostname",
+      'port': 88888,
+      'user': "username",
+      'pwd': "password"
+  }
+
+  sess = Session(**dct_server)
+  sess.connect()
+
+  pipeline = sess.create_pipeline(
+      e2id=e2id,
+      name='test_normal',
+      data_source='VideoStream',
+      config={
+          'URL': 0
+      },
+      plugins=None,
+      on_data=pipeline_on_data
+  )
+
+  # now we start a perimeter intrustion functionality for low-res cameras with all
+  # the other params default
+  pipeline.start_plugin_instance(  # should return an id
+      signature='PERIMETER_VIOLATION_01',
+      instance_id='inst01',
+      params={
+          'AI_ENGINE': 'lowres_general_detector'
+      },
+      on_data=instance_on_data  # default None
+  )
+
+  # now start a ciclic process
+  instance = pipeline.start_custom_plugin(
+      instance_id='inst01',
+      plain_code_path="c:\\Users\\Stefan.saraev\\SolisBox\\core\\xperimental\\pye2sdk\\custom_exec_scripts\\custom_exec_example.txt",
+      params={},
+      on_data=another_instance_on_data
+  )
+
+  try:
+    sleep(30)  # wait for some info to appear adn trigger the stop
+  except KeyboardInterrupt:
+    pipeline.log.P("CTRL+C detected. Closing example..", color='r')
+
+  pipeline.stop_plugin_instance('PERIMETER_VIOLATION_01', 'inst01')
+
+  try:
+    while True:
+      pass
+  except KeyboardInterrupt:
+    pipeline.log.P("CTRL+C detected. Closing example..", color='r')
+
+  pipeline.stop_plugin_instance(instance)
+
+  sleep(3)  # mandatory to close the pipeline, might move it to stop call
+
+  pipeline.close()
+
+  # now close conn to comm server
+  sess.close()
