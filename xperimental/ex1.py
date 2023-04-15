@@ -21,9 +21,14 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 Created on Thu Jan 26 14:57:44 2023
 """
 
+import os
 from time import sleep
 
+from dotenv import load_dotenv
+
 from PyE2 import Payload, Session
+
+load_dotenv()
 
 
 def instance_on_data(pipeline, data: Payload):
@@ -58,10 +63,10 @@ if __name__ == '__main__':
   e2id = 'e2id'
 
   dct_server = {
-      'host': "hostname",
-      'port': 88888,
-      'user': "username",
-      'pwd': "password"
+      'host': os.getenv('PYE2_HOSTNAME'),
+      'port': int(os.getenv('PYE2_PORT')),
+      'user': os.getenv('PYE2_USERNAME'),
+      'pwd': os.getenv('PYE2_PASSWORD')
   }
 
   sess = Session(**dct_server)

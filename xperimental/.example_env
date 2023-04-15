@@ -1,0 +1,4 @@
+PYE2_USERNAME="username"
+PYE2_PASSWORD="password"
+PYE2_HOSTNAME="hostname"
+PYE2_PORT=8888

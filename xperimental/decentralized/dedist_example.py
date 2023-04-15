@@ -1,12 +1,17 @@
 
 import os
+
+from dotenv import load_dotenv
+
 from PyE2 import Session, code_to_base64
 
+load_dotenv()
+
 SERVER_CONFIG = {
-    'host': "hostname",
-    'port': 88888,
-    'user': "username",
-    'pwd': "password"
+    'host': os.getenv('PYE2_HOSTNAME'),
+    'port': int(os.getenv('PYE2_PORT')),
+    'user': os.getenv('PYE2_USERNAME'),
+    'pwd': os.getenv('PYE2_PASSWORD')
 }
 
 

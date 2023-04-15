@@ -1,5 +1,11 @@
-from PyE2 import Session
+import os
 from time import sleep
+
+from dotenv import load_dotenv
+
+from PyE2 import Session
+
+load_dotenv()
 
 
 def on_hb(session, data):
@@ -9,10 +15,10 @@ def on_hb(session, data):
 
 if __name__ == '__main__':
   sess = Session(
-      host="hostname",
-      port=88888,
-      user="username",
-      pwd="password",
+      host=os.getenv('PYE2_HOSTNAME'),
+      port=int(os.getenv('PYE2_PORT')),
+      user=os.getenv('PYE2_USERNAME'),
+      pwd=os.getenv('PYE2_PASSWORD'),
       on_heartbeat=on_hb
   )
 

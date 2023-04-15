@@ -24,8 +24,11 @@ Created on Thu Jan 26 14:57:44 2023
 import os
 from time import sleep, time
 
+from dotenv import load_dotenv
+
 from PyE2 import Payload, Pipeline, Session
 
+load_dotenv()
 print(os.environ['PYTHONPATH'].split(os.pathsep))
 
 boxes = {}
@@ -81,10 +84,10 @@ def pipeline_on_notification(pipeline, notification):
 
 
 dct_server = {
-    'host': "hostname",
-    'port': 88888,
-    'user': "username",
-    'pwd': "password"
+    'host': os.getenv('PYE2_HOSTNAME'),
+    'port': int(os.getenv('PYE2_PORT')),
+    'user': os.getenv('PYE2_USERNAME'),
+    'pwd': os.getenv('PYE2_PASSWORD')
 }
 
 e2id = 'e2id'
