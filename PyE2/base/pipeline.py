@@ -26,7 +26,69 @@ WAIT_FOR_WORKER = 15
 
 
 class Pipeline(object):
+  """
+  A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
+
+  A `Pipeline` contains one thread of data acquisition (which does not mean only one source of data), and many
+  processing units, usually named `Plugins`. 
+
+  An `Instance` is a running thread of a `Plugin` type, and one may want to have multiple `Instances`, because each can be configured independently.
+
+  As such, one will work with `Instances`, by reffering to them with the unique identifier (Pipeline, Plugin, Instance).
+
+  In the documentation, the following reffer to the same thing:
+    `Pipeline` == `Stream`
+
+    `Plugin` == `Signature`
+  """
+
   def __init__(self, session, log, *, e2id, name, data_source, config={}, plugins, on_data, silent=True, on_notification=None, **kwargs) -> None:
+    """
+    A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
+
+    A `Pipeline` contains one thread of data acquisition (which does not mean only one source of data), and many
+    processing units, usually named `Plugins`. 
+
+    An `Instance` is a running thread of a `Plugin` type, and one may want to have multiple `Instances`, because each can be configured independently.
+
+    As such, one will work with `Instances`, by reffering to them with the unique identifier (Pipeline, Plugin, Instance).
+
+    In the documentation, the following reffer to the same thing:
+      `Pipeline` == `Stream`
+
+      `Plugin` == `Signature`
+
+    In the documentation, the following reffer to the same thing:
+      `Pipeline` == `Stream`
+      `Plugin` == `Signature`
+
+    Parameters
+    ----------
+    session : _type_
+        _description_
+    log : _type_
+        _description_
+    e2id : _type_
+        _description_
+    name : _type_
+        _description_
+    data_source : _type_
+        _description_
+    plugins : _type_
+        _description_
+    on_data : _type_
+        _description_
+    config : dict, optional
+        _description_, by default {}
+    silent : bool, optional
+        _description_, by default True
+    on_notification : _type_, optional
+        _description_, by default None
+    create_pipeline : bool
+        _description_, by default True
+    **kwargs : dict
+        _description_
+    """
     self.log = log
     self.session = session
     self.e2id = e2id
@@ -86,21 +148,36 @@ class Pipeline(object):
 
   # TODO: maybe wait for a confirmation?
   def start_plugin_instance(self, *, signature, instance_id, params, on_data, on_notification=None, **kwargs):
-    """Create a new instance of a desired plugin, with a given configuration. This instance is attached to this pipeline, 
+    """
+    Create a new instance of a desired plugin, with a given configuration. This instance is attached to this pipeline, 
     meaning it processes data from this pipelines data source. Parameters can be passed either in the params dict, or as kwargs.
 
-    Args:
-        signature (str): name of the plugin signature. This is the name of the desired overall functionality.
-        instance_id (str): name of the instance. There can be multiple instances of the same plugin, mostly with different prameters
-        params (dict): parameters used to customize the functionality. One can change the AI engine used for object detection, or finetune alerter parameters to better fit a camera located in a low light environment.
-        on_data (Callable[[Pipeline, str, str, dict], None]): Callback that handles messages received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself.
-        on_notification (Callable[[Pipeline, dict], None], optional): Callback that handles notifications received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself. Defaults to None.
+    Parameters
+    ----------
+    signature : str
+        The name of the plugin signature. This is the name of the desired overall functionality.
+    instance_id : str
+        The name of the instance. There can be multiple instances of the same plugin, mostly with different prameters
+    params : dict
+        parameters used to customize the functionality. One can change the AI engine used for object detection, 
+        or finetune alerter parameters to better fit a camera located in a low light environment.
+    on_data : Callable[[Pipeline, str, str, dict], None]
+        Callback that handles messages received from this instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself.
+    on_notification : Callable[[Pipeline, dict], None], optional
+        Callback that handles notifications received from this instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itsel. 
+        Defaults to None
 
-    Raises:
-        Exception: Plugin instance already exists. 
+    Returns
+    -------
+    str
+        An identifier for this instance, useful for stopping an instance.
 
-    Returns:
-        str: An identifier for this instance, useful for stopping an instance.
+    Raises
+    ------
+    Exception
+        Plugin instance already exists. 
     """
     plugins = self.payload['PLUGINS']
     found_plugin_signature = False
@@ -149,14 +226,20 @@ class Pipeline(object):
     return "##".join([self.e2id, self.name, signature, instance_id])
 
   def stop_plugin_instance(self, signature, instance_id=None, /):
-    """Stop a plugin instance from this pipeline. The function can accept either the signature and the instance_id of the desired instance,
+    """
+    Stop a plugin instance from this pipeline. The function can accept either the signature and the instance_id of the desired instance,
     or the identifier returned from `start_plugin_instance` or `start_custom_instance` or `attach_to_instance` or `attach_to_custom_instance`.
 
-    Args:
-        signature (str): Signature of a plugin (name of the plugin type) or instance identifier
-        instance_id (str, optional): Name of the instance. Defaults to None.
+
+    Parameters
+    ----------
+    signature : str
+        Signature of a plugin (name of the plugin type) or instance identifier
+    instance_id : str, optional
+        Name of the instance, by default None
 
     """
+
     if instance_id is None:
       try:
         e2id, pipeline_name, signature, instance_id = tuple(
@@ -203,23 +286,42 @@ class Pipeline(object):
     return
 
   def start_custom_plugin(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, params, on_data, on_notification=None, **kwargs):
-    """Create a new custom execution instance, with a given configuration. This instance is attached to this pipeline, 
-    meaning it processes data from this pipelines data source. The code used for the custom instance must be provided either as a string, or as a path to a file. Parameters can be passed either in the params dict, or as kwargs.
+    """
+    Create a new custom execution instance, with a given configuration. This instance is attached to this pipeline, 
+    meaning it processes data from this pipelines data source. The code used for the custom instance must be provided
+    either as a string, or as a path to a file. Parameters can be passed either in the params dict, or as kwargs.
     The custom plugin instance will run periodically. If one desires to execute a custom code only once, use `wait_exec`.
 
-    Args:
-        instance_id (str): name of the instance. There can be multiple instances of the same plugin, mostly with different prameters
-        params (dict): parameters used to customize the functionality.
-        on_data (Callable[[Pipeline, str, str, dict], None]): Callback that handles messages received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself.
-        plain_code (str, optional): A string containing the entire code that is to be executed remotely on an AiXp node. Defaults to None.
-        plain_code_path (str, optional): A string containing the path to the code that is to be executed remotely on an AiXp node. Defaults to None.
-        on_notification (Callable[[Pipeline, dict], None], optional): Callback that handles notifications received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself. Defaults to None.
+    Parameters
+    ----------
+    `instance_id` : str
+        The name of the instance. There can be multiple instances of the same plugin, mostly with different prameters
+    `plain_code` : str, optional
+        A string containing the entire code that is to be executed remotely on an AiXp node. Defaults to None.
+    `plain_code_path` : str, optional
+        A string containing the path to the code that is to be executed remotely on an AiXp node. Defaults to None.
+    `params` : dict
+        parameters used to customize the functionality. One can change the AI engine used for object detection, 
+        or finetune alerter parameters to better fit a camera located in a low light environment.
+    `on_data` : Callable[[Pipeline, str, str, dict], None]
+        Callback that handles messages received from this instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself.
+    `on_notification` : Callable[[Pipeline, dict], None], optional
+        Callback that handles notifications received from this instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itsel. 
+        Defaults to None
 
-    Raises:
-        Exception: The code was not provided.
+    Returns
+    -------
+    str
+        An identifier for this instance, useful for stopping an instance.
 
-    Returns:
-        str: An identifier for this instance, useful for stopping an instance.
+    Raises
+    ------
+    Exception
+        The code was not provided.
+    Exception
+        Plugin instance already exists. 
     """
 
     def custom_exec_on_data(self, data):
@@ -268,31 +370,46 @@ class Pipeline(object):
     )
 
   def stop_custom_instance(self, instance_id):
-    """Stop a custom execution instance from this pipeline.
+    """
+    Stop a custom execution instance from this pipeline.
 
-    Args:
-        instance_id (str, optional): Name of the custom instance. Defaults to None.
+    Parameters
+    ----------
+    instance_id : str
+        Name of the custom instance.
 
     """
     self.stop_plugin_instance('CUSTOM_EXEC_01', instance_id)
 
   def wait_exec(self, *, plain_code: str = None, plain_code_path: str = None, params={}):
-    """Create a new REST-like custom execution instance, with a given configuration. This instance is attached to this pipeline, 
+    """
+    Create a new REST-like custom execution instance, with a given configuration. This instance is attached to this pipeline, 
     meaning it processes data from this pipelines data source. The code used for the custom instance must be provided either as a string, or as a path to a file. Parameters can be passed either in the params dict, or as kwargs.
     The REST-like custom plugin instance will execute only once. If one desires to execute a custom code periodically, use `start_custom_plugin`.
 
-    Args:
-        params (dict, optional): parameters used to customize the functionality. Defaults to {}.
-        plain_code (str, optional): A string containing the entire code that is to be executed remotely on an AiXp node. Defaults to None.
-        plain_code_path (str, optional): A string containing the path to the code that is to be executed remotely on an AiXp node. Defaults to None.
+    Parameters
+    ----------
+    plain_code : str, optional
+        A string containing the entire code that is to be executed remotely on an AiXp node, by default None
+    plain_code_path : str, optional
+        A string containing the path to the code that is to be executed remotely on an AiXp node, by default None
+    params : dict, optional
+        parameters used to customize the functionality, by default {}
 
-    Raises:
-        Exception: The code was not provided.
-
-    Returns:
-        Tuple[Any, Any]: a tuple containing the result of the execution and the error, if any. 
+    Returns
+    -------
+    Tuple[Any, Any]
+        a tuple containing the result of the execution and the error, if any. 
         If the execution completed succesfully, the `error` is None, and the `result` is the returned value of the custom code.
+
+    Raises
+    ------
+    Exception
+        The code was not provided.
+    Exception
+        Plugin instance already exists. 
     """
+
     if plain_code is None and plain_code_path is None:
       raise Exception(
           "Need to specify at least one of the following: plain_code, plain_code_path")
@@ -345,7 +462,8 @@ class Pipeline(object):
     return result, error
 
   def close(self):
-    """Close the pipeline, stopping all the instances associated with it.
+    """
+    Close the pipeline, stopping all the instances associated with it.
     """
     # remove callbacks
     self.session.send_command_delete_pipeline(self.e2id, self.name)
@@ -353,34 +471,49 @@ class Pipeline(object):
     return
 
   def P(self, *args, **kwargs):
-    """Print info to stdout.
+    """
+    Print info to stdout.
     """
     return self.log.P(*args, **kwargs)
 
   def D(self, *args, **kwargs):
-    """Print debug info to stdout if the session was created with the silent argument set to `False`. 
+    """
+    Print debug info to stdout if the session was created with the silent argument set to `False`. 
     The silent argument is passed to the Pipeline object when creating it with `create_pipeline` or `attach_to_pipeline`.
     """
     if not self.silent:
       return self.log.P(*args, **kwargs)
 
   def attach_to_instance(self, signature, instance_id, on_data, on_notification=None):
-    """Attach to an existing instance on this pipeline. 
+    """
+    Attach to an existing instance on this pipeline. 
     This method is useful when one wishes to attach an 
     `on_data` and `on_notification` callbacks to said instance.
 
-    Args:
-        signature (str): name of the plugin signature.
-        instance_id (str): name of the instance.
-        on_data (Callable[[Pipeline, str, str, dict], None]): Callback that handles messages received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself.
-        on_notification (Callable[[Pipeline, dict], None], optional): Callback that handles notifications received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself. Defaults to None.
+    Parameters
+    ----------
+    signature : str
+        name of the plugin signature.
+    instance_id : str
+        name of the instance.
+    on_data : Callable[[Pipeline, str, str, dict], None]
+        Callback that handles messages received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself.
+    on_notification : Callable[[Pipeline, dict], None], optional
+        Callback that handles notifications received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself. Defaults to None.
 
-    Raises:
-        Exception: the pipeline does not contain plugins with a given signature or it does not contain the desired instance.
+    Returns
+    -------
+    str
+        An identifier for this instance, useful for stopping an instance.
 
-    Returns:
-        str: An identifier for this instance, useful for stopping an instance.
+    Raises
+    ------
+    Exception
+        the pipeline does not contain plugins with a given signature.
+    Exception
+        The pipeline does not contain the desired instance.
     """
+
     plugins = self.payload['PLUGINS']
     found_plugin_signature = False
 
@@ -404,20 +537,31 @@ class Pipeline(object):
     raise Exception("Unable to attach to instance. Instance does not exist")
 
   def attach_to_custom_instance(self, instance_id, on_data, on_notification=None):
-    """Attach to an existing custom execution instance on this pipeline. 
+    """
+    Attach to an existing custom execution instance on this pipeline. 
     This method is useful when one wishes to attach an 
     `on_data` and `on_notification` callbacks to said instance.
 
-    Args:
-        instance_id (str): name of the instance.
-        on_data (Callable[[Pipeline, str, str, dict], None]): Callback that handles messages received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself.
-        on_notification (Callable[[Pipeline, dict], None], optional): Callback that handles notifications received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself. Defaults to None.
+    Parameters
+    ----------
+    instance_id : str
+        name of the instance.
+    on_data : Callable[[Pipeline, str, str, dict], None]
+        Callback that handles messages received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself.
+    on_notification : Callable[[Pipeline, dict], None], optional
+        Callback that handles notifications received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself. Defaults to None.
 
-    Raises:
-        Exception: the pipeline does not contain plugins with a given signature or it does not contain the desired instance.
+    Returns
+    -------
+    str
+        An identifier for this instance, useful for stopping an instance.
 
-    Returns:
-        str: An identifier for this instance, useful for stopping an instance.
+    Raises
+    ------
+    Exception
+        the pipeline does not contain any custom plugin.
+    Exception
+        The pipeline does not contain the desired instance.
     """
 
     def custom_exec_on_data(self, data):
