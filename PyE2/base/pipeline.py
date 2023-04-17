@@ -58,10 +58,6 @@ class Pipeline(object):
 
       `Plugin` == `Signature`
 
-    In the documentation, the following reffer to the same thing:
-      `Pipeline` == `Stream`
-      `Plugin` == `Signature`
-
     Parameters
     ----------
     session : Session
@@ -81,7 +77,7 @@ class Pipeline(object):
         This is the list with manually configured business plugins that will be in the pipeline at creation time.
         We recommend to leave this as `[]` or as `None` and use the API to create plugin instances. 
     on_data : Callable[[Pipeline, str, str, dict], None]
-        Callback that handles messages received from this plugin. 
+        Callback that handles messages received from any plugin instance. 
         As arguments, it has a reference to this Pipeline object, along with the payload itself.
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
@@ -94,8 +90,6 @@ class Pipeline(object):
         As arguments, it has a reference to this Pipeline object, along with the payload itself. 
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
-        This callback will be called when there are notifications related to the node itself, e.g. when the node runs
-        low on memory. 
         Defaults to None.
     create_pipeline : bool
         This is used internally to allow the user to create or attach to a pipeline, and then use the same

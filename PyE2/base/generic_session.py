@@ -30,6 +30,11 @@ from .pipeline import Pipeline
 
 
 class GenericSession(object):
+  """
+  A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
+  A Session manages `Pipelines` and handles all messages received from the communication server.
+  The Session handles all callbacks that are user-defined and passed as arguments in the API calls.  
+  """
   default_config = {
       "CONFIG_CHANNEL": {
           "TOPIC": "lummetry/{}/config"
@@ -47,19 +52,45 @@ class GenericSession(object):
   }
 
   def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, log=None, on_notification=None, on_heartbeat=None, silent=True, **kwargs) -> None:
-    """Create a session object that allows to connect to a communication server and to interact with nodes from the AiXp network.
+    """
+  A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
+  A Session manages `Pipelines` and handles all messages received from the communication server.
+  The Session handles all callbacks that are user-defined and passed as arguments in the API calls.  
 
-    Args:
-        host (str): Hostname of the server
-        port (int): port
-        user (str): username
-        pwd (str): password
-        name (str, optional): Will be used as `SESSION_ID` when communicating with AiXp nodes. Defaults to 'pySDK'.
-        config (dict, optional): Configures the names of the channels this session will connect to. Defaults to {}.
-        log (Logger, optional): instance of a Logger class that provides utility functions and prettier logs. Useful for Hyperfy devs. Defaults to None.
-        on_notification (Callable[[Session, dict], None], optional): Callback that handles the notification received by this session. Defaults to None.
-        on_heartbeat (Callable[[Session, dict], None], optional): Callback that handles the heartbeat received by this session. Defaults to None.
-        silent (bool, optional): This flag controlls if the `.D` method dumps text to the stdout. Defaults to True.
+    Parameters
+    ----------
+    host : str
+        The hostname of the server
+    port : int
+        The port
+    user : str
+        The user name
+    pwd : str
+        The password
+    name : str, optional
+        The name of this connection, used to identify owned pipelines on a specific AiXpand node.
+        The name will be used as `INITIATOR_ID` and `SESSION_ID` when communicating with AiXp nodes, by default 'pySDK'
+    config : dict, optional
+        Configures the names of the channels this session will connect to.
+        If the server is of type Mqtt, these channels are in fact topics.
+        Modify this if you are absolutely certain of what you are doing.
+        By default {}
+    log : Logger, optional
+        A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
+        In the future, the documentation for the Logger base class will be available and developers will be able to use
+        custom-made Loggers. 
+    on_notification : Callable[[Session, dict], None], optional
+        Callback that handles notifications received from this network. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+        This callback acts as a default payload processor and will be called even if for a given instance
+        the user has defined a specific callback.
+        This callback will be called when there are notifications related to the node itself, e.g. when the node runs
+        low on memory. 
+        Defaults to None.
+    on_heartbeat : Callable[[Session, dict], None], optional
+        Callback that handles heartbeats received from this network, by default None
+    silent : bool, optional
+        This flag will disable debug logs, disable for a more verbose log, by default True
     """
     if log is None:
       log = Logger()
@@ -234,39 +265,113 @@ class GenericSession(object):
     raise NotImplementedError
 
   def P(self, *args, **kwargs):
-    """Print info to stdout
+    """
+    Call the `Logger.P` method. If using the default Logger, this call will print
+    info to stdout.
+
+    Parameters
+    ----------
+    *args :
+
+    msg : obj
+        The message to pass to the `Logger.P` method. If using the default Logger, this
+        will be the message displayed at the stdout.
+
+    **kwargs :
+
+
+    Returns
+    -------
+
     """
     self.log.P(*args, **kwargs)
 
   def D(self, *args, **kwargs):
-    """Print debug info to stdout if the session was created with the silent argument set to `False`
+    """
+    Call the `Logger.P` method if the session was created with the silent argument set to `False`.
+    If using the default Logger, this call will print debug info to stdout if `silent` is set to `False`.
+
+    Parameters
+    ----------
+    *args :
+
+    msg : obj
+        The message to pass to the `Logger.P` method. If using the default Logger, this
+        will be the message displayed at the stdout.
+
+    **kwargs :
+
+
+    Returns
+    -------
+
     """
     if not self.silent:
       self.log.P(*args, **kwargs)
     return
 
   def connect(self) -> None:
-    """Connect to the communication server using the credentials provided when creating this instance
+    """
+    Connect to the communication server using the credentials provided when creating this instance.
     """
     raise NotImplementedError
 
   def create_pipeline(self, *, e2id, name, data_source, config={}, plugins=[], on_data, on_notification=None, max_wait_time=0, **kwargs) -> Pipeline:
-    """Create a new pipeline on a box. A pipeline is the equivalent of the "config file" used by the Hyperfy dev team internaly.
-    A pipeline allows one to define what is the data acquisition type and source, and what plugins will run on that data.
-    `max_wait_time` controls how much to wait for the given node to be indexed by the session before creating the pipeline.
-    A node is indexed if it sent any heartbeats since the session connected.
+    """
+    Create a new pipeline on a node. A pipeline is the equivalent of the "config file" used by the Hyperfy dev team internaly.
 
-    Args:
-        e2id (str): Name of the AiXp node.
-        name (str): Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
-        data_source (str): Name of the DataCaptureThread plugin to be used for acquisition.
-        on_data (Callable[[Pipeline, str, str, dict], None]): Callback that handles messages received from this pipeline. As arguments, it has a reference to this Pipeline object, the name of the Signature and the name of the Instance that sent the message, along with the payload itself.
-        plugins (list): List of dictionaries which contain the configurations of each plugin instance that is desired to run on the box. Defaults to []. Should be left [], and instances should be created with the api.
-        config (dict, optional): Data acquisition specific parameters. Defaults to {}.
-        on_notification (Callable[[Pipeline, dict], None], optional): Callback that handles notifications received from this pipeline. As arguments, it has a reference to this Pipeline object, along with the payload itself. Defaults to None.
-        max_wait_time(float, optional): Max wait time before creating the pipeline. Defaults to 0.
-    Returns:
-        Pipeline: a Pipeline object which can be used to control plugin instances.
+    A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
+
+    A `Pipeline` contains one thread of data acquisition (which does not mean only one source of data), and many
+    processing units, usually named `Plugins`. 
+
+    An `Instance` is a running thread of a `Plugin` type, and one may want to have multiple `Instances`, because each can be configured independently.
+
+    As such, one will work with `Instances`, by reffering to them with the unique identifier (Pipeline, Plugin, Instance).
+
+    In the documentation, the following reffer to the same thing:
+      `Pipeline` == `Stream`
+
+      `Plugin` == `Signature`
+
+    This call can busy-wait for a number of seconds to listen to heartbeats, in order to check if an AiXpand node is online or not.
+    If the node does not appear online, a warning will be displayed at the stdout, telling the user that the message that handles the
+    creation of the pipeline will be sent, but it is not guaranteed that the specific node will receive it.
+
+    Parameters
+    ----------
+    e2id : str
+        Name of the AiXpand node that will handle this pipeline.  
+    name : str
+        Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
+    data_source : str
+        This is the name of the DCT plugin, which resembles the desired functionality of the acquisition.
+    on_data : Callable[[Pipeline, str, str, dict], None]
+        Callback that handles messages received from any plugin instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself.
+        This callback acts as a default payload processor and will be called even if for a given instance
+        the user has defined a specific callback.
+    plugins : list
+        List of dictionaries which contain the configurations of each plugin instance that is desired to run on the box. Defaults to []. Should be left [], and instances should be created with the api.
+    config : dict, optional
+        This is the dictionary that contains the configuration of the acquisition source, by default {}
+    on_notification : Callable[[Pipeline, dict], None], optional
+        Callback that handles notifications received from any plugin instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+        This callback acts as a default payload processor and will be called even if for a given instance
+        the user has defined a specific callback.
+        Defaults to None.
+    max_wait_time : int, optional
+        The maximum time to busy-wait, allowing the Session object to listen to node heartbeats
+        and to check if the desired node is online in the network, by default 0.
+    **kwargs :
+        The user can provide the configuration of the acquisition source directly as kwargs.
+
+    Returns
+    -------
+    Pipeline
+        A `Pipeline` object.
+
     """
     _start = tm()
     found = False
@@ -298,59 +403,119 @@ class GenericSession(object):
     return pipeline
 
   def close_own_pipelines(self):
+    """
+    Close all pipelines that were created by or attached to this session.
+    """
     # iterate through all CREATED pipelines from this session and close them
     for pipeline in self.own_pipelines:
       pipeline.close()
     return
 
   def close(self, close_pipelines=False, **kwargs):
-    """Close the session, releasing all resources and closing all threads
     """
-    # TODO: Stefan: here we need to change from abstract to concrete - all pipelines MUST
-    #       be deallocated. The child re-implementations must call self().__close__ beforehand
+    Close the session, releasing all resources and closing all threads
+
+    Parameters
+    ----------
+    close_pipelines : bool, optional
+        close all the pipelines created by or attached to this session (basically calling `.close_own_pipelines()` for you), by default False
+    """
     if close_pipelines:
       self.close_own_pipelines()
     return
 
   def get_active_nodes(self):
-    """Get the list of all AiXp nodes that sent a message since this session was created, and that are considered online
+    """
+    Get the list of all AiXp nodes that sent a message since this session was created, and that are considered online
 
-    Returns:
-        list: List of names of all the AiXp nodes that are considered online
+    Parameters
+    ----------
+
+    Returns
+    -------
+    list
+        List of names of all the AiXp nodes that are considered online
+
     """
     return list(self._online_boxes.keys())
 
   def get_active_pipelines(self, e2id):
-    """Get a dictionary with all the pipelines that are active on this AiXp node
+    """
+    Get a dictionary with all the pipelines that are active on this AiXp node
 
-    Args:
-        e2id (str): name of the AiXp node
+    Parameters
+    ----------
+    e2id : str
+        name of the AiXp node
 
-    Returns:
-        dict: The key is the name of the pipeline, and the value is the entire config dictionary of that pipeline.
+    Returns
+    -------
+    dict
+        The key is the name of the pipeline, and the value is the entire config dictionary of that pipeline.
+
     """
     return self._online_boxes.get(e2id, None)
 
   def attach_to_pipeline(self, e2id, pipeline_name, on_data, on_notification=None, max_wait_time=0, **kwargs) -> Pipeline:
-    """Create a Pipeline object and attach to an existing pipeline on a box.
-    Useful when one wants to treat an existing pipeline as one of his own, 
-    or when one wants to attach callbacks to various events (on_data, on_notification). 
-    `max_wait_time` controls how much to wait for the given node to be indexed by the session before attaching to the pipeline.
-    A node is indexed if it sent any heartbeats since the session connected.
-
-    Args:
-        e2id (str): Name of the AiXp node.
-        pipeline_name (str): Name of the pipeline
-        on_data (Callable[[Pipeline, str, str, dict], None]): Callback that handles messages received from this pipeline. As arguments, it has a reference to this Pipeline object, the name of the Signature and the name of the Instance that sent the message, along with the payload itself.
-        on_notification (Callable[[Pipeline, dict], None], optional): Callback that handles notifications received from this pipeline. As arguments, it has a reference to this Pipeline object, along with the payload itself. Defaults to None.
-        max_wait_time(float, optional): Max wait time before creating the pipeline. Defaults to 0.
-
-    Raises:
-        Exception: The session does not consider the node online or the pipeline does not exist on that box.
-
-    Returns:
-        Pipeline: a Pipeline object which can be used to control plugin instances.
     """
+    Create a Pipeline object and attach to an existing pipeline on an AiXpand node.
+    Useful when one wants to treat an existing pipeline as one of his own,
+    or when one wants to attach callbacks to various events (on_data, on_notification).
+
+    A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
+
+    A `Pipeline` contains one thread of data acquisition (which does not mean only one source of data), and many
+    processing units, usually named `Plugins`. 
+
+    An `Instance` is a running thread of a `Plugin` type, and one may want to have multiple `Instances`, because each can be configured independently.
+
+    As such, one will work with `Instances`, by reffering to them with the unique identifier (Pipeline, Plugin, Instance).
+
+    In the documentation, the following reffer to the same thing:
+      `Pipeline` == `Stream`
+
+      `Plugin` == `Signature`
+
+    This call can busy-wait for a number of seconds to listen to heartbeats, in order to check if an AiXpand node is online or not.
+    If the node does not appear online, a warning will be displayed at the stdout, telling the user that the message that handles the
+    creation of the pipeline will be sent, but it is not guaranteed that the specific node will receive it.
+
+
+    Parameters
+    ----------
+    e2id : str
+        Name of the AiXpand node that handles this pipeline.  
+    pipeline_name : str
+        Name of the existing pipeline.
+    on_data : Callable[[Pipeline, str, str, dict], None]
+        Callback that handles messages received from any plugin instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself.
+        This callback acts as a default payload processor and will be called even if for a given instance
+        the user has defined a specific callback.
+    on_notification : Callable[[Pipeline, dict], None], optional
+        Callback that handles notifications received from any plugin instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+        This callback acts as a default payload processor and will be called even if for a given instance
+        the user has defined a specific callback.
+    max_wait_time : int, optional
+        The maximum time to busy-wait, allowing the Session object to listen to node heartbeats
+        and to check if the desired node is online in the network, by default 0.
+    **kwargs :
+        The user can provide the configuration of the acquisition source directly as kwargs.
+
+    Returns
+    -------
+    Pipeline
+        A `Pipeline` object.
+
+    Raises
+    ------
+    Exception
+        Node does not exist (it is considered offline because the session did not receive any heartbeat)
+    Exception
+        Node does not host the desired pipeline 
+    """
+
     _start = tm()
     while (tm() - _start) < max_wait_time:
       avail_workers = self.get_active_nodes()
@@ -377,21 +542,14 @@ class GenericSession(object):
 
     Parameters
     ----------
-    wait: bool, float
-      If `True`, will wait forever.
-      If `False`, will not wait at all
-      If type `float`, will wait said amount of seconds
-
+    wait : bool, float
+        If `True`, will wait forever.
+        If `False`, will not wait at all
+        If type `float`, will wait said amount of seconds (Default value = True)
     close_session : bool, optional
-      If `True` will close the session when the loop is exited. The default is True.
-
+        If `True` will close the session when the loop is exited. The default is True.
     close_pipelines : bool, optional
-      If `True` will close all pipelines initiated by this session when the loop is exited. The default is True.
-
-    Returns
-    -------
-    None.
-
+        If `True` will close all pipelines initiated by this session when the loop is exited. The default is True.
     """
     if not self.connected:
       self.connect()
