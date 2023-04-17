@@ -72,7 +72,7 @@ class GenericSession(object):
         The name will be used as `INITIATOR_ID` and `SESSION_ID` when communicating with AiXp nodes, by default 'pySDK'
     config : dict, optional
         Configures the names of the channels this session will connect to.
-        If the server is of type Mqtt, these channels are in fact topics.
+        If using a Mqtt server, these channels are in fact topics.
         Modify this if you are absolutely certain of what you are doing.
         By default {}
     log : Logger, optional
@@ -90,7 +90,7 @@ class GenericSession(object):
     on_heartbeat : Callable[[Session, dict], None], optional
         Callback that handles heartbeats received from this network, by default None
     silent : bool, optional
-        This flag will disable debug logs, disable for a more verbose log, by default True
+        This flag will disable debug logs, set to 'False` for a more verbose log, by default True
     """
     if log is None:
       log = Logger()

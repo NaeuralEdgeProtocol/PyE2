@@ -84,7 +84,7 @@ class Pipeline(object):
     config : dict, optional
         This is the dictionary that contains the configuration of the acquisition source, by default {}
     silent : bool, optional
-        This flag will disable debug logs, disable for a more verbose log, by default True
+        This flag will disable debug logs, set to 'False` for a more verbose log, by default True
     on_notification : Callable[[Pipeline, dict], None], optional
         Callback that handles notifications received from this instance. 
         As arguments, it has a reference to this Pipeline object, along with the payload itself. 
