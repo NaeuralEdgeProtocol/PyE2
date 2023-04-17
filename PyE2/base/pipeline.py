@@ -64,30 +64,44 @@ class Pipeline(object):
 
     Parameters
     ----------
-    session : _type_
-        _description_
-    log : _type_
-        _description_
-    e2id : _type_
-        _description_
-    name : _type_
-        _description_
-    data_source : _type_
-        _description_
-    plugins : _type_
-        _description_
-    on_data : _type_
-        _description_
+    session : Session
+        The Session object which owns this pipeline. A pipeline must be attached to a Session beacause that is the only
+        way the `on_X` callbacks are called
+    log : Logger
+        A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
+        In the future, the documentation for the Logger base class will be available and developers will be able to use
+        custom-made Loggers. 
+    e2id : str
+        Name of the AiXpand node that will handle this pipeline.  
+    name : str
+        The name of this pipeline.
+    data_source : str
+        This is the name of the DCT plugin, which resembles the desired functionality of the acquisition.
+    plugins : List | None, optional
+        This is the list with manually configured business plugins that will be in the pipeline at creation time.
+        We recommend to leave this as `[]` or as `None` and use the API to create plugin instances. 
+    on_data : Callable[[Pipeline, str, str, dict], None]
+        Callback that handles messages received from this plugin. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself.
+        This callback acts as a default payload processor and will be called even if for a given instance
+        the user has defined a specific callback.
     config : dict, optional
-        _description_, by default {}
+        This is the dictionary that contains the configuration of the acquisition source, by default {}
     silent : bool, optional
-        _description_, by default True
-    on_notification : _type_, optional
-        _description_, by default None
+        This flag will disable debug logs, disable for a more verbose log, by default True
+    on_notification : Callable[[Pipeline, dict], None], optional
+        Callback that handles notifications received from this instance. 
+        As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+        This callback acts as a default payload processor and will be called even if for a given instance
+        the user has defined a specific callback.
+        This callback will be called when there are notifications related to the node itself, e.g. when the node runs
+        low on memory. 
+        Defaults to None.
     create_pipeline : bool
-        _description_, by default True
+        This is used internally to allow the user to create or attach to a pipeline, and then use the same
+        objects in the same way, by default True
     **kwargs : dict
-        _description_
+        The user can provide the configuration of the acquisition source directly as kwargs.
     """
     self.log = log
     self.session = session
