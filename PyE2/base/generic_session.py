@@ -384,7 +384,7 @@ class GenericSession(object):
 
     if not found:
       self.P("WARNING: could not find worker '{}' in {:.1f}s. The job may not have a valid active worker.".format(
-          self.e2id, tm() - _start
+          e2id, tm() - _start
       ), color='r')
     pipeline = Pipeline(
         self,
