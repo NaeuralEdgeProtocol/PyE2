@@ -79,16 +79,18 @@ class GenericSession(object):
         A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
         In the future, the documentation for the Logger base class will be available and developers will be able to use
         custom-made Loggers. 
-    on_notification : Callable[[Session, dict], None], optional
+    on_notification : Callable[[Session, str, dict], None], optional
         Callback that handles notifications received from this network. 
-        As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+        As arguments, it has a reference to this Session object, the node name and the notification payload. 
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
         This callback will be called when there are notifications related to the node itself, e.g. when the node runs
         low on memory. 
         Defaults to None.
-    on_heartbeat : Callable[[Session, dict], None], optional
-        Callback that handles heartbeats received from this network, by default None
+    on_heartbeat : Callable[[Session, str, dict], None], optional
+        Callback that handles heartbeats received from this network.
+        As arguments, it has a reference to this Session object, the node name and the heartbeat payload.
+        Defaults to None.
     silent : bool, optional
         This flag will disable debug logs, set to 'False` for a more verbose log, by default True
     """
@@ -174,7 +176,7 @@ class GenericSession(object):
 
     # call the custom callback, if defined
     if self.custom_on_heartbeat is not None:
-      self.custom_on_heartbeat(self, dict_msg)
+      self.custom_on_heartbeat(self, msg_eeid, dict_msg)
 
     return
 
@@ -191,7 +193,7 @@ class GenericSession(object):
 
     # call the custom callback, if defined
     if self.custom_on_notification is not None:
-      self.custom_on_notification(self, dict_msg)
+      self.custom_on_notification(self, msg_eeid, dict_msg)
 
     # call default action on notif
     # TODO: maybe print stuff
@@ -346,9 +348,9 @@ class GenericSession(object):
         Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
     data_source : str
         This is the name of the DCT plugin, which resembles the desired functionality of the acquisition.
-    on_data : Callable[[Pipeline, str, str, dict], None]
+    on_data : Callable[[Pipeline, dict], None]
         Callback that handles messages received from any plugin instance. 
-        As arguments, it has a reference to this Pipeline object, along with the payload itself.
+        As arguments, it has a reference to this Pipeline object, and the payload itself.
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
     plugins : list
