@@ -32,8 +32,8 @@ from ..base import GenericSession
 # TODO: implement send_command, send_payload,
 #       to be used by the Pipeline class
 class MqttSession(GenericSession):
-  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, log=None, on_notification=None, on_heartbeat=None, silent=False, **kwargs) -> None:
-    super(MqttSession, self).__init__(host=host, port=port, user=user, pwd=pwd, name=name, config=config,
+  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_notification=None, on_heartbeat=None, silent=False, **kwargs) -> None:
+    super(MqttSession, self).__init__(host=host, port=port, user=user, pwd=pwd, name=name, config=config, filter_workers=filter_workers,
                                       log=log, on_notification=on_notification, on_heartbeat=on_heartbeat, silent=silent, **kwargs)
 
     self._payload_messages = deque()

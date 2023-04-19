@@ -51,11 +51,11 @@ class GenericSession(object):
       "QOS": 0
   }
 
-  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, log=None, on_notification=None, on_heartbeat=None, silent=True, **kwargs) -> None:
+  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_notification=None, on_heartbeat=None, silent=True, **kwargs) -> None:
     """
-  A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
-  A Session manages `Pipelines` and handles all messages received from the communication server.
-  The Session handles all callbacks that are user-defined and passed as arguments in the API calls.  
+    A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
+    A Session manages `Pipelines` and handles all messages received from the communication server.
+    The Session handles all callbacks that are user-defined and passed as arguments in the API calls.  
 
     Parameters
     ----------
@@ -75,6 +75,9 @@ class GenericSession(object):
         If using a Mqtt server, these channels are in fact topics.
         Modify this if you are absolutely certain of what you are doing.
         By default {}
+    filter_workers: list, optional
+        If set, process the messages that come only from the nodes from this list. 
+        Defaults to None
     log : Logger, optional
         A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
         In the future, the documentation for the Logger base class will be available and developers will be able to use
@@ -107,6 +110,7 @@ class GenericSession(object):
     self.name = name
 
     self._online_boxes = {}
+    self.filter_workers = filter_workers
 
     self._fill_config(host, port, user, pwd, name)
 
@@ -159,8 +163,14 @@ class GenericSession(object):
       dict_msg = formatter.decode_output(dict_msg)
     return dict_msg
 
+  def _maybe_ignore_message(self, e2id):
+    return self.filter_workers is not None and e2id not in self.filter_workers
+
   def _on_heartbeat_default(self, dict_msg: dict):
     msg_eeid = dict_msg['EE_ID']
+    if self._maybe_ignore_message(msg_eeid):
+      return
+
     msg_active_configs = dict_msg['CONFIG_STREAMS']
 
     # default action
@@ -182,6 +192,9 @@ class GenericSession(object):
 
   def _on_notification_default(self, dict_msg: dict):
     msg_eeid = dict_msg['EE_ID']
+    if self._maybe_ignore_message(msg_eeid):
+      return
+
     msg_stream = dict_msg.get('STREAM_NAME', None)
     notification_type = dict_msg.get("NOTIFICATION_TYPE")
     notification = dict_msg.get("NOTIFICATION")
@@ -209,8 +222,11 @@ class GenericSession(object):
   #       also maybe strip the dict from useless info for the user of the sdk
   #       Add try-except + sleep
   def _on_payload_default(self, dict_msg: dict) -> None:
-    msg_stream = dict_msg.get('STREAM', None)
     msg_eeid = dict_msg['EE_ID']
+    if self._maybe_ignore_message(msg_eeid):
+      return
+
+    msg_stream = dict_msg.get('STREAM', None)
     msg_signature = dict_msg.get('SIGNATURE', '').upper()
     msg_instance = dict_msg.get('INSTANCE_ID', None)
     msg_data = dict_msg
