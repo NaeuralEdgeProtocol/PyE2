@@ -110,6 +110,8 @@ class GenericSession(object):
     self.name = name
 
     self._online_boxes = {}
+    self._last_seen_boxes = {}
+    self.online_timeout = 60
     self.filter_workers = filter_workers
 
     self._fill_config(host, port, user, pwd, name)
@@ -166,23 +168,24 @@ class GenericSession(object):
   def _maybe_ignore_message(self, e2id):
     return self.filter_workers is not None and e2id not in self.filter_workers
 
-  def _on_heartbeat_default(self, dict_msg: dict):
-    msg_eeid = dict_msg['EE_ID']
-    if self._maybe_ignore_message(msg_eeid):
-      return
+  def _track_online_node(self, e2id):
+    self._last_seen_boxes[e2id] = tm()
+    return
 
+  def _on_heartbeat_default(self, dict_msg: dict):
+    # extract relevant data from the message
+    msg_eeid = dict_msg['EE_ID']
     msg_active_configs = dict_msg['CONFIG_STREAMS']
 
     # default action
-    # TODO: print stuff
-    self.D("Received hb from: {}".format(msg_eeid))
+    self._track_online_node(msg_eeid)
     self._online_boxes[msg_eeid] = {
         config['NAME']: config for config in msg_active_configs}
 
-    # call the pipeline defined callbacks, if any
-    for pipeline, callback in self.heartbeat_pipeline_callbacks:
-      if msg_eeid == pipeline.e2id:
-        callback(pipeline, dict_msg)
+    if self._maybe_ignore_message(msg_eeid):
+      return
+
+    self.D("Received hb from: {}".format(msg_eeid))
 
     # call the custom callback, if defined
     if self.custom_on_heartbeat is not None:
@@ -191,13 +194,28 @@ class GenericSession(object):
     return
 
   def _on_notification_default(self, dict_msg: dict):
+    # extract relevant data from the message
     msg_eeid = dict_msg['EE_ID']
-    if self._maybe_ignore_message(msg_eeid):
-      return
-
     msg_stream = dict_msg.get('STREAM_NAME', None)
     notification_type = dict_msg.get("NOTIFICATION_TYPE")
     notification = dict_msg.get("NOTIFICATION")
+
+    # default action
+    self._track_online_node(msg_eeid)
+
+    if self._maybe_ignore_message(msg_eeid):
+      return
+
+    color = None
+    if notification_type != "NORMAL":
+      color = 'r'
+    self.D("Received notification {} from <{}/{}>: {}"
+           .format(
+              notification_type,
+              msg_eeid,
+              msg_stream,
+              notification),
+           color=color)
 
     # call the pipeline defined callbacks, if any
     for pipeline, callback in self.notification_pipeline_callbacks:
@@ -208,28 +226,23 @@ class GenericSession(object):
     if self.custom_on_notification is not None:
       self.custom_on_notification(self, msg_eeid, dict_msg)
 
-    # call default action on notif
-    # TODO: maybe print stuff
-    color = None
-    if notification_type != "NORMAL":
-      color = 'r'
-    self.D("Received notification {} from <{}/{}>: {}".format(notification_type,
-           msg_eeid, msg_stream, notification), color=color)
-
     return
 
   # TODO: maybe convert dict_msg to Payload object
   #       also maybe strip the dict from useless info for the user of the sdk
   #       Add try-except + sleep
   def _on_payload_default(self, dict_msg: dict) -> None:
+    # extract relevant data from the message
     msg_eeid = dict_msg['EE_ID']
-    if self._maybe_ignore_message(msg_eeid):
-      return
-
     msg_stream = dict_msg.get('STREAM', None)
     msg_signature = dict_msg.get('SIGNATURE', '').upper()
     msg_instance = dict_msg.get('INSTANCE_ID', None)
     msg_data = dict_msg
+
+    self._track_online_node(msg_eeid)
+
+    if self._maybe_ignore_message(msg_eeid):
+      return
 
     for pipeline, callback in self.payload_pipeline_callbacks:
       if msg_eeid == pipeline.e2id and msg_stream == pipeline.name:
@@ -455,7 +468,7 @@ class GenericSession(object):
         List of names of all the AiXp nodes that are considered online
 
     """
-    return list(self._online_boxes.keys())
+    return [k for k, v in self._last_seen_boxes.items() if tm() - v > self.online_timeout]
 
   def get_active_pipelines(self, e2id):
     """
@@ -472,7 +485,7 @@ class GenericSession(object):
         The key is the name of the pipeline, and the value is the entire config dictionary of that pipeline.
 
     """
-    return self._online_boxes.get(e2id, None)
+    return self._online_boxes.get(e2id, None) if e2id in self.get_active_nodes() else None
 
   def attach_to_pipeline(self, e2id, pipeline_name, on_data, on_notification=None, max_wait_time=0, **kwargs) -> Pipeline:
     """
@@ -541,7 +554,7 @@ class GenericSession(object):
         break
       sleep(0.1)
 
-    if e2id not in self._online_boxes:
+    if e2id not in self.get_active_nodes():
       raise Exception("Unable to attach to pipeline. Node does not exist")
 
     if pipeline_name not in self._online_boxes[e2id]:
