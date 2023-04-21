@@ -469,7 +469,7 @@ class GenericSession(object):
         List of names of all the AiXp nodes that are considered online
 
     """
-    return [k for k, v in self._last_seen_boxes.items() if tm() - v > self.online_timeout]
+    return [k for k, v in self._last_seen_boxes.items() if tm() - v < self.online_timeout]
 
   def get_active_pipelines(self, e2id):
     """
