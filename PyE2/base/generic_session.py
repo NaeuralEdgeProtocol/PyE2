@@ -377,9 +377,10 @@ class GenericSession(object):
         Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
     data_source : str
         This is the name of the DCT plugin, which resembles the desired functionality of the acquisition.
-    on_data : Callable[[Pipeline, dict], None]
+    on_data : Callable[[Pipeline, str, str, dict], None]
         Callback that handles messages received from any plugin instance. 
-        As arguments, it has a reference to this Pipeline object, and the payload itself.
+        As arguments, it has a reference to this Pipeline object, the signature and the instance of the plugin
+        that sent the message and the payload itself.
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
     plugins : list
@@ -520,7 +521,8 @@ class GenericSession(object):
         Name of the existing pipeline.
     on_data : Callable[[Pipeline, str, str, dict], None]
         Callback that handles messages received from any plugin instance. 
-        As arguments, it has a reference to this Pipeline object, along with the payload itself.
+        As arguments, it has a reference to this Pipeline object, the signature and the instance of the plugin
+        that sent the message and the payload itself.
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
     on_notification : Callable[[Pipeline, dict], None], optional
