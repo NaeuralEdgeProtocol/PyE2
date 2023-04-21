@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "pika", "paho-mqtt"]
+requires = ["hatchling", "pika", "paho-mqtt", "Pillow", "numpy"]
 build-backend = "hatchling.build"
 
 [project]

@@ -220,11 +220,11 @@ class GenericSession(object):
     # call the pipeline defined callbacks, if any
     for pipeline, callback in self.notification_pipeline_callbacks:
       if msg_eeid == pipeline.e2id and msg_stream == pipeline.name:
-        callback(pipeline, dict_msg)
+        callback(pipeline, Payload(dict_msg))
 
     # call the custom callback, if defined
     if self.custom_on_notification is not None:
-      self.custom_on_notification(self, msg_eeid, dict_msg)
+      self.custom_on_notification(self, msg_eeid, Payload(dict_msg))
 
     return
 
@@ -246,11 +246,11 @@ class GenericSession(object):
 
     for pipeline, callback in self.payload_pipeline_callbacks:
       if msg_eeid == pipeline.e2id and msg_stream == pipeline.name:
-        callback(pipeline, msg_signature, msg_instance, msg_data)
+        callback(pipeline, msg_signature, msg_instance, Payload(msg_data))
 
     for pipeline, signature, instance, callback in self.payload_instance_callbacks:
       if msg_eeid == pipeline.e2id and msg_stream == pipeline.name and msg_signature == signature and msg_instance == instance:
-        callback(pipeline, msg_data)
+        callback(pipeline, Payload(msg_data))
     return
 
   def _send_command_to_box(self, command, worker, payload):

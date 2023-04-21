@@ -1,2 +1,4 @@
 pika
 paho-mqtt
+Pillow
+numpy
