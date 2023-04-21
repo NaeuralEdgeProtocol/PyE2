@@ -552,7 +552,7 @@ class GenericSession(object):
     _start = tm()
     while (tm() - _start) < max_wait_time:
       avail_workers = self.get_active_nodes()
-      if e2id in avail_workers:
+      if e2id in avail_workers and e2id in self._online_boxes:
         break
       sleep(0.1)
 
