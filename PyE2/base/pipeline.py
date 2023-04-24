@@ -19,6 +19,7 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 @description:
 """
 from time import time
+from .payload import Payload
 from ..utils.code_exec import code_to_base64
 
 
@@ -345,7 +346,7 @@ class Pipeline(object):
         self.P("Error received from <CUSTOM_EXEC_01:{}>: {}".format(
             instance_id, exec_error), color="r")
       if exec_data is not None:
-        on_data(self, exec_data)
+        on_data(self, Payload(exec_data))
       return
 
     if plain_code is None and plain_code_path is None:
