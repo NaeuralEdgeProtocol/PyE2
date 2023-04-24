@@ -44,7 +44,7 @@ class IOFormatterManager(_PluginsManagerMixin):
 
     if _class_def is None:
       msg = "Error loading io_formatter plugin '{}'".format(name)
-      self.P(msg, color='r')
+      self.D(msg, color='r')
       # self._create_notification(
       #     notif=ct.STATUS_TYPE.STATUS_EXCEPTION,
       #     msg=msg,
@@ -65,7 +65,7 @@ class IOFormatterManager(_PluginsManagerMixin):
     return formatter
 
   def _create_formatter(self, name):
-    self.P("Creating formatter '{}'".format(name))
+    self.D("Creating formatter '{}'".format(name))
     _cls = self._get_plugin_class(name)
 
     try:
@@ -73,7 +73,7 @@ class IOFormatterManager(_PluginsManagerMixin):
     except Exception as exc:
       msg = "Exception '{}' when initializing io_formatter plugin {}".format(
           exc, name)
-      self.P(msg, color='r')
+      self.D(msg, color='r')
       # self._create_notification(
       #     notif=ct.STATUS_TYPE.STATUS_EXCEPTION,
       #     msg=msg,
@@ -83,7 +83,7 @@ class IOFormatterManager(_PluginsManagerMixin):
     # end try-except
 
     self._dct_formatters[name] = formatter
-    self.P("Successfully created IO formatter {}.".format(name))
+    self.D("Successfully created IO formatter {}.".format(name))
     return formatter
 
   def _get_formatter_name_from_payload(self, msg):
@@ -99,12 +99,15 @@ class IOFormatterManager(_PluginsManagerMixin):
             payload.get(ct.PAYLOAD_DATA.INITIATOR_ID),
             payload.get(ct.PAYLOAD_DATA.SESSION_ID)
         )
-        self.P(msg)
+        self.D(msg)
         if False:
           # debug log the payload in question
-          self.P(self.log.dict_pretty_format(payload))
+          self.D(self.log.dict_pretty_format(payload))
       formatter = self.get_formatter_by_name(name)
     return formatter
 
-  def P(self, *args, **kwargs):
+  def D(self, *args, **kwargs):
     return self.log.D(*args, **kwargs)
+
+  def P(self, *args, **kwargs):
+    return self.log.P(*args, **kwargs)
