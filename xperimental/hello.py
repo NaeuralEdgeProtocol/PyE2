@@ -8,8 +8,8 @@ from PyE2 import Session
 load_dotenv()
 
 
-def on_hb(session, data):
-  session.P("{} has a {}".format(data['EE_ID'], data['CPU']))
+def on_hb(session: Session, e2id: str, data: dict):
+  session.P("{} has a {}".format(e2id, data['CPU']))
   return
 
 

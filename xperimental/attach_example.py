@@ -29,37 +29,36 @@ from dotenv import load_dotenv
 from PyE2 import Payload, Pipeline, Session
 
 load_dotenv()
-print(os.environ['PYTHONPATH'].split(os.pathsep))
 
 boxes = {}
 
 
-def instance_on_data(pipeline, data: Payload):
+def instance_on_data(pipeline: Pipeline, data: Payload):
   global boxes
   data['INSTANCES'].sort()
   boxes[data['BOX']] = (data['INSTANCES'], time())
   return
 
 
-def instance_on_data2(pipeline, data: Payload):
+def instance_on_data2(pipeline: Pipeline, data: Payload):
   return
 
 
-def pipeline_on_data(pipeline, signature, instance, data: Payload):
+def pipeline_on_data(pipeline: Pipeline, signature: str, instance_id: str, data: Payload):
   pass
 
 
-def pipeline_on_notification(pipeline, notification):
+def pipeline_on_notification(pipeline: Pipeline, notification: dict):
   pipeline.P(
       "Received specific notification for pipeline {}".format(pipeline.name))
   return
 
 
 dct_server = {
-    'host': os.getenv('PYE2_HOSTNAME'),
-    'port': int(os.getenv('PYE2_PORT')),
-    'user': os.getenv('PYE2_USERNAME'),
-    'pwd': os.getenv('PYE2_PASSWORD')
+  'host': os.getenv('PYE2_HOSTNAME'),
+  'port': int(os.getenv('PYE2_PORT')),
+  'user': os.getenv('PYE2_USERNAME'),
+  'pwd': os.getenv('PYE2_PASSWORD')
 }
 
 e2id = 'e2id'
@@ -70,36 +69,15 @@ listener_params = {k.upper(): v for k, v in dct_server.items()}
 listener_params["PASS"] = listener_params["PWD"]
 listener_params["TOPIC"] = "lummetry/ctrl"
 
-while e2id not in sess.get_active_nodes():
-  print("Waiting..")
-  sleep(1)
-pipeline = sess.attach_to_pipeline(e2id, 'test_mqtt', on_data=pipeline_on_data,
-                                   on_notification=pipeline_on_notification)
-# sess.create_pipeline(
-#     e2id=e2id,
-#     name='test_mqtt',
-#     data_source='IotQueueListener',
-#     config={
-#         'STREAM_CONFIG_METADATA': listener_params,
-#         "RECONNECTABLE": True,
-#     },
-#     plugins=None,
-#     on_data=pipeline_on_data,
-#     on_notification=pipeline_on_notification
-# )
+pipeline = sess.attach_to_pipeline(
+  e2id=e2id,
+  pipeline_name='test_mqtt',
+  on_data=pipeline_on_data,
+  on_notification=pipeline_on_notification,
+  max_wait_time=60)
 
-# now start a ciclic process
+# now start a cyclic process
 inst = pipeline.attach_to_custom_instance('inst01', on_data=instance_on_data)
-# pipeline.start_custom_plugin(
-#     instance_id='inst01',
-#     # plain_code_path="./custom_exec_scripts/custom_exec_tutorial.txt", # you can provide it as a file
-#     plain_code=custom_worker_code,
-#     params={},
-#     on_data=instance_on_data,
-#     # working_hours=
-#     process_delay=2
-#     # on_notification=instance_on_notification # TODO
-# )
 
 
 def generate_net_map():
@@ -114,7 +92,7 @@ def generate_net_map():
 
       (o_pipeline, o_signature) = (None, None)
       if i != 0:
-        (o_pipeline, o_signature, _) = instances[i-1]
+        (o_pipeline, o_signature, _) = instances[i - 1]
 
       same_pipeline = pipeline == o_pipeline
       same_signature = signature == o_signature
@@ -139,6 +117,4 @@ except KeyboardInterrupt:
 
 
 pipeline.close()
-# # pipeline2.close()
-# # now close conn to comm server
 sess.close()

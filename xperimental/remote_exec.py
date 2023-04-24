@@ -62,25 +62,31 @@ if payload is not None:
 """
 
 
-def instance_on_data(pipeline, data: Payload):
+def instance_on_data(pipeline: Pipeline, data: Payload):
   global boxes
   data['INSTANCES'].sort()
   boxes[data['BOX']] = (data['INSTANCES'], time())
   return
 
 
-def instance_on_data2(pipeline, data: Payload):
+def instance_on_data2(pipeline: Pipeline, data: Payload):
   return
 
 
-def pipeline_on_data(pipeline, signature, instance, data: Payload):
+def pipeline_on_data(pipeline: Pipeline, signature: str, instance: str, data: Payload):
   pass
 
 
-def pipeline_on_notification(pipeline, notification):
+def pipeline_on_notification(pipeline, notification: dict):
   pipeline.P(
       "Received specific notification for pipeline {}".format(pipeline.name))
   return
+
+
+def sess_on_hb(sess, e2id, hb):
+  act_plug = hb['ACTIVE_PLUGINS']
+  for plug in act_plug:
+    sess.P((e2id, plug['STREAM_ID'], plug['SIGNATURE'], plug['INSTANCE_ID']))
 
 
 dct_server = {
@@ -91,7 +97,7 @@ dct_server = {
 }
 
 e2id = 'e2id'
-sess = Session(**dct_server)
+sess = Session(**dct_server, on_heartbeat=sess_on_hb)
 sess.connect()
 
 listener_params = {k.upper(): v for k, v in dct_server.items()}
@@ -136,7 +142,7 @@ def generate_net_map():
 
       (o_pipeline, o_signature) = (None, None)
       if i != 0:
-        (o_pipeline, o_signature, _) = instances[i-1]
+        (o_pipeline, o_signature, _) = instances[i - 1]
 
       same_pipeline = pipeline == o_pipeline
       same_signature = signature == o_signature
@@ -155,7 +161,7 @@ try:
   while True:
     sleep(10)
 
-    pipeline.P(generate_net_map(), color='m')
+    # pipeline.P(generate_net_map(), color='m')
 except KeyboardInterrupt:
   pipeline.P("CTRL+C detected. Closing example..", color='r')
 

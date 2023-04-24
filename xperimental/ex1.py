@@ -83,7 +83,7 @@ if __name__ == '__main__':
       on_data=pipeline_on_data
   )
 
-  # now we start a perimeter intrustion functionality for low-res cameras with all
+  # now we start a perimeter intrusion functionality for low-res cameras with all
   # the other params default
   pipeline.start_plugin_instance(  # should return an id
       signature='PERIMETER_VIOLATION_01',
@@ -94,10 +94,14 @@ if __name__ == '__main__':
       on_data=instance_on_data  # default None
   )
 
-  # now start a ciclic process
+  plain_code = """
+result="Data on node"
+  """
+
+  # now start a cyclic process
   instance = pipeline.start_custom_plugin(
       instance_id='inst01',
-      plain_code_path="c:\\Users\\Stefan.saraev\\SolisBox\\core\\xperimental\\pye2sdk\\custom_exec_scripts\\custom_exec_example.txt",
+      plain_code=plain_code,
       params={},
       on_data=another_instance_on_data
   )

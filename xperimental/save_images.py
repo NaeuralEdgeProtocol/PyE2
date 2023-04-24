@@ -4,20 +4,19 @@ from time import sleep
 
 from dotenv import load_dotenv
 
-print("before_import")
-print("after_import")
+from PyE2 import Payload, Pipeline, Session
 
 load_dotenv()
 
 
-def on_data(pipeline, plugin, instance, payload):
+def on_data(pipeline: Pipeline, plugin: str, instance: str, payload: Payload):
   return
 
 
 val = 0
 
 
-def instance_on_data(pipeline, payload: Payload):
+def instance_on_data(pipeline: Pipeline, payload: Payload):
   global val
   payload.get_image_as_PIL().save("images/img_{}.jpeg".format(val))
   val += 1
@@ -37,8 +36,11 @@ if __name__ == '__main__':
   pipeline = sess.create_pipeline(
     e2id="e2id",
     name="test",
-    data_source="VideoStream",
-    config={"URL": 0},
+    data_source="VideoFile",
+    config={
+      "URL": "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "LIVE": False,
+    },
     on_data=on_data,
   )
 
@@ -46,11 +48,10 @@ if __name__ == '__main__':
     signature="OBJECT_TRACKING_01",
     instance_id="Demo1",
     params={
-      "DEMO_MODE": True,
       "OBJECT_TYPE": ["person"]
     },
     on_data=instance_on_data,
   )
 
-  sess.run(wait=60, close_pipelines=True)
+  sess.run(wait=120, close_pipelines=True)
   sess.P("Main thread exiting...")
