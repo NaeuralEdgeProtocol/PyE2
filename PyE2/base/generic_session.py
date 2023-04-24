@@ -98,11 +98,9 @@ class GenericSession(object):
         This flag will disable debug logs, set to 'False` for a more verbose log, by default True
     """
     if log is None:
-      log = Logger()
+      log = Logger(silent=silent)
 
     super(GenericSession, self).__init__()
-
-    self.silent = silent
 
     # maybe read config from file?
     self._config = {**self.default_config, **config}
@@ -319,7 +317,7 @@ class GenericSession(object):
 
   def D(self, *args, **kwargs):
     """
-    Call the `Logger.P` method if the session was created with the silent argument set to `False`.
+    Call the `Logger.D` method.
     If using the default Logger, this call will print debug info to stdout if `silent` is set to `False`.
 
     Parameters
@@ -337,8 +335,7 @@ class GenericSession(object):
     -------
 
     """
-    if not self.silent:
-      self.log.P(*args, **kwargs)
+    self.log.D(*args, **kwargs)
     return
 
   def connect(self) -> None:
@@ -428,7 +425,6 @@ class GenericSession(object):
         plugins=plugins,
         on_data=on_data,
         on_notification=on_notification,
-        silent=self.silent,
         **kwargs
     )
     self.own_pipelines.append(pipeline)
@@ -565,7 +561,7 @@ class GenericSession(object):
     pipeline_config = {
         k.lower(): v for k, v in self._online_boxes[e2id][pipeline_name].items()}
     data_source = pipeline_config['type']
-    return Pipeline(self, self.log, e2id=e2id, config={}, data_source=data_source, create_pipeline=False, silent=self.silent, on_data=on_data, on_notification=on_notification, **pipeline_config, **kwargs)
+    return Pipeline(self, self.log, e2id=e2id, config={}, data_source=data_source, create_pipeline=False, on_data=on_data, on_notification=on_notification, **pipeline_config, **kwargs)
 
   def run(self, wait=True, close_session=True, close_pipelines=False):
     """

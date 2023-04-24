@@ -42,7 +42,7 @@ class Pipeline(object):
     `Plugin` == `Signature`
   """
 
-  def __init__(self, session, log, *, e2id, name, data_source, config={}, plugins, on_data, silent=True, on_notification=None, **kwargs) -> None:
+  def __init__(self, session, log, *, e2id, name, data_source, config={}, plugins, on_data, on_notification=None, **kwargs) -> None:
     """
     A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
@@ -83,8 +83,6 @@ class Pipeline(object):
         the user has defined a specific callback.
     config : dict, optional
         This is the dictionary that contains the configuration of the acquisition source, by default {}
-    silent : bool, optional
-        This flag will disable debug logs, set to 'False` for a more verbose log, by default True
     on_notification : Callable[[Pipeline, dict], None], optional
         Callback that handles notifications received from this instance. 
         As arguments, it has a reference to this Pipeline object, along with the payload itself. 
@@ -108,8 +106,6 @@ class Pipeline(object):
     self.on_notification = on_notification
 
     self.payload = {}
-
-    self.silent = silent
 
     self._create_new_pipeline_on_box(**kwargs)
     return
@@ -486,11 +482,12 @@ class Pipeline(object):
 
   def D(self, *args, **kwargs):
     """
-    Print debug info to stdout if the session was created with the silent argument set to `False`. 
-    The silent argument is passed to the Pipeline object when creating it with `create_pipeline` or `attach_to_pipeline`.
+    Call the `Logger.D` method.
+    If using the default Logger, this call will print debug info to stdout if `silent` is set to `False`.
+    The logger object is passed from the Session object to the Pipeline object when creating
+    it with `create_pipeline` or `attach_to_pipeline`.
     """
-    if not self.silent:
-      return self.log.P(*args, **kwargs)
+    return self.log.D(*args, **kwargs)
 
   def attach_to_instance(self, signature, instance_id, on_data, on_notification=None):
     """

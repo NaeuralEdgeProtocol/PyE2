@@ -7,14 +7,19 @@ from time import time as tm
 
 
 class Logger():
-  def __init__(self, **kwargs) -> None:
+  def __init__(self, silent=False, **kwargs) -> None:
     self.print_lock = Lock()
+    self.silent = silent
     return
 
   def P(self, msg, **kwargs):
     with self.print_lock:
       print(msg, flush=True)
     return
+
+  def D(self, msg, **kwargs):
+    if not self.silent:
+      self.P(msg, **kwargs)
 
   def get_unique_id(self, size=8):
     """

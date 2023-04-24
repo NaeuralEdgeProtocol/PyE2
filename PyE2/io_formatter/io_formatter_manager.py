@@ -107,4 +107,4 @@ class IOFormatterManager(_PluginsManagerMixin):
     return formatter
 
   def P(self, *args, **kwargs):
-    return self.log.P(*args, **kwargs)
+    return self.log.D(*args, **kwargs)
