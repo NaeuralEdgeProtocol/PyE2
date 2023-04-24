@@ -1,4 +1,3 @@
-from PyE2 import Session, Payload
 import os
 from time import sleep
 
