@@ -51,7 +51,7 @@ class GenericSession(object):
       "QOS": 0
   }
 
-  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_notification=None, on_heartbeat=None, silent=True, **kwargs) -> None:
+  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, **kwargs) -> None:
     """
     A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
     A Session manages `Pipelines` and handles all messages received from the communication server.
@@ -114,6 +114,7 @@ class GenericSession(object):
 
     self._fill_config(host, port, user, pwd, name)
 
+    self.custom_on_payload = on_payload
     self.custom_on_heartbeat = on_heartbeat
     self.custom_on_notification = on_notification
 
@@ -249,6 +250,10 @@ class GenericSession(object):
     for pipeline, signature, instance, callback in self.payload_instance_callbacks:
       if msg_eeid == pipeline.e2id and msg_stream == pipeline.name and msg_signature == signature and msg_instance == instance:
         callback(pipeline, Payload(msg_data))
+
+    if self.custom_on_payload is not None:
+      self.custom_on_payload(self, msg_eeid, msg_signature, msg_instance, Payload(msg_data))
+
     return
 
   def _send_command_to_box(self, command, worker, payload):

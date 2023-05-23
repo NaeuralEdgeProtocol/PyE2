@@ -41,13 +41,13 @@ class _PluginsManagerMixin:
     name = self.log.camel_to_snake(name)
     for loc in lst_plugins_locations:
       candidate = loc + '.' + name
-      self.P("    Trying '{}'".format(candidate))
+      self.D("    Trying '{}'".format(candidate))
       try:
         found = importlib.util.find_spec(candidate)
         if found is not None:
           return candidate
       except:
-        self.P("      Invalid package: '{}'".format(candidate))
+        self.D("      Invalid package: '{}'".format(candidate))
     return
 
   def _get_module_name_and_class(self,
@@ -96,7 +96,7 @@ class _PluginsManagerMixin:
         self.P("Error with finding plugin '{}' in locations '{}'".format(simple_name, locations), color='r')
       return _module_name, _class_name, _cls_def, _config_dict
 
-    self.P("  Found {} plugin '{}'".format(
+    self.D("  Found {} plugin '{}'".format(
         'safe' if is_safe_plugin else 'user', name),
         color='g' if is_safe_plugin else 'm'
     )
@@ -127,7 +127,7 @@ class _PluginsManagerMixin:
         _config_dict = _config_dict_from_file
 
       _found_location = ".".join(_module_name.split('.')[:-1])
-      self.P("  Plugin '{}' loaded and code checked from {}".format(name, _found_location), color='g')
+      self.D("  Plugin '{}' loaded and code checked from {}".format(name, _found_location), color='g')
     except:
       str_err = traceback.format_exc()
       msg = "Error preparing {} with module {}:\n{}".format(
