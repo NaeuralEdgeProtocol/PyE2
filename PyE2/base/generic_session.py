@@ -82,7 +82,7 @@ class GenericSession(object):
         A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
         In the future, the documentation for the Logger base class will be available and developers will be able to use
         custom-made Loggers. 
-    on_payload : Callable[[Session, str, str, str, dict], None], optional
+    on_payload : Callable[[Session, str, str, str, str, dict], None], optional
         Callback that handles all payloads received from this network.
         As arguments, it has a reference to this Session object, the node name, the pipeline, signature and instance, and the payload. 
         This callback acts as a default payload processor and will be called even if for a given instance
@@ -238,7 +238,7 @@ class GenericSession(object):
   def _on_payload_default(self, dict_msg: dict) -> None:
     # extract relevant data from the message
     msg_eeid = dict_msg['EE_ID']
-    msg_stream = dict_msg.get('STREAM', None)
+    msg_pipeline = dict_msg.get('STREAM', None)
     msg_signature = dict_msg.get('SIGNATURE', '').upper()
     msg_instance = dict_msg.get('INSTANCE_ID', None)
     msg_data = dict_msg
@@ -249,15 +249,15 @@ class GenericSession(object):
       return
 
     for pipeline, callback in self.payload_pipeline_callbacks:
-      if msg_eeid == pipeline.e2id and msg_stream == pipeline.name:
+      if msg_eeid == pipeline.e2id and msg_pipeline == pipeline.name:
         callback(pipeline, msg_signature, msg_instance, Payload(msg_data))
 
     for pipeline, signature, instance, callback in self.payload_instance_callbacks:
-      if msg_eeid == pipeline.e2id and msg_stream == pipeline.name and msg_signature == signature and msg_instance == instance:
+      if msg_eeid == pipeline.e2id and msg_pipeline == pipeline.name and msg_signature == signature and msg_instance == instance:
         callback(pipeline, Payload(msg_data))
 
     if self.custom_on_payload is not None:
-      self.custom_on_payload(self, msg_eeid, msg_signature, msg_instance, Payload(msg_data))
+      self.custom_on_payload(self, msg_eeid, msg_pipeline, msg_signature, msg_instance, Payload(msg_data))
 
     return
 
