@@ -82,6 +82,11 @@ class GenericSession(object):
         A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
         In the future, the documentation for the Logger base class will be available and developers will be able to use
         custom-made Loggers. 
+    on_payload : Callable[[Session, str, str, str, dict], None], optional
+        Callback that handles all payloads received from this network.
+        As arguments, it has a reference to this Session object, the node name, the pipeline, signature and instance, and the payload. 
+        This callback acts as a default payload processor and will be called even if for a given instance
+        the user has defined a specific callback.
     on_notification : Callable[[Session, str, dict], None], optional
         Callback that handles notifications received from this network. 
         As arguments, it has a reference to this Session object, the node name and the notification payload. 
