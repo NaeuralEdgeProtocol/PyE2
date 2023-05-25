@@ -19,8 +19,11 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 @description:
 """
 
+import json
 from time import sleep
 from time import time as tm
+
+from ..utils.code import CodeUtils
 
 from ..const import comms as comm_ct
 from ..io_formatter import IOFormatterManager
@@ -179,6 +182,12 @@ class GenericSession(object):
   def _on_heartbeat_default(self, dict_msg: dict):
     # extract relevant data from the message
     msg_eeid = dict_msg['EE_ID']
+
+    if dict_msg.get("HEARTBEAT_VERSION") == "v2":
+      str_data = CodeUtils().decompress_text(dict_msg["ENCODED_DATA"])
+      data = json.loads(str_data)
+      dict_msg = {**dict_msg, **data}
+
     msg_active_configs = dict_msg['CONFIG_STREAMS']
 
     # default action

@@ -209,8 +209,11 @@ class MQTTWrapper(object):
     if self._custom_on_message is not None:
       self._custom_on_message(client, userdata, message)
     else:
-      msg = message.payload.decode('utf-8')
-      self._recv_buff.append(msg)
+      try:
+        msg = message.payload.decode('utf-8')
+        self._recv_buff.append(msg)
+      except Exception as e:
+        self.P(e)
     # now call the "post-process" callback
     if self._post_default_on_message is not None:
       self._post_default_on_message()
@@ -249,7 +252,7 @@ class MQTTWrapper(object):
 
         sleep_time = 0.01
         max_sleep = 2
-        for sleep_iter in range(1, int(max_sleep/sleep_time) + 1):
+        for sleep_iter in range(1, int(max_sleep / sleep_time) + 1):
           sleep(sleep_time)
           if self.connected:
             break

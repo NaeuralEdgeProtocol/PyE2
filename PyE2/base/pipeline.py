@@ -20,7 +20,7 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 """
 from time import time
 from .payload import Payload
-from ..utils.code_exec import code_to_base64
+from ..utils.code import CodeUtils
 
 
 WAIT_FOR_WORKER = 15
@@ -361,7 +361,7 @@ class Pipeline(object):
       with open(plain_code_path, "r") as fd:
         plain_code = "".join(fd.readlines())
 
-    b64code = code_to_base64(plain_code)
+    b64code = CodeUtils().code_to_base64(plain_code)
     return self.start_plugin_instance(
         signature='CUSTOM_EXEC_01',
         instance_id=instance_id,
@@ -438,7 +438,7 @@ class Pipeline(object):
         finished = True
       return
 
-    b64code = code_to_base64(plain_code)
+    b64code = CodeUtils().code_to_base64(plain_code)
     instance_id = self.name + "_rest_custom_exec_synchronous_0"
     params = {
         'REQUEST': {

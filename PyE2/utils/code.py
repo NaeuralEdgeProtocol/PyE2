@@ -26,6 +26,11 @@ class CodeUtils:
   as a mixin for running code
   """
 
+  def __new__(cls):
+    if not hasattr(cls, 'instance'):
+      cls.instance = super(CodeUtils, cls).__new__(cls)
+    return cls.instance
+
   def __init__(self):
     super(CodeUtils, self).__init__()
     return
@@ -55,3 +60,33 @@ class CodeUtils:
         l_i, l_c, l_b64), color='g'
     )
     return str_encoded
+
+  def compress_bytes(self, data):
+    if not isinstance(data, bytes):
+      data = bytes(str(data), 'utf-8')
+    zip_data = zlib.compress(data)
+    return zip_data
+
+  def decompress_bytes(self, zip_data):
+    if not isinstance(zip_data, bytes):
+      raise ValueError('`decompress_bytes` input must be bytes type')
+    data = zlib.decompress(zip_data)
+    return data
+
+  def compress_text(self, text):
+    b_text = bytes(text, 'utf-8')
+    b_code = zlib.compress(b_text, level=9)
+    b_encoded = base64.b64encode(b_code)
+    str_encoded = b_encoded.decode('utf-8')
+    return str_encoded
+
+  def decompress_text(self, b64text):
+    decoded = None
+    try:
+      b_decoded = base64.b64decode(b64text)
+      b_decoded = zlib.decompress(b_decoded)
+      s_decoded = b_decoded.decode('utf-8')
+      decoded = s_decoded
+    except:
+      pass
+    return decoded
