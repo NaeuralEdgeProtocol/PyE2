@@ -188,7 +188,9 @@ class GenericSession(object):
       data = json.loads(str_data)
       dict_msg = {**dict_msg, **data}
 
-    msg_active_configs = dict_msg['CONFIG_STREAMS']
+    msg_active_configs = dict_msg.get('CONFIG_STREAMS')
+    if msg_active_configs is None:
+      return
 
     # default action
     self._track_online_node(msg_eeid)

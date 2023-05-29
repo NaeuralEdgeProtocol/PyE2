@@ -339,6 +339,11 @@ if __name__ == '__main__':
 
 ## Change log
 
+### v0.4.5
+
+- Feature(heartbeats): support compressed heartbeat
+- Feature(Session): add optional callback for `on_payload` in Session
+
 ### v0.4.1
 
 - Documentation(README): updated this README with examples
