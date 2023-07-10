@@ -25,7 +25,7 @@ TODO:
 
 # PAHO
 
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 from select import select
 from time import sleep
@@ -56,10 +56,12 @@ class MQTTWrapper(object):
     self.disconnected = False
     self._send_to = None
     self._nr_full_retries = 0
+    self.__nr_dropped_messages = 0
     self._comm_type = comm_type
     self.send_channel_name = send_channel_name
     self.recv_channel_name = recv_channel_name
-    self._disconnected_log = OrderedDict()
+    self._disconnected_log = deque(maxlen=10)
+    self._disconnected_counter = 0
     self._custom_on_message = on_message
     self._post_default_on_message = post_default_on_message
 
@@ -68,15 +70,19 @@ class MQTTWrapper(object):
     if self.recv_channel_name is not None and on_message is None:
       assert self._recv_buff is not None
 
-    super(MQTTWrapper, self).__init__()
+    super(MQTTWrapper, self).__init__(**kwargs)
     return
 
   def P(self, s, color=None, **kwargs):
     if color is None or (isinstance(color, str) and color[0] not in ['e', 'r']):
       color = COLORS.COMM
     comtype = self._comm_type[:7] if self._comm_type is not None else 'CUSTOM'
-    self.log.P("[MQTWRP][{}] {}".format(comtype, s), prefix=False, color=color, **kwargs)
+    self.log.P("[MQTWRP][{}] {}".format(comtype, s), color=color, **kwargs)
     return
+
+  @property
+  def nr_dropped_messages(self):
+    return self.__nr_dropped_messages
 
   def D(self, s, t=False):
     _r = -1
@@ -190,13 +196,15 @@ class MQTTWrapper(object):
       self.P('Gracefull disconn (code={})'.format(rc), color='m')
     else:
       self.P("Unexpected disconn for client id '{}': '{}' (code={})".format(
-          self._mqttc._client_id, mqtt.error_string(rc), rc), color='r'
+        self._mqttc._client_id, mqtt.error_string(rc), rc), color='r'
       )
-    if len(self._disconnected_log) > 0:
-      self.P('  Multiple conn loss history: {}'.format(self._disconnected_log), color='r')
+    if self._disconnected_counter > 0:
+      self.P('  Multiple conn loss history: {} disconnects so far\n{}'.format(
+        self._disconnected_counter, '\n'.join([f"{x1}: {x2}" for x1, x2 in self._disconnected_log])), color='r')
     self.connected = False
     self.disconnected = True
-    self._disconnected_log[self.log.time_to_str()] = mqtt.error_string(rc)
+    self._disconnected_log.append((self.log.time_to_str(), mqtt.error_string(rc)))
+    self._disconnected_counter += 1
     # we need to stop the loop otherwise the client thread will keep working
     # so we call release->loop_stop
     self.release()
@@ -212,15 +220,18 @@ class MQTTWrapper(object):
       try:
         msg = message.payload.decode('utf-8')
         self._recv_buff.append(msg)
-      except Exception as e:
-        self.P(e)
+      except:
+        # DEBUG TODO: enable here a debug show of the message.payload if
+        # the number of dropped messages rises
+        # TODO: add also to ANY OTHER wrapper
+        self.__nr_dropped_messages += 1
     # now call the "post-process" callback
     if self._post_default_on_message is not None:
       self._post_default_on_message()
     return
 
   def get_connection_issues(self):
-    return self._disconnected_log
+    return {x1: x2 for x1, x2 in self._disconnected_log}
 
   def server_connect(self, max_retries=5):
     nr_retry = 1
@@ -232,13 +243,13 @@ class MQTTWrapper(object):
       try:
         client_uid = self.log.get_unique_id()
         self._mqttc = mqtt.Client(
-            client_id=self.cfg_eeid + '_' + client_uid,
-            clean_session=False
+          client_id=self.cfg_eeid + '_' + client_uid,
+          clean_session=False
         )
 
         self._mqttc.username_pw_set(
-            username=self.cfg_user,
-            password=self.cfg_pass
+          username=self.cfg_user,
+          password=self.cfg_pass
         )
 
         self._mqttc.on_connect = self._callback_on_connect
@@ -276,7 +287,7 @@ class MQTTWrapper(object):
 
     if has_connection:
       msg = "MQTT conn ok by '{}' in {:.1f}s - {}:{}".format(
-          self._thread_name, sleep_iter * sleep_time, self.cfg_host, self.cfg_port
+        self._thread_name, sleep_iter * sleep_time, self.cfg_host, self.cfg_port
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_NORMAL
       self._nr_full_retries = 0
@@ -287,7 +298,7 @@ class MQTTWrapper(object):
         reason = " max retries in {:.1f}s".format(sleep_iter * sleep_time)
       self._nr_full_retries += 1
       msg = 'MQTT (Paho) conn to {}:{} failed after {} retr ({} trials) (reason:{})'.format(
-          self.cfg_host, self.cfg_port, nr_retry, self._nr_full_retries, reason
+        self.cfg_host, self.cfg_port, nr_retry, self._nr_full_retries, reason
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_EXCEPTION
       self.P(msg, color='r')
@@ -295,9 +306,9 @@ class MQTTWrapper(object):
     # endif
 
     dct_ret = {
-        'has_connection': has_connection,
-        'msg': msg,
-        'msg_type': msg_type
+      'has_connection': has_connection,
+      'msg': msg,
+      'msg_type': msg_type
     }
 
     if self._mqttc is not None and not has_connection:
@@ -321,8 +332,8 @@ class MQTTWrapper(object):
     while nr_retry <= max_retries:
       try:
         self._mqttc.subscribe(
-            topic=topic,
-            qos=self.cfg_qos
+          topic=topic,
+          qos=self.cfg_qos
         )
         has_connection = True
       except Exception as e:
@@ -344,9 +355,9 @@ class MQTTWrapper(object):
     # endif
 
     dct_ret = {
-        'has_connection': has_connection,
-        'msg': msg,
-        'msg_type': msg_type
+      'has_connection': has_connection,
+      'msg': msg,
+      'msg_type': msg_type
     }
 
     return dct_ret
@@ -359,9 +370,9 @@ class MQTTWrapper(object):
       return
 
     result = self._mqttc.publish(
-        topic=self.send_channel_def[COMMS.TOPIC],
-        payload=message,
-        qos=self.cfg_qos
+      topic=self.send_channel_def[COMMS.TOPIC],
+      payload=message,
+      qos=self.cfg_qos
     )
 
     ####

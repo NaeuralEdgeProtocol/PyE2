@@ -188,15 +188,15 @@ class AMQPWrapper(object):
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_NORMAL
     else:
       msg = 'AMQP (Pika) SERVER connection could not be initialized after {} retries (reason:{})'.format(
-          max_retries, exception
+        max_retries, exception
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_EXCEPTION
     # endif
 
     dct_ret = {
-        'has_connection': has_connection,
-        'msg': msg,
-        'msg_type': msg_type
+      'has_connection': has_connection,
+      'msg': msg,
+      'msg_type': msg_type
     }
 
     return dct_ret
@@ -225,18 +225,18 @@ class AMQPWrapper(object):
     while nr_retry <= max_retries:
       try:
         self._channel.exchange_declare(
-            exchange=exchange,
-            exchange_type=exchange_type
+          exchange=exchange,
+          exchange_type=exchange_type
         )
         self._channel.queue_declare(
-            queue=queue,
-            durable=queue_durable,
-            exclusive=queue_exclusive
+          queue=queue,
+          durable=queue_durable,
+          exclusive=queue_exclusive
         )
         self._channel.queue_bind(
-            queue=queue,
-            exchange=exchange,
-            routing_key=self.cfg_routing_key
+          queue=queue,
+          exchange=exchange,
+          routing_key=self.cfg_routing_key
         )
 
         has_connection = True
@@ -253,12 +253,12 @@ class AMQPWrapper(object):
 
     if has_connection:
       msg = "AMQP (Pika) '{}' connection successfully established on exchange '{}', queue '{}'".format(
-          channel_name.lower(), exchange, queue,
+        channel_name.lower(), exchange, queue,
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_NORMAL
     else:
       msg = "AMQP (Pika) '{}' connection on exchange '{}', queue '{}' could not be initialized after {} retries (reason:{})".format(
-          channel_name.lower(), exchange, queue, max_retries, exception
+        channel_name.lower(), exchange, queue, max_retries, exception
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_EXCEPTION
     # endif
@@ -271,9 +271,9 @@ class AMQPWrapper(object):
     # endif
 
     dct_ret = {
-        'has_connection': has_connection,
-        'msg': msg,
-        'msg_type': msg_type
+      'has_connection': has_connection,
+      'msg': msg,
+      'msg_type': msg_type
     }
 
     return dct_ret
@@ -290,10 +290,10 @@ class AMQPWrapper(object):
   def send(self, message):
     properties = pika.BasicProperties(content_type='application/json')
     self._channel.basic_publish(
-        exchange=self.send_exchange,
-        routing_key=self.cfg_routing_key,
-        body=message,
-        properties=properties
+      exchange=self.send_exchange,
+      routing_key=self.cfg_routing_key,
+      body=message,
+      properties=properties
     )
 
     ####
@@ -308,9 +308,9 @@ class AMQPWrapper(object):
     if self.recv_queue is not None:
       try:
         self._channel.queue_unbind(
-            queue=self.recv_queue,
-            exchange=self.recv_exchange,
-            routing_key=self.cfg_routing_key,
+          queue=self.recv_queue,
+          exchange=self.recv_exchange,
+          routing_key=self.cfg_routing_key,
         )
 
         self._channel.queue_delete(queue=self.recv_queue)
@@ -340,7 +340,7 @@ class AMQPWrapper(object):
     # end try-except
 
     dct_ret = {
-        'msgs': msgs
+      'msgs': msgs
     }
 
     return dct_ret
