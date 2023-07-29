@@ -22,6 +22,7 @@ Copyright 2019-2023 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 
 class PLUGIN_SEARCH:
   LOC_IO_FORMATTER_PLUGINS = ['PyE2.PyE2.io_formatter.default',
+                              'pye2.PyE2.io_formatter.default',
                               'PyE2.io_formatter.default']  # maybe include 'io_formatter.default'
   SUFFIX_IO_FORMATTER_PLUGINS = 'Formatter'
   LOC_SAFE_FORMATTER_PLUGINS = []
