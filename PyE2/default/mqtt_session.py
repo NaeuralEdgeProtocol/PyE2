@@ -135,15 +135,27 @@ class MqttSession(GenericSession):
     dict_msg_parsed = self._parse_message(dict_msg)
     return self.on_heartbeat(dict_msg_parsed)
 
+  def maybe_reconnect(self):
+    if self._default_communicator.connection is None or not self.connected:
+      self._default_comm_con_res = self._default_communicator.server_connect()
+      self._default_comm_sub_res = self._default_communicator.subscribe()
+    if self._heartbeats_communicator.connection is None or not self.connected:
+      self._hb_comm_con_res = self._heartbeats_communicator.server_connect()
+      self._hb_comm_sub_res = self._heartbeats_communicator.subscribe()
+    if self._notifications_communicator.connection is None or not self.connected:
+      self._notif_comm_con_res = self._notifications_communicator.server_connect()
+      self._notif_comm_sub_res = self._notifications_communicator.subscribe()
+    self.connected = all([
+      self._default_comm_con_res['has_connection'],
+      self._default_comm_sub_res['has_connection'],
+      self._hb_comm_con_res['has_connection'],
+      self._hb_comm_sub_res['has_connection'],
+      self._notif_comm_con_res['has_connection'],
+      self._notif_comm_sub_res['has_connection'],
+    ])
+
   def connect(self) -> None:
-    self._default_communicator.server_connect()
-    self._default_communicator.subscribe()
-
-    self._heartbeats_communicator.server_connect()
-    self._heartbeats_communicator.subscribe()
-
-    self._notifications_communicator.server_connect()
-    self._notifications_communicator.subscribe()
+    self.maybe_reconnect()
 
     self._running = True
     self._payload_thread.setDaemon(True)
@@ -152,8 +164,6 @@ class MqttSession(GenericSession):
     self._notif_thread.start()
     self._hb_thread.setDaemon(True)
     self._hb_thread.start()
-
-    self.connected = True
 
     return
 

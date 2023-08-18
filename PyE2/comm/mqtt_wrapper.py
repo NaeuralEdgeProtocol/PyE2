@@ -31,7 +31,7 @@ from select import select
 from time import sleep
 
 import paho.mqtt.client as mqtt
-
+import traceback
 
 from ..const import COLORS, COMMS, BASE_CT, PAYLOAD_CT
 
@@ -257,7 +257,7 @@ class MQTTWrapper(object):
         self._mqttc.on_message = self._callback_on_message
         self._mqttc.on_publish = self._callback_on_publish
         # TODO: more verbose logging including when there is no actual exception
-        self._mqttc.connect(host=self.cfg_host, port=self.cfg_port)
+        self._mqttc.connect(host=self.cfg_host, port=self.cfg_port, keepalive=5)  # TODO: remove this after
 
         self._mqttc.loop_start()  # start loop in another thread
 
@@ -272,6 +272,9 @@ class MQTTWrapper(object):
         has_connection = self.connected
       except Exception as e:
         exception = e
+        self.P(e, color='r')
+        self.P(traceback.format_exc(), color='r')
+
       # end try-except
 
       if has_connection:
@@ -386,8 +389,8 @@ class MQTTWrapper(object):
 
   def release(self):
     try:
-      self._mqttc.loop_stop()  # stop the loop thread
       self._mqttc.disconnect()
+      self._mqttc.loop_stop()  # stop the loop thread
       del self._mqttc
       self._mqttc = None
       msg = 'MQTT (Paho) connection released.'

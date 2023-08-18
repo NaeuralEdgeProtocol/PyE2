@@ -365,6 +365,16 @@ class GenericSession(object):
     """
     raise NotImplementedError
 
+  def maybe_reconnect(self) -> None:
+    """
+    Attempt reconnecting to the communication server if an unexpected disconnection ocurred,
+    using the credentials provided when creating this instance.
+
+    This method should be called in a user-defined main loop.
+    This method is called in `run` method, in the main loop.
+    """
+    raise NotImplementedError
+
   def create_pipeline(self, *, e2id, name, data_source, config={}, plugins=[], on_data, on_notification=None, max_wait_time=0, **kwargs) -> Pipeline:
     """
     Create a new pipeline on a node. A pipeline is the equivalent of the "config file" used by the Hyperfy dev team internaly.
@@ -607,6 +617,7 @@ class GenericSession(object):
     _start_timer = tm()
     try:
       while (isinstance(wait, bool) and wait) or (tm() - _start_timer) < wait:
+        self.maybe_reconnect()
         sleep(0.1)
     except KeyboardInterrupt:
       self.P("CTRL+C detected. Stopping loop.", color='r')
