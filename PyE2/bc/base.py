@@ -53,6 +53,8 @@ class BCct:
   ERR_SIGN_MSG = "Bad signature"
   ERR_UNAVL = 1001
   
+  AUTHORISED_ADDRS = 'authorized_addrs'
+  
   
 class _DotDict(dict):
   __getattr__ = dict.__getitem__
@@ -244,12 +246,20 @@ class BaseBlockEngine:
     self._init()
     return
   
-  def P(self, s, color=None):
-    s = "<BC:{}> ".format(self.__name) + s
-    return self.log.P(s, color='g' if (color is None or color.lower() not in ['r', 'red', 'error']) else color)
+  def P(self, s, color=None, boxed=False, **kwargs):
+    if not boxed:
+      s = "<BC:{}> ".format(self.__name) + s
+    return self.log.P(
+      s, 
+      color='g' if (color is None or color.lower() not in ['r', 'red', 'error']) else color, 
+      boxed=boxed, 
+      **kwargs
+    )
      
 
   def _init(self):
+    self.P("Initializing Blockchain engine manager...", boxed=True, box_char='*')
+
     if True:
       self.P("Initializing private blockchain:\n{}".format(json.dumps(self.__config, indent=4)))
     if self.__pem_file is not None:
@@ -274,7 +284,8 @@ class BaseBlockEngine:
       )
     self.__public_key = self._get_pk(private_key=self.__private_key)
     self.__address = self._pk_to_address(self.__public_key)
-    self.P("Current address: {}".format(self.address))
+    self.P("Current address: {}.".format(self.address), boxed=True)
+    self.P("Allowed list of senders: {}".format(self.allowed_list))
     return
   
  
@@ -380,6 +391,29 @@ class BaseBlockEngine:
     
     """
     return private_key.public_key()
+  
+  
+  def _get_allowed_file(self):
+    """
+    Return the file path for the autorized addresses
+    """
+    folder = self.log.base_folder
+    path = os.path.join(folder, BCct.AUTHORISED_ADDRS)
+    return path  
+  
+  def _load_and_maybe_create_allowed(self):
+    fn = self._get_allowed_file()
+    lst_allowed = []
+    if os.path.isfile(fn):
+      with open(fn, 'rt') as fh:
+        lst_allowed = fh.readlines()
+    else:
+      self.P("WARNING: no `{}` file found. Creating empty one.".format(fn))
+      with open(fn, 'wt') as fh:
+        fh.write('\n')
+    lst_allowed = [x.strip() for x in lst_allowed]
+    return lst_allowed
+      
   
   
   def _pk_to_address(self, public_key):
@@ -508,14 +542,6 @@ class BaseBlockEngine:
     str_data = json.dumps(dct_data, sort_keys=True, cls=_NPJson, separators=(',',':'))
     return str_data
   
-  #############################################################################
-  #                                                                 
-  # TO BE IMPLEMENTED:
-  # + create new sk
-  # + verify
-  # + sign
-  #############################################################################
-  
   def _create_new_sk(self):
     """
     Simple wrapper to generated pk
@@ -580,7 +606,7 @@ class BaseBlockEngine:
     """
     raise NotImplementedError()  
     
-    
+      
   
   #############################################################################
   ####                                                                     ####
@@ -590,17 +616,40 @@ class BaseBlockEngine:
   
   @property
   def address(self):
+    """Returns the public address"""
     return self.__address
+  
+  @property
+  def allowed_list(self):
+    """Returns the allowed senders"""
+    return self._load_and_maybe_create_allowed()
     
   
   def dict_digest(self, dct_data):
+    """Generates the hash of a dict object given as parameter"""
     str_data = self._dict_to_json(dct_data)
     return self._compute_hash(str_data.encode())
   
   
   def save_sk(self, fn, password=None):
+    """
+    Saves the SK with or without password
+
+    Parameters
+    ----------
+    fn : str
+      SK file name.
+    password : str, optional
+      optional password. The default is None.
+
+    Returns
+    -------
+    fn : str
+      saved file name.
+
+    """
     self.P("Serializing the private key...")
-    sk = self._sk_to_text(
+    _ = self._sk_to_text(
       private_key=self.__private_key,
       password=password,
       fn=fn
@@ -653,7 +702,14 @@ class BaseBlockEngine:
     
   
   
-  def verify(self, dct_data: dict, signature: str=None, sender_address: str=None, return_full_info=True) -> bool:
+  def verify(
+      self, 
+      dct_data: dict, 
+      signature: str=None, 
+      sender_address: str=None, 
+      return_full_info=True,
+      verify_allowed=False,
+    ) -> bool:
     """
     Verifies the signature validity of a given text message
 
@@ -668,8 +724,11 @@ class BaseBlockEngine:
     sender_address : str, optional
       the text encoded public key. Extracted from dict if missing
       
-    return_full_info: bool
+    return_full_info: bool, optional
       if `True` will return more than `True/False` for signature verification
+      
+    verify_allowed: bool, optional
+      if true will also check if the address is allowed by calling `check_allowed`
 
     Returns
     -------
@@ -713,12 +772,26 @@ class BaseBlockEngine:
         verify_msg.message = str(exc)
         verify_msg.valid = False
     #endif check if signature failed already from digesting
-    
+
     verify_msg.sender = sender_address
+    
+    if verify_allowed and verify_msg.valid:
+      if not self.is_allowed(sender_address):
+        verify_msg.message = "Signature ok but address {} not in {}.".format(sender_address, BCct.AUTHORISED_ADDRS)
+        verify_msg.valid = False
+      #endif not allowed
+    #endif ok but authorization required
+    
     if return_full_info:
       result = verify_msg
     else:
       result = verify_msg.ok
     return result
+  
+  
+  def is_allowed(self, sender_address):
+    is_allowed = sender_address in self.allowed_list
+    return is_allowed
+      
   
   
