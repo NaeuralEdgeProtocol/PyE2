@@ -22,6 +22,9 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 import json
 from time import sleep
 from time import time as tm
+import traceback
+
+from ..bc import DefaultBlockEngine
 
 from ..utils.code import CodeUtils
 
@@ -54,7 +57,13 @@ class GenericSession(object):
       "QOS": 0
   }
 
-  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, **kwargs) -> None:
+  BLOCKCHAIN_CONFIG = {
+      "PEM_FILE": "e2.pem",
+      "PASSWORD": None,
+      "PEM_LOCATION": "data"
+  }
+
+  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, blockchain_config=BLOCKCHAIN_CONFIG, **kwargs) -> None:
     """
     A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
     A Session manages `Pipelines` and handles all messages received from the communication server.
@@ -141,6 +150,15 @@ class GenericSession(object):
     self.connected = False
 
     self.formatter_wrapper = IOFormatterWrapper(log)
+
+    try:
+      self.bc_engine = DefaultBlockEngine(
+        log=log,
+        name=self.name,
+        config=blockchain_config,
+      )
+    except:
+      raise ValueError("Failure in private blockchain setup:\n{}".format(traceback.format_exc()))
 
     return
 
@@ -280,7 +298,7 @@ class GenericSession(object):
         'PAYLOAD': payload,
         'INITIATOR_ID': self.name
     }
-
+    self.bc_engine.sign(msg_to_send, use_digest=True)
     self._send_payload(worker, msg_to_send)
 
   def remove_pipeline_callbacks(self, pipeline) -> None:
