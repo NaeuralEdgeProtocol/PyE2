@@ -762,8 +762,8 @@ class BaseBlockEngine:
       
       
       try:
+        assert sender_address is not None, 'Sender address is NULL'
         assert signature is not None, 'Signature is NULL'
-        assert sender_address is not None, 'Sender is NULL'
         
         bsignature = self._text_to_binary(signature)
         pk = self._address_to_pk(sender_address)
