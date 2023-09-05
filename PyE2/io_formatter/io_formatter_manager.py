@@ -26,10 +26,10 @@ from ..io_formatter import consts as ct
 from ..io_formatter.mixins import _PluginsManagerMixin
 
 
-class IOFormatterManager(_PluginsManagerMixin):
+class IOFormatterWrapper(_PluginsManagerMixin):
 
   def __init__(self, log, **kwargs):
-    super(IOFormatterManager, self).__init__()
+    super(IOFormatterWrapper, self).__init__()
     self._dct_formatters = {}
     self.log = log
     return

@@ -26,7 +26,7 @@ from time import time as tm
 from ..utils.code import CodeUtils
 
 from ..const import comms as comm_ct
-from ..io_formatter import IOFormatterManager
+from ..io_formatter import IOFormatterWrapper
 from .logger import Logger
 from .payload import Payload
 from .pipeline import Pipeline
@@ -140,7 +140,7 @@ class GenericSession(object):
 
     self.connected = False
 
-    self.formatter_wrapper = IOFormatterManager(log)
+    self.formatter_wrapper = IOFormatterWrapper(log)
 
     return
 
