@@ -257,7 +257,7 @@ class MQTTWrapper(object):
         self._mqttc.on_message = self._callback_on_message
         self._mqttc.on_publish = self._callback_on_publish
         # TODO: more verbose logging including when there is no actual exception
-        self._mqttc.connect(host=self.cfg_host, port=self.cfg_port, keepalive=5)  # TODO: remove this after
+        self._mqttc.connect(host=self.cfg_host, port=self.cfg_port)
 
         self._mqttc.loop_start()  # start loop in another thread
 
