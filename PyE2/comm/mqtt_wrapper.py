@@ -259,7 +259,8 @@ class MQTTWrapper(object):
         # TODO: more verbose logging including when there is no actual exception
         self._mqttc.connect(host=self.cfg_host, port=self.cfg_port)
 
-        self._mqttc.loop_start()  # start loop in another thread
+        if self._mqttc is not None:
+          self._mqttc.loop_start()  # start loop in another thread
 
         sleep_time = 0.01
         max_sleep = 2
@@ -391,6 +392,7 @@ class MQTTWrapper(object):
     try:
       self._mqttc.disconnect()
       self._mqttc.loop_stop()  # stop the loop thread
+      self.connected = False
       del self._mqttc
       self._mqttc = None
       msg = 'MQTT (Paho) connection released.'
