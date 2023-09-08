@@ -244,7 +244,7 @@ class MQTTWrapper(object):
         client_uid = self.log.get_unique_id()
         self._mqttc = mqtt.Client(
           client_id=self.cfg_eeid + '_' + client_uid,
-          clean_session=False
+          clean_session=True
         )
 
         self._mqttc.username_pw_set(
