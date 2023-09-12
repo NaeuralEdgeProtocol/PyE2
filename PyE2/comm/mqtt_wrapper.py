@@ -46,11 +46,13 @@ class MQTTWrapper(object):
                comm_type=None,
                on_message=None,
                post_default_on_message=None,  # callback that gets called after custom or default rcv callback
+               debug_errors=False,
                **kwargs):
     self.log = log
     self._config = config
     self._recv_buff = recv_buff
     self._mqttc = None
+    self.debug_errors = debug_errors
     self._thread_name = None
     self.connected = False
     self.disconnected = False
@@ -273,8 +275,9 @@ class MQTTWrapper(object):
         has_connection = self.connected
       except Exception as e:
         exception = e
-        self.P(e, color='r')
-        self.P(traceback.format_exc(), color='r')
+        if self.debug_errors:
+          self.P(e, color='r')
+          self.P(traceback.format_exc(), color='r')
 
       # end try-except
 
