@@ -790,7 +790,7 @@ class BaseBlockEngine:
   
   
   def is_allowed(self, sender_address):
-    is_allowed = sender_address in self.allowed_list
+    is_allowed = sender_address in self.allowed_list or sender_address == self.address
     return is_allowed
       
   
