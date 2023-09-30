@@ -305,21 +305,24 @@ class BaseBlockEngine:
 
     Returns
     -------
-    result : str
-      text hash.
+    result : bytes, str
+      bin and text hash.
 
     """
+    result = None, None
     method = method.upper()
     assert method in ['HASH160', 'SHA256', 'MD5']
         
     if method == 'MD5':
-      result = md5(data).hexdigest()
+      hash_obj = md5(data)
+      result = hash_obj.digest(), hash_obj.hexdigest()
     elif method == 'SHA256':
-      result = sha256(data).hexdigest()
+      hash_obj = sha256(data)
+      result = hash_obj.digest(), hash_obj.hexdigest()
     elif method == 'HASH160':
       hb_sha256 = sha256(data).digest()
       hb_h160 = ripemd160(hb_sha256)
-      result = binascii.hexlify(hb_h160).decode()
+      result = hb_h160, binascii.hexlify(hb_h160).decode()
     return result  
   
   
@@ -625,10 +628,14 @@ class BaseBlockEngine:
     return self._load_and_maybe_create_allowed()
     
   
-  def dict_digest(self, dct_data):
+  def dict_digest(self, dct_data, return_str=True):
     """Generates the hash of a dict object given as parameter"""
     str_data = self._dict_to_json(dct_data)
-    return self._compute_hash(str_data.encode())
+    data_hash, hex_hash = self._compute_hash(str_data.encode())
+    if return_str:
+      return hex_hash
+    else:
+      return data_hash
   
   
   def save_sk(self, fn, password=None):
@@ -688,8 +695,7 @@ class BaseBlockEngine:
     bdata = bytes(str_data, 'utf-8')
     if use_digest:
       # compute hash
-      digest = self._compute_hash(bdata)
-      bdata = digest.encode()  
+      bdata, hexdigest = self._compute_hash(bdata)
     # finally sign either full or just hash
     result = self._sign(data=bdata, private_key=self.__private_key, text=True)
     if add_data:
@@ -697,7 +703,7 @@ class BaseBlockEngine:
       dct_data[BCct.SIGN] = result
       dct_data[BCct.SENDER] = self.address
       if use_digest:
-        dct_data[BCct.HASH] = digest
+        dct_data[BCct.HASH] = hexdigest
     return result
     
   
@@ -744,10 +750,9 @@ class BaseBlockEngine:
     received_digest = dct_data.get(BCct.HASH)
     if received_digest:
       # we need to verify hash and then verify signature on hash      
-      digest = self._compute_hash(bdata_json)
-      if digest != received_digest:
+      bdata, hexdigest = self._compute_hash(bdata_json)
+      if hexdigest != received_digest:
         verify_msg.message = "Corrupted digest!"
-      bdata = digest.encode()  
     else:
       # normal signature on data
       bdata = bdata_json
