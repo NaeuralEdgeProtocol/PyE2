@@ -97,9 +97,10 @@ class Cavi2Formatter(BaseFormatter):
             'width': None,
         }
     }
+    message_id = output.pop('EE_MESSAGE_ID')
     metadata = {
         'sbTotalMessages': output.pop('EE_TOTAL_MESSAGES'),
-        'sbCurrentMessage': output.pop('EE_MESSAGE_ID')
+        'sbCurrentMessage': message_id
     }
     time = {
         'deviceTime': '',
@@ -165,7 +166,7 @@ class Cavi2Formatter(BaseFormatter):
     # endif
 
     encoded_output = {
-        'messageID': str(uuid.uuid4()),  # OK
+        'messageID': message_id,  # OK
         'type': ee_event_type,  # OK
         'category': category,  # OK
         'version': ee_version,  # OK
