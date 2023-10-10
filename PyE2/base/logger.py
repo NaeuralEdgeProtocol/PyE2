@@ -10,7 +10,15 @@ class Logger():
   def __init__(self, silent=False, **kwargs) -> None:
     self.print_lock = Lock()
     self.silent = silent
+    self._base_folder = kwargs.get('base_folder', '')
     return
+
+  def get_base_folder(self):
+    return self._base_folder if hasattr(self, '_base_folder') else ''
+
+  @property
+  def base_folder(self):
+    return self.get_base_folder()
 
   def P(self, msg, **kwargs):
     with self.print_lock:
@@ -142,3 +150,34 @@ class Logger():
       s = s.replace('__', '_')
       result = s
     return result
+
+  def get_data_folder(self):
+    return self._data_dir if hasattr(self, '_data_dir') else ''
+
+  def get_logs_folder(self):
+    return self._logs_dir if hasattr(self, '_logs_dir') else ''
+
+  def get_output_folder(self):
+    return self._outp_dir if hasattr(self, '_outp_dir') else ''
+
+  def get_models_folder(self):
+    return self._modl_dir if hasattr(self, '_modl_dir') else ''
+
+  def get_target_folder(self, target):
+    if target is None:
+      return
+
+    if target.lower() in ['data', '_data', 'data_dir', 'dat']:
+      return self.get_data_folder()
+
+    if target.lower() in ['logs', 'log', 'logs_dir', 'log_dir', '_log', '_logs']:
+      return self.get_logs_folder()
+
+    if target.lower() in ['models', 'model', '_models', '_model', 'model_dir', 'models_dir', 'modl']:
+      return self.get_models_folder()
+
+    if target.lower() in ['output', '_output', 'output_dir', 'outp', '_outp']:
+      return self.get_output_folder()
+
+    self.P("Inner folder of type '{}' not found".format(target))
+    return

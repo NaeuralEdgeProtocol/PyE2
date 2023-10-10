@@ -242,12 +242,13 @@ class MQTTWrapper(object):
     has_connection = False
     exception = None
     sleep_iter = None
+    comtype = self._comm_type[:7] if self._comm_type is not None else 'CUSTOM'
 
     while nr_retry <= max_retries:
       try:
         client_uid = self.log.get_unique_id()
         self._mqttc = mqtt.Client(
-          client_id=self.cfg_eeid + '_' + client_uid,
+          client_id=self._connection_name + '_' + comtype + '_' + client_uid,
           clean_session=True
         )
 
@@ -290,7 +291,6 @@ class MQTTWrapper(object):
     # endwhile
 
     if hasattr(self._mqttc, '_thread') and self._mqttc._thread is not None:
-      comtype = self._comm_type[:7] if self._comm_type is not None else 'CUSTOM'
       self._mqttc._thread.name = self._connection_name + '_' + comtype + '_' + client_uid
       self._thread_name = self._mqttc._thread.name
 
