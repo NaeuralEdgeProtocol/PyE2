@@ -299,7 +299,9 @@ class GenericSession(object):
         'INITIATOR_ID': self.name
     }
     self.bc_engine.sign(msg_to_send, use_digest=True)
+    self.P("Sending command '{}' to '{}':\n{}".format(command, worker, json.dumps(msg_to_send, indent=2)), color='y')
     self._send_payload(worker, msg_to_send)
+    return
 
   def remove_pipeline_callbacks(self, pipeline) -> None:
     instance_indexes = [i for i, t in enumerate(
