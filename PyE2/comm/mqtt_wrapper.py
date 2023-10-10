@@ -47,6 +47,7 @@ class MQTTWrapper(object):
                on_message=None,
                post_default_on_message=None,  # callback that gets called after custom or default rcv callback
                debug_errors=False,
+               connection_name='MqttWrapper',
                **kwargs):
     self.log = log
     self._config = config
@@ -66,6 +67,7 @@ class MQTTWrapper(object):
     self._disconnected_counter = 0
     self._custom_on_message = on_message
     self._post_default_on_message = post_default_on_message
+    self._connection_name = connection_name
 
     self.DEBUG = False
 
@@ -289,7 +291,7 @@ class MQTTWrapper(object):
 
     if hasattr(self._mqttc, '_thread') and self._mqttc._thread is not None:
       comtype = self._comm_type[:7] if self._comm_type is not None else 'CUSTOM'
-      self._mqttc._thread.name = 'S_mqtt_' + comtype + '_' + client_uid
+      self._mqttc._thread.name = self._connection_name + '_' + comtype + '_' + client_uid
       self._thread_name = self._mqttc._thread.name
 
     if has_connection:
