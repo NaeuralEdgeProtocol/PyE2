@@ -34,6 +34,7 @@ import paho.mqtt.client as mqtt
 import traceback
 
 from ..const import COLORS, COMMS, BASE_CT, PAYLOAD_CT
+from ..utils import resolve_domain_or_ip
 
 
 class MQTTWrapper(object):
@@ -68,6 +69,7 @@ class MQTTWrapper(object):
     self._custom_on_message = on_message
     self._post_default_on_message = post_default_on_message
     self._connection_name = connection_name
+    self.last_disconnect_log = ''
 
     self.DEBUG = False
 
@@ -198,17 +200,30 @@ class MQTTWrapper(object):
     """
     if rc == 0:
       self.P('Gracefull disconn (code={})'.format(rc), color='m')
+      str_error = "Gracefull disconn."
     else:
-      self.P("Unexpected disconn for client id '{}': '{}' (code={})".format(
-        self._mqttc._client_id, mqtt.error_string(rc), rc), color='r'
+      str_error = mqtt.error_string(rc) + ' (code={})'.format(rc)
+      self.P("Unexpected disconn for client id '{}': {}".format(
+        str(self._mqttc._client_id), str_error), color='r'
       )
     if self._disconnected_counter > 0:
-      self.P('  Multiple conn loss history: {} disconnects so far\n{}'.format(
-        self._disconnected_counter, '\n'.join([f"{x1}: {x2}" for x1, x2 in self._disconnected_log])), color='r')
+      self.P("Trying to determine IP of target server...")
+      ok, str_ip, str_domain = resolve_domain_or_ip(self.cfg_host)
+      msg = '  Multiple conn loss ({} disconnects so far), showing previous 10:\n{}'.format(
+        self._disconnected_counter, self.last_disconnect_log
+      )
+      server_port = "*****  Please check server connection: {}:{} {} *****".format(
+        self.cfg_host, self.cfg_port,
+        "({}:{})".format(str_ip, self.cfg_port) if (ok and str_ip != str_domain) else ""
+      )
+      msg += "\n\n{}\n{}\n{}".format("*" * len(server_port), server_port, "*" * len(server_port))
+      self.P(msg, color='r')
+    #endif multiple disconnects
     self.connected = False
     self.disconnected = True
-    self._disconnected_log.append((self.log.time_to_str(), mqtt.error_string(rc)))
+    self._disconnected_log.append((self.log.time_to_str(), str_error))
     self._disconnected_counter += 1
+    self.last_disconnect_log = '\n'.join([f"* Comm error '{x2}' occured at {x1}" for x1, x2 in self._disconnected_log])
     # we need to stop the loop otherwise the client thread will keep working
     # so we call release->loop_stop
     self.release()
