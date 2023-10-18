@@ -43,7 +43,8 @@ class MqttSession(GenericSession):
         send_channel_name=comm_ct.COMMUNICATION_CONFIG_CHANNEL,
         recv_channel_name=comm_ct.COMMUNICATION_PAYLOADS_CHANNEL,
         comm_type=comm_ct.COMMUNICATION_DEFAULT,
-        recv_buff=self._payload_messages
+        recv_buff=self._payload_messages,
+        connection_name=name,
         # on_message=self._on_payload_default_mqtt_callback
     )
 
@@ -53,7 +54,8 @@ class MqttSession(GenericSession):
         config=self._config,
         recv_channel_name=comm_ct.COMMUNICATION_CTRL_CHANNEL,
         comm_type=comm_ct.COMMUNICATION_HEARTBEATS,
-        recv_buff=self._hb_messages
+        recv_buff=self._hb_messages,
+        connection_name=name,
         # on_message=self._on_heartbeat_default_mqtt_callback
     )
 
@@ -63,7 +65,8 @@ class MqttSession(GenericSession):
         config=self._config,
         recv_channel_name=comm_ct.COMMUNICATION_NOTIF_CHANNEL,
         comm_type=comm_ct.COMMUNICATION_NOTIFICATIONS,
-        recv_buff=self._notif_messages
+        recv_buff=self._notif_messages,
+        connection_name=name,
         # on_message=self._on_notification_default_mqtt_callback
     )
 
