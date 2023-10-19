@@ -663,10 +663,33 @@ class BaseBlockEngine:
     )
     return fn
   
-  
-  def sign(self, dct_data: dict, add_data=True, use_digest=False) -> str:
+  def compute_hash(self, dct_data):
     """
-    Generates the signature for a dict object. Does not add the signature to the dict object
+    Computes the hash of a dict object
+
+    Parameters
+    ----------
+    dct_data : dict
+      the input message as a dict.
+
+    Returns
+    -------
+    result : str
+      the hash as a hex string.
+
+    """
+    assert isinstance(dct_data, dict), "Cannot compute hash on non-dict data"
+    dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
+    str_data = self._dict_to_json(dct_only_data)
+    bdata = bytes(str_data, 'utf-8')
+    bdata, hexdigest = self._compute_hash(bdata)
+    return hexdigest
+  
+  
+  def sign(self, dct_data: dict, add_data=True, use_digest=True) -> str:
+    """
+    Generates the signature for a dict object.
+    Does not add the signature to the dict object
 
 
     Parameters
