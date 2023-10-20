@@ -562,9 +562,9 @@ class BaseBlockEngine:
     return str_pem  
   
   
-  def _dict_to_json(self, dct_data, replace_nan=False):
+  def _dict_to_json(self, dct_data, replace_nan=False, inplace=True):
     if replace_nan:
-      dct_safe_data = replace_nan_inf(dct_data)
+      dct_safe_data = replace_nan_inf(dct_data, inplace=inplace)
     else:
       dct_safe_data = dct_data
     str_data = json.dumps(dct_safe_data, sort_keys=True, cls=_NPJson, separators=(',',':'))
@@ -736,13 +736,17 @@ class BaseBlockEngine:
     -------
       text signature
 
+        
+      IMPORTANT: 
+        It is quite probable that the same sign(sk, hash) will generate different signatures
+
     """
     result = None
     assert isinstance(dct_data, dict), "Cannot sign on non-dict data"
     # copy only data fields
     dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
-    # jsonify
-    str_data = self._dict_to_json(dct_only_data, replace_nan=replace_nan)
+    # jsonify will replace np.nan and np.inf with None inplace for consistency (if replace_nan=True)
+    str_data = self._dict_to_json(dct_only_data, replace_nan=replace_nan, inplace=True)
     # binarize
     bdata = bytes(str_data, 'utf-8')
     if use_digest:
