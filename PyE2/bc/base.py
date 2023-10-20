@@ -28,6 +28,7 @@ import datetime
 
 from hashlib import sha256, md5
 from threading import Lock
+from copy import deepcopy
 
 
 from cryptography.hazmat.primitives import serialization
@@ -71,23 +72,43 @@ class VerifyMessage(_DotDict):
     
 NON_DATA_FIELDS = [BCct.HASH, BCct.SIGN, BCct.SENDER]
 
+def replace_nan_inf(data, inplace=False):
+  assert isinstance(data, (dict, list)), "Only dictionaries and lists are supported"
+  if inplace:
+    d = data
+  else:
+    d = deepcopy(data)    
+  stack = [d]
+  while stack:
+    current = stack.pop()
+    for key, value in current.items():
+      if isinstance(value, dict):
+        stack.append(value)
+      elif isinstance(value, list):
+        for item in value:
+          if isinstance(item, dict):
+            stack.append(item)
+      elif isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+        current[key] = None
+  return d 
+
 class _NPJson(json.JSONEncoder):
   """
   Used to help jsonify numpy arrays or lists that contain numpy data types.
   """
   def default(self, obj):
-      if isinstance(obj, np.integer):
-          return int(obj)
-      elif isinstance(obj, np.floating):
-          return float(obj)
-      elif isinstance(obj, np.ndarray):
-          return obj.tolist()
-      elif isinstance(obj, np.ndarray):
-          return obj.tolist()
-      elif isinstance(obj, datetime.datetime):
-          return obj.strftime("%Y-%m-%d %H:%M:%S")
-      else:
-          return super(_NPJson, self).default(obj)
+    if isinstance(obj, np.integer):
+      return int(obj)
+    elif isinstance(obj, np.floating):
+      return float(obj)
+    elif isinstance(obj, np.ndarray):
+      return obj.tolist()
+    elif isinstance(obj, np.ndarray):
+      return obj.tolist()
+    elif isinstance(obj, datetime.datetime):
+      return obj.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+      return super(_NPJson, self).default(obj)
 
 ## RIPEMD160
 
@@ -541,8 +562,12 @@ class BaseBlockEngine:
     return str_pem  
   
   
-  def _dict_to_json(self, dct_data):
-    str_data = json.dumps(dct_data, sort_keys=True, cls=_NPJson, separators=(',',':'))
+  def _dict_to_json(self, dct_data, replace_nan=False):
+    if replace_nan:
+      dct_safe_data = replace_nan_inf(dct_data)
+    else:
+      dct_safe_data = dct_data
+    str_data = json.dumps(dct_safe_data, sort_keys=True, cls=_NPJson, separators=(',',':'))
     return str_data
   
   def _create_new_sk(self):
@@ -686,7 +711,7 @@ class BaseBlockEngine:
     return hexdigest
   
   
-  def sign(self, dct_data: dict, add_data=True, use_digest=True) -> str:
+  def sign(self, dct_data: dict, add_data=True, use_digest=True, replace_nan=False) -> str:
     """
     Generates the signature for a dict object.
     Does not add the signature to the dict object
@@ -702,6 +727,10 @@ class BaseBlockEngine:
       
     use_digest: bool, optional  
       will compute data hash and sign only on hash
+      
+    replace_nan: bool, optional
+      will replace `np.nan` and `np.inf` with `None` before signing. Default `False` as this step
+      is usually done before sending the data to the signing function
 
     Returns
     -------
@@ -713,7 +742,7 @@ class BaseBlockEngine:
     # copy only data fields
     dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
     # jsonify
-    str_data = self._dict_to_json(dct_only_data)
+    str_data = self._dict_to_json(dct_only_data, replace_nan=replace_nan)
     # binarize
     bdata = bytes(str_data, 'utf-8')
     if use_digest:
