@@ -72,9 +72,21 @@ class MqttSession(GenericSession):
 
     self._running = False
 
-    self._payload_thread = Thread(target=self._handle_payloads, args=())
-    self._notif_thread = Thread(target=self._handle_notifs, args=())
-    self._hb_thread = Thread(target=self._handle_hbs, args=())
+    self._payload_thread = Thread(
+      target=self._handle_payloads, 
+      args=(), 
+      daemon=True
+    )
+    self._notif_thread = Thread(
+      target=self._handle_notifs, 
+      args=(), 
+      daemon=True
+    )
+    self._hb_thread = Thread(
+      target=self._handle_hbs, 
+      args=(), 
+      daemon=True
+    )
 
     return
 
