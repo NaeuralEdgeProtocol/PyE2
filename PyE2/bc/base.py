@@ -688,6 +688,14 @@ class BaseBlockEngine:
     )
     return fn
   
+  
+  def _generate_data_for_hash(self, dct_data):
+    assert isinstance(dct_data, dict), "Cannot compute hash on non-dict data"
+    dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
+    str_data = self._dict_to_json(dct_only_data)
+    return str_data
+    
+  
   def compute_hash(self, dct_data):
     """
     Computes the hash of a dict object
@@ -703,9 +711,7 @@ class BaseBlockEngine:
       the hash as a hex string.
 
     """
-    assert isinstance(dct_data, dict), "Cannot compute hash on non-dict data"
-    dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
-    str_data = self._dict_to_json(dct_only_data)
+    str_data = self._generate_data_for_hash(dct_data)
     bdata = bytes(str_data, 'utf-8')
     bdata, hexdigest = self._compute_hash(bdata)
     return hexdigest
