@@ -62,14 +62,15 @@ class NOTIFICATION_CODES:
     PLUGIN_OK : "PLUGIN_OK",
     PLUGIN_FAILED : "PLUGIN_FAILED",
   }
+  CODES = {v:k for k,v in TAGS.items()}
 
+  # next section could be missing
   PIPELINE_OK_TAG = TAGS[PIPELINE_OK]
   PIPELINE_FAILED_TAG = TAGS[PIPELINE_FAILED]
   
   PLUGIN_FAILED_TAG = TAGS[PLUGIN_FAILED]
   PLUGIN_OK_TAG = TAGS[PLUGIN_OK]
   
-  CODES = {v:k for k,v in TAGS.items()}
   
   
   
