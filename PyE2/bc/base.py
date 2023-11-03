@@ -92,7 +92,7 @@ def replace_nan_inf(data, inplace=False):
         current[key] = None
   return d 
 
-class _NPJson(json.JSONEncoder):
+class _SimpleNPJson(json.JSONEncoder):
   """
   Used to help jsonify numpy arrays or lists that contain numpy data types.
   """
@@ -109,6 +109,52 @@ class _NPJson(json.JSONEncoder):
       return obj.strftime("%Y-%m-%d %H:%M:%S")
     else:
       return super(_NPJson, self).default(obj)
+
+class _NPJson(json.JSONEncoder):
+  def default(self, obj):
+    if isinstance(obj, np.integer):
+      return int(obj)
+    elif isinstance(obj, np.floating):
+      return float(obj)
+    elif isinstance(obj, np.ndarray):
+      return obj.tolist()
+    elif isinstance(obj, datetime.datetime):
+      return obj.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+      return super(_NPJson, self).default(obj)
+
+  def iterencode(self, o, _one_shot=False):
+    """Encode the given object and yield each string representation as available."""
+    if self.check_circular:
+      markers = {}
+    else:
+      markers = None
+    if self.ensure_ascii:
+      _encoder = json.encoder.encode_basestring_ascii
+    else:
+      _encoder = json.encoder.encode_basestring
+    
+    def floatstr(o, allow_nan=self.allow_nan, _repr=float.__repr__, _inf=json.encoder.INFINITY, _neginf=-json.encoder.INFINITY):
+      if o != o:  # Check for NaN
+        text = 'null'
+      elif o == _inf:
+        text = 'null'
+      elif o == _neginf:
+        text = 'null'
+      else:
+        return repr(o).rstrip('0').rstrip('.') if '.' in repr(o) else repr(o)
+
+      if not allow_nan:
+        raise ValueError("Out of range float values are not JSON compliant: " + repr(o))
+      
+      return text
+
+    _iterencode = json.encoder._make_iterencode(
+      markers, self.default, _encoder, self.indent, floatstr,
+      self.key_separator, self.item_separator, self.sort_keys,
+      self.skipkeys, _one_shot
+    )
+    return _iterencode(o, 0)
 
 ## RIPEMD160
 
