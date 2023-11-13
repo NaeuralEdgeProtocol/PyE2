@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Reserved.
 
@@ -15,17 +14,30 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 
 
 @copyright: Lummetry.AI
-@author: Lummetry.AI - AID
+@author: Lummetry.AI - Laurentiu
 @project: 
 @description:
-Created on Sat Jan 28 13:22:44 2023
 """
 
-from .misc import COLORS
-from . import comms as COMMS
-from . import base as BASE_CT
-from . import payload as PAYLOAD_CT
-from .formatter import FORMATTER_DATA
-from .payload import STATUS_TYPE, PAYLOAD_DATA, COMMANDS, NOTIFICATION_CODES
-from .base import CONFIG_STREAM, BIZ_PLUGIN_DATA, PLUGIN_INFO
-from . import heartbeat as HB
+# local dependencies
+from ...io_formatter.base import BaseFormatter
+
+
+class DefaultFormatter(BaseFormatter):
+
+  def __init__(self, log, **kwargs):
+    super(DefaultFormatter, self).__init__(
+        log=log, prefix_log='[DEFAULT-FMT]', **kwargs)
+    return
+
+  def startup(self):
+    pass
+
+  def _encode_output(self, output):
+    return output
+
+  def _decode_output(self, encoded_output):
+    return encoded_output
+
+  def _decode_streams(self, dct_config_streams):
+    return dct_config_streams

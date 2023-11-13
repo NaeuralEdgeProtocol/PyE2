@@ -19,15 +19,14 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 @description:
 """
 
-#global dependencies
+# global dependencies
 import json
-import uuid
 
 # local dependencies
 
 # TODO(S): add consts
 from ...io_formatter.base import BaseFormatter
-from ...io_formatter.consts import FORMATTER_DATA
+from ...const import FORMATTER_DATA
 
 
 class Cavi2Formatter(BaseFormatter):
