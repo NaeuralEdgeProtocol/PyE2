@@ -19,3 +19,4 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 @description:
 """
 from .io_formatter_manager import IOFormatterWrapper
+from .base import BaseFormatter
