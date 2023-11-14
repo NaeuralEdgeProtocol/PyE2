@@ -24,15 +24,18 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 
 from ..const import PAYLOAD_DATA
 from ..io_formatter.default import Cavi2Formatter, DefaultFormatter
+from ..io_formatter.mixins import _PluginsManagerMixin
 
 
-class IOFormatterWrapper():
+class IOFormatterWrapper(_PluginsManagerMixin):
   FORMATTER_CLASSES = [DefaultFormatter, Cavi2Formatter]
 
-  def __init__(self, log, **kwargs):
+  def __init__(self, log, plugin_search_locations=['plugins.io_formatters'], plugin_search_suffix='Formatter', **kwargs):
     super(IOFormatterWrapper, self).__init__()
     self._dct_formatters = {}
     self.log = log
+    self.plugin_search_locations = plugin_search_locations
+    self.plugin_search_suffix = plugin_search_suffix
 
     self.__init_formatters()
     return
@@ -45,26 +48,67 @@ class IOFormatterWrapper():
         self.D("Successfully created IO formatter {}.".format(formatter_name))
       except Exception as exc:
         msg = "Exception '{}' when initializing io_formatter plugin {}".format(exc, formatter_name)
-        self.D(msg, color='r')
+        self.P(msg, color='r')
 
     return
 
   def _get_formatter_name_from_payload(self, msg):
     return msg.get(PAYLOAD_DATA.EE_FORMATTER, msg.get(PAYLOAD_DATA.SB_IMPLEMENTATION, ''))
 
-  def get_required_formatter_from_payload(self, payload):
-    name = self._get_formatter_name_from_payload(payload)
+  def _get_plugin_class(self, name):
+    _module_name, _class_name, _class_def, _class_config = self._get_module_name_and_class(
+        locations=self.plugin_search_locations,
+        name=name,
+        suffix=self.plugin_search_suffix,
+        safe_locations=[],
+    )
 
+    if _class_def is None:
+      msg = "Error loading io_formatter plugin '{}'".format(name)
+      self.D(msg, color='r')
+    return _class_def
+
+  def formatter_ready(self, name):
+    return name in self._dct_formatters or name is None or name == ''
+
+  def get_formatter_by_name(self, name):
+    return self._create_formatter(name)
+
+  def _create_formatter(self, name):
+    # TODO: change name to maybe_create_formatter
     if name is None or name == '':
-      # No formatter specified in payload. Using default formatter.
+      # check if we want to create a default formatter
       return self._dct_formatters['default']
 
-    formatter = self._dct_formatters.get(name)
+    if name in self._dct_formatters:
+      # formatter already created
+      return self._dct_formatters[name]
 
-    if formatter is None:
-      self.P("Formatter '{}' not found in the list of available formatters.".format(name))
+    self.P("Formatter '{}' not found in the list of available formatters.".format(name))
+    self.D("Creating formatter '{}'".format(name))
+    _cls = self._get_plugin_class(name)
 
+    try:
+      formatter = _cls(log=self.log, signature=name.lower())
+    except Exception as exc:
+      msg = "Exception '{}' when initializing io_formatter plugin {}".format(
+          exc, name)
+      self.D(msg, color='r')
+      # self._create_notification(
+      #     notif=ct.STATUS_TYPE.STATUS_EXCEPTION,
+      #     msg=msg,
+      #     autocomplete_info=True
+      # )
+      raise exc
+    # end try-except
+
+    self._dct_formatters[name] = formatter
+    self.D("Successfully created IO formatter {}.".format(name))
     return formatter
+
+  def get_required_formatter_from_payload(self, payload):
+    name = self._get_formatter_name_from_payload(payload)
+    return self._create_formatter(name)
 
   def D(self, *args, **kwargs):
     return self.log.D(*args, **kwargs)

@@ -16,6 +16,37 @@ class Logger():
   def get_base_folder(self):
     return self._base_folder if hasattr(self, '_base_folder') else ''
 
+  @staticmethod
+  def get_all_subfolders(root_folder=None, as_package=False):
+    """
+    Walks through all directories and sub-directories of the given root_folder and returns a list of all subfolder paths.
+
+    Parameters
+    ----------
+    root_folder : str
+      The path of the folder you want to walk through. Default `None` will generate 
+      all subfolders in current folder
+
+    Returns
+    -------
+    List[str]
+      A list containing the paths of all files in the folder and its subfolders.
+    """
+
+    if root_folder is None:
+      root_folder = os.getcwd()
+
+    folder_paths = []
+
+    for dirpath, dirnames, filenames in os.walk(root_folder):
+      for dirname in dirnames:
+        full_path = os.path.join(dirpath, dirname)
+        if as_package:
+          full_path = full_path.replace('/', '.').replace('\\', '.')
+        folder_paths.append(full_path)
+
+    return folder_paths
+
   @property
   def base_folder(self):
     return self.get_base_folder()

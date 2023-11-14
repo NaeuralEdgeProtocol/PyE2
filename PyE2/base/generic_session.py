@@ -63,7 +63,7 @@ class GenericSession(object):
       "PEM_LOCATION": "data"
   }
 
-  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, blockchain_config=BLOCKCHAIN_CONFIG, **kwargs) -> None:
+  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, blockchain_config=BLOCKCHAIN_CONFIG, formatter_plugins_locations=['plugins.io_formatters'], **kwargs) -> None:
     """
     A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
     A Session manages `Pipelines` and handles all messages received from the communication server.
@@ -149,7 +149,7 @@ class GenericSession(object):
 
     self.connected = False
 
-    self.formatter_wrapper = IOFormatterWrapper(log)
+    self.formatter_wrapper = IOFormatterWrapper(log, plugin_search_locations=formatter_plugins_locations)
 
     try:
       self.bc_engine = DefaultBlockEngine(
