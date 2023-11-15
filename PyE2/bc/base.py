@@ -92,7 +92,7 @@ def replace_nan_inf(data, inplace=False):
         current[key] = None
   return d 
 
-class _SimpleNPJson(json.JSONEncoder):
+class _SimpleJsonEncoder(json.JSONEncoder):
   """
   Used to help jsonify numpy arrays or lists that contain numpy data types.
   """
@@ -108,9 +108,9 @@ class _SimpleNPJson(json.JSONEncoder):
     elif isinstance(obj, datetime.datetime):
       return obj.strftime("%Y-%m-%d %H:%M:%S")
     else:
-      return super(_NPJson, self).default(obj)
+      return super(_SimpleJsonEncoder, self).default(obj)
 
-class _NPJson(json.JSONEncoder):
+class _ComplexJsonEncoder(json.JSONEncoder):
   def default(self, obj):
     if isinstance(obj, np.integer):
       return int(obj)
@@ -121,7 +121,7 @@ class _NPJson(json.JSONEncoder):
     elif isinstance(obj, datetime.datetime):
       return obj.strftime("%Y-%m-%d %H:%M:%S")
     else:
-      return super(_NPJson, self).default(obj)
+      return super(_ComplexJsonEncoder, self).default(obj)
 
   def iterencode(self, o, _one_shot=False):
     """Encode the given object and yield each string representation as available."""
@@ -273,17 +273,36 @@ class SimpleLogger:
 
 class BaseBlockEngine:
   """
-  This multiton is the base workhorse of the private blockchain. 
+  This multiton (multi-singleton via key) is the base workhorse of the private blockchain. 
+  
+  Parameters
+  ----------
+  
+  name: str
+    the name of the engine. Used to create the private key file name.
+    
+  config: dict
+    the configuration dict that contains the PEM_FILE, PASSWORD, PEM_LOCATION keys
+    for configuring the private key file access
+    
+  log: Logger object
+    the Logger object
+    
+  ensure_ascii_payloads: bool
+    flag that controls if the payloads are encoded as ascii or not. Default `False` for JS compatibility.
   
   """
   _lock: Lock = Lock()
   __instances = {}
   
-  def __new__(cls, name, config, log):
+  def __new__(cls, name, config, log, ensure_ascii_payloads=False):
     with cls._lock:
       if name not in cls.__instances:
         instance = super(BaseBlockEngine, cls).__new__(cls)
-        instance._build(name=name, log=log, config=config)
+        instance._build(
+          name=name, log=log, config=config, 
+          ensure_ascii_payloads=ensure_ascii_payloads
+        )
         cls.__instances[name] = instance
       else:
         instance = cls.__instances[name]
@@ -294,6 +313,7 @@ class BaseBlockEngine:
       name, 
       config:dict, 
       log=None, 
+      ensure_ascii_payloads=False,
     ):
 
     self.__name = name
@@ -304,6 +324,7 @@ class BaseBlockEngine:
     self.__public_key = None    
     self.__password = config.get(BCct.K_PASSWORD)    
     self.__config = config
+    self.__ensure_ascii_payloads = ensure_ascii_payloads
     
     pem_name = config.get(BCct.K_PEM_FILE, '_pk.pem')
     pem_folder = config.get(BCct.K_PEM_LOCATION, 'data')
@@ -613,7 +634,14 @@ class BaseBlockEngine:
       dct_safe_data = replace_nan_inf(dct_data, inplace=inplace)
     else:
       dct_safe_data = dct_data
-    str_data = json.dumps(dct_safe_data, sort_keys=True, cls=_NPJson, separators=(',',':'))
+      
+    dumps_config = dict(
+      sort_keys=True, 
+      cls=_ComplexJsonEncoder, 
+      separators=(',',':'),
+      ensure_ascii=self.__ensure_ascii_payloads,
+    )
+    str_data = json.dumps(dct_safe_data, **dumps_config)
     return str_data
   
   def _create_new_sk(self):
