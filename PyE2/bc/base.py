@@ -394,7 +394,7 @@ class BaseBlockEngine:
     Returns
     -------
     result : bytes, str
-      bin and text hash.
+      hash both in bin and text format.
 
     """
     result = None, None
@@ -629,7 +629,7 @@ class BaseBlockEngine:
     return str_pem  
   
   
-  def _dict_to_json(self, dct_data, replace_nan=False, inplace=True):
+  def _dict_to_json(self, dct_data, replace_nan=True, inplace=True):
     if replace_nan:
       dct_safe_data = replace_nan_inf(dct_data, inplace=inplace)
     else:
@@ -729,12 +729,12 @@ class BaseBlockEngine:
   
   def dict_digest(self, dct_data, return_str=True):
     """Generates the hash of a dict object given as parameter"""
-    str_data = self._dict_to_json(dct_data)
-    data_hash, hex_hash = self._compute_hash(str_data.encode())
+    str_data = self._dict_to_json(dct_data, replace_nan=True)
+    bin_hex_hash, hex_hash = self._compute_hash(str_data.encode())
     if return_str:
       return hex_hash
     else:
-      return data_hash
+      return bin_hex_hash
   
   
   def save_sk(self, fn, password=None):
@@ -764,13 +764,17 @@ class BaseBlockEngine:
   
   
   def _generate_data_for_hash(self, dct_data):
+    """
+    Will convert the dict to json (removing the non-data fields) and return the json string. 
+    The dict will be modified inplace to replace NaN and Inf with None.
+    """
     assert isinstance(dct_data, dict), "Cannot compute hash on non-dict data"
     dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
-    str_data = self._dict_to_json(dct_only_data)
+    str_data = self._dict_to_json(dct_only_data, replace_nan=True, inplace=True)
     return str_data
     
   
-  def compute_hash(self, dct_data):
+  def compute_hash(self, dct_data, return_all=False):
     """
     Computes the hash of a dict object
 
@@ -781,14 +785,17 @@ class BaseBlockEngine:
 
     Returns
     -------
-    result : str
-      the hash as a hex string.
-
+    result : str or tuple(bytes, bytes, str) if `return_all` is `True`
+      
     """
     str_data = self._generate_data_for_hash(dct_data)
     bdata = bytes(str_data, 'utf-8')
-    bdata, hexdigest = self._compute_hash(bdata)
-    return hexdigest
+    bin_hexdigest, hexdigest = self._compute_hash(bdata)
+    if return_all:
+      result = bdata, bin_hexdigest, hexdigest
+    else:
+      result = hexdigest
+    return result
   
   
   def sign(self, dct_data: dict, add_data=True, use_digest=True, replace_nan=False) -> str:
@@ -823,15 +830,10 @@ class BaseBlockEngine:
     """
     result = None
     assert isinstance(dct_data, dict), "Cannot sign on non-dict data"
-    # copy only data fields
-    dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
-    # jsonify will replace np.nan and np.inf with None inplace for consistency (if replace_nan=True)
-    str_data = self._dict_to_json(dct_only_data, replace_nan=replace_nan, inplace=True)
-    # binarize
-    bdata = bytes(str_data, 'utf-8')
+    
+    bdata, bin_hexdigest, hexdigest = self.compute_hash(dct_data, return_all=True)
     if use_digest:
-      # compute hash
-      bdata, hexdigest = self._compute_hash(bdata)
+      bdata = bin_hexdigest # to-sign data is the hash
     # finally sign either full or just hash
     result = self._sign(data=bdata, private_key=self.__private_key, text=True)
     if add_data:
@@ -879,16 +881,16 @@ class BaseBlockEngine:
 
     """
     result = False
-    dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
-    data_json = self._dict_to_json(dct_only_data)
-    bdata_json = data_json.encode()
+    
+    bdata_json, bin_hexdigest, hexdigest = self.compute_hash(dct_data, return_all=True)
+    
     verify_msg = VerifyMessage()
     received_digest = dct_data.get(BCct.HASH)
     if received_digest:
       # we need to verify hash and then verify signature on hash      
-      bdata, hexdigest = self._compute_hash(bdata_json)
       if hexdigest != received_digest:
         verify_msg.message = "Corrupted digest!"
+      bdata = bin_hexdigest
     else:
       # normal signature on data
       bdata = bdata_json
@@ -899,8 +901,7 @@ class BaseBlockEngine:
         signature = dct_data.get(BCct.SIGN)
       
       if sender_address is None:
-        sender_address = dct_data.get(BCct.SENDER)
-      
+        sender_address = dct_data.get(BCct.SENDER)      
       
       try:
         assert sender_address is not None, 'Sender address is NULL'
