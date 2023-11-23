@@ -24,12 +24,12 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 
 from time import time
 from ..const import PAYLOAD_DATA
-from ..io_formatter.default import Cavi2Formatter, DefaultFormatter
+from ..io_formatter.default import Cavi2Formatter, DefaultFormatter, Aixp1Formatter
 from ..io_formatter.mixins import _PluginsManagerMixin
 
 
 class IOFormatterWrapper(_PluginsManagerMixin):
-  FORMATTER_CLASSES = [DefaultFormatter, Cavi2Formatter]
+  FORMATTER_CLASSES = [DefaultFormatter, Cavi2Formatter, Aixp1Formatter]
 
   def __init__(self, log, plugin_search_locations=['plugins.io_formatters'], plugin_search_suffix='Formatter', **kwargs):
     super(IOFormatterWrapper, self).__init__()
