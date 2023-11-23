@@ -73,18 +73,18 @@ class MqttSession(GenericSession):
     self._running = False
 
     self._payload_thread = Thread(
-      target=self._handle_payloads, 
-      args=(), 
+      target=self._handle_payloads,
+      args=(),
       daemon=True
     )
     self._notif_thread = Thread(
-      target=self._handle_notifs, 
-      args=(), 
+      target=self._handle_notifs,
+      args=(),
       daemon=True
     )
     self._hb_thread = Thread(
-      target=self._handle_hbs, 
-      args=(), 
+      target=self._handle_hbs,
+      args=(),
       daemon=True
     )
 
@@ -136,18 +136,24 @@ class MqttSession(GenericSession):
     dict_msg = json.loads(message)
     # parse the message
     dict_msg_parsed = self._parse_message(dict_msg)
+    if dict_msg_parsed is None:
+      return
     return self.on_payload(dict_msg_parsed)
 
   def _on_notification_default_mqtt_callback(self, message) -> None:
     dict_msg = json.loads(message)
     # parse the message
     dict_msg_parsed = self._parse_message(dict_msg)
+    if dict_msg_parsed is None:
+      return
     return self.on_notification(dict_msg_parsed)
 
   def _on_heartbeat_default_mqtt_callback(self, message) -> None:
     dict_msg = json.loads(message)
     # parse the message
     dict_msg_parsed = self._parse_message(dict_msg)
+    if dict_msg_parsed is None:
+      return
     return self.on_heartbeat(dict_msg_parsed)
 
   def maybe_reconnect(self):

@@ -22,6 +22,7 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 # from core import constants as ct
 
 
+from time import time
 from ..const import PAYLOAD_DATA
 from ..io_formatter.default import Cavi2Formatter, DefaultFormatter
 from ..io_formatter.mixins import _PluginsManagerMixin
@@ -36,6 +37,8 @@ class IOFormatterWrapper(_PluginsManagerMixin):
     self.log = log
     self.plugin_search_locations = plugin_search_locations
     self.plugin_search_suffix = plugin_search_suffix
+
+    self._last_search_invalid_formatter = {}
 
     self.__init_formatters()
     return
@@ -82,28 +85,27 @@ class IOFormatterWrapper(_PluginsManagerMixin):
 
     if name in self._dct_formatters:
       # formatter already created
-      return self._dct_formatters[name]
+      if self._dct_formatters[name] is None:
+        # formatter is not available
+        if name not in self._last_search_invalid_formatter:
+          self._last_search_invalid_formatter[name] = 0
+        if time() - self._last_search_invalid_formatter[name] < 10 * 60:
+          return self._dct_formatters[name]
+      else:
+        return self._dct_formatters[name]
+    # end if name in self._dct_formatters
 
-    self.P("Formatter '{}' not found in the list of available formatters.".format(name))
     self.D("Creating formatter '{}'".format(name))
     _cls = self._get_plugin_class(name)
 
-    try:
-      formatter = _cls(log=self.log, signature=name.lower())
-    except Exception as exc:
-      msg = "Exception '{}' when initializing io_formatter plugin {}".format(
-          exc, name)
-      self.D(msg, color='r')
-      # self._create_notification(
-      #     notif=ct.STATUS_TYPE.STATUS_EXCEPTION,
-      #     msg=msg,
-      #     autocomplete_info=True
-      # )
-      raise exc
-    # end try-except
+    formatter = None
 
+    if _cls is not None:
+      formatter = _cls(log=self.log, signature=name.lower())
+      self.D("Successfully created IO formatter {}.".format(name))
+    else:
+      self._last_search_invalid_formatter[name] = time()
     self._dct_formatters[name] = formatter
-    self.D("Successfully created IO formatter {}.".format(name))
     return formatter
 
   def get_required_formatter_from_payload(self, payload):

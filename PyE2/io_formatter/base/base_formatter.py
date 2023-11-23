@@ -63,10 +63,6 @@ class BaseFormatter(object):
       msg = "ERROR! Could not decode streams!\n{}".format(e)
       self.P(msg)
       self.P(traceback.format_exc(), color='r')
-      self._create_notification(
-          notif=STATUS_TYPE.STATUS_EXCEPTION,
-          msg=msg
-      )
 
     return dct_config_streams
 
@@ -80,11 +76,6 @@ class BaseFormatter(object):
       msg = "ERROR! Could not encode output {}\n{}".format(output, e)
       self.P(msg)
       self.P(traceback.format_exc(), color='r')
-      self._create_notification(
-          notif=STATUS_TYPE.STATUS_EXCEPTION,
-          msg=msg,
-          displayed=True,
-      )
     # end try-except
 
     elapsed = time() - tm
@@ -104,10 +95,6 @@ class BaseFormatter(object):
       msg = "ERROR! Could not decode {}\n{}".format(encoded_output, e)
       self.P(msg)
       self.P(traceback.format_exc(), color='r')
-      self._create_notification(
-          notif=STATUS_TYPE.STATUS_EXCEPTION,
-          msg=msg
-      )
     # end try-except
     self.log.stop_timer('decode', section='Formatter_' + str(self.signature))
     if isinstance(output, dict):

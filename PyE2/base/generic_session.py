@@ -187,8 +187,9 @@ class GenericSession(object):
     formatter = self.formatter_wrapper \
         .get_required_formatter_from_payload(dict_msg)
     if formatter is not None:
-      dict_msg = formatter.decode_output(dict_msg)
-    return dict_msg
+      return formatter.decode_output(dict_msg)
+    else:
+      return None
 
   def _maybe_ignore_message(self, e2id):
     return self.filter_workers is not None and e2id not in self.filter_workers
