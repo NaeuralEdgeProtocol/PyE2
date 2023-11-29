@@ -857,6 +857,7 @@ class BaseBlockEngine:
       return_full_info=True,
       verify_allowed=False,
       replace_nan=True,
+      log_hash_sign_fails=True,
     ) -> bool:
     """
     Verifies the signature validity of a given text message
@@ -877,6 +878,13 @@ class BaseBlockEngine:
       
     verify_allowed: bool, optional
       if true will also check if the address is allowed by calling `check_allowed`
+      
+    replace_nan: bool, optional
+      will replace `np.nan` and `np.inf` with `None` before verifying. Default `True`
+    
+    log_hash_sign_fails: bool, optional
+      if `True` will log the verification failures for hash and signature issues. Default `True`
+    
 
     Returns
     -------
@@ -891,26 +899,30 @@ class BaseBlockEngine:
       return_all=True,
       replace_nan=replace_nan,
     )
+
+    if signature is None:
+      signature = dct_data.get(BCct.SIGN)
+    
+    if sender_address is None:
+      sender_address = dct_data.get(BCct.SENDER)          
     
     verify_msg = VerifyMessage()
+    verify_msg.sender = sender_address
+    
     received_digest = dct_data.get(BCct.HASH)
     if received_digest:
       # we need to verify hash and then verify signature on hash      
       if hexdigest != received_digest:
         verify_msg.message = "Corrupted digest!"
+        verify_msg.valid = False
+      #endif hash failed
       bdata = bin_hexdigest
     else:
       # normal signature on data
       bdata = bdata_json
     #endif has hash or not
     
-    if verify_msg.message is None:      
-      if signature is None:
-        signature = dct_data.get(BCct.SIGN)
-      
-      if sender_address is None:
-        sender_address = dct_data.get(BCct.SENDER)      
-      
+    if verify_msg.message is None:            
       try:
         assert sender_address is not None, 'Sender address is NULL'
         assert signature is not None, 'Signature is NULL'
@@ -925,7 +937,13 @@ class BaseBlockEngine:
 
     verify_msg.sender = sender_address
     
-    if verify_allowed and verify_msg.valid:
+    if not verify_msg.valid:
+      if log_hash_sign_fails and signature is not None and sender_address is not None:
+        self.P("Signature failed on msg from {}: {}".format(
+          sender_address, verify_msg.message
+          ), color='r'
+        )
+    elif verify_allowed and verify_msg.valid:
       if not self.is_allowed(sender_address):
         verify_msg.message = "Signature ok but address {} not in {}.".format(sender_address, BCct.AUTHORISED_ADDRS)
         verify_msg.valid = False
