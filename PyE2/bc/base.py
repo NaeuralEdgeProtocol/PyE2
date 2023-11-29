@@ -763,18 +763,18 @@ class BaseBlockEngine:
     return fn
   
   
-  def _generate_data_for_hash(self, dct_data):
+  def _generate_data_for_hash(self, dct_data, replace_nan=True, inplace=True):
     """
     Will convert the dict to json (removing the non-data fields) and return the json string. 
     The dict will be modified inplace to replace NaN and Inf with None.
     """
     assert isinstance(dct_data, dict), "Cannot compute hash on non-dict data"
     dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
-    str_data = self._dict_to_json(dct_only_data, replace_nan=True, inplace=True)
+    str_data = self._dict_to_json(dct_only_data, replace_nan=replace_nan, inplace=inplace)
     return str_data
     
   
-  def compute_hash(self, dct_data, return_all=False):
+  def compute_hash(self, dct_data, return_all=False, replace_nan=True, inplace=True):
     """
     Computes the hash of a dict object
 
@@ -788,7 +788,7 @@ class BaseBlockEngine:
     result : str or tuple(bytes, bytes, str) if `return_all` is `True`
       
     """
-    str_data = self._generate_data_for_hash(dct_data)
+    str_data = self._generate_data_for_hash(dct_data, replace_nan=replace_nan, inplace=inplace)
     bdata = bytes(str_data, 'utf-8')
     bin_hexdigest, hexdigest = self._compute_hash(bdata)
     if return_all:
@@ -798,7 +798,7 @@ class BaseBlockEngine:
     return result
   
   
-  def sign(self, dct_data: dict, add_data=True, use_digest=True, replace_nan=False) -> str:
+  def sign(self, dct_data: dict, add_data=True, use_digest=True, replace_nan=True) -> str:
     """
     Generates the signature for a dict object.
     Does not add the signature to the dict object
@@ -816,8 +816,7 @@ class BaseBlockEngine:
       will compute data hash and sign only on hash
       
     replace_nan: bool, optional
-      will replace `np.nan` and `np.inf` with `None` before signing. Default `False` as this step
-      is usually done before sending the data to the signing function
+      will replace `np.nan` and `np.inf` with `None` before signing. 
 
     Returns
     -------
@@ -831,7 +830,11 @@ class BaseBlockEngine:
     result = None
     assert isinstance(dct_data, dict), "Cannot sign on non-dict data"
     
-    bdata, bin_hexdigest, hexdigest = self.compute_hash(dct_data, return_all=True)
+    bdata, bin_hexdigest, hexdigest = self.compute_hash(
+      dct_data, 
+      return_all=True, 
+      replace_nan=replace_nan,
+    )
     if use_digest:
       bdata = bin_hexdigest # to-sign data is the hash
     # finally sign either full or just hash
@@ -853,6 +856,7 @@ class BaseBlockEngine:
       sender_address: str=None, 
       return_full_info=True,
       verify_allowed=False,
+      replace_nan=True,
     ) -> bool:
     """
     Verifies the signature validity of a given text message
@@ -882,7 +886,11 @@ class BaseBlockEngine:
     """
     result = False
     
-    bdata_json, bin_hexdigest, hexdigest = self.compute_hash(dct_data, return_all=True)
+    bdata_json, bin_hexdigest, hexdigest = self.compute_hash(
+      dct_data, 
+      return_all=True,
+      replace_nan=replace_nan,
+    )
     
     verify_msg = VerifyMessage()
     received_digest = dct_data.get(BCct.HASH)
