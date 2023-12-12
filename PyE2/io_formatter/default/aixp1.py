@@ -34,9 +34,14 @@ class Aixp1Formatter(BaseFormatter):
     pass
 
   def _encode_output(self, output):
-    event_type = output.get('EE_EVENT_TYPE', None)
+    event_type = output.pop('EE_EVENT_TYPE', None)
+    
+    # below fields are not required as they will be decorated post-formatting anyway
+    output.pop('EE_MESSAGE_ID', None)
+    output.pop('EE_MESSAGE_SEQ', None)
+    output.pop('EE_TOTAL_MESSAGES', None)
+    
     output.pop('EE_TIMESTAMP', None)
-
     output.pop('EE_ID', None)
     output.pop('STREAM_NAME', None)
     output.pop('SIGNATURE', None)
@@ -48,6 +53,7 @@ class Aixp1Formatter(BaseFormatter):
 
     output.pop('INITIATOR_ID', None)
     output.pop('SESSION_ID', None)
+    # end non-managed fields
 
     lvl_0_dct = {
       "DATA": {
