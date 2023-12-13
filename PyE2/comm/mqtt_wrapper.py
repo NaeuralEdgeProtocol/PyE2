@@ -203,8 +203,9 @@ class MQTTWrapper(object):
       str_error = "Gracefull disconn."
     else:
       str_error = mqtt.error_string(rc) + ' (code={})'.format(rc)
+      client_id = str(self._mqttc._client_id) if self._mqttc is not None else 'None'
       self.P("Unexpected disconn for client id '{}': {}".format(
-        str(self._mqttc._client_id), str_error), color='r'
+        client_id, str_error), color='r'
       )
     if self._disconnected_counter > 0:
       self.P("Trying to determine IP of target server...")
@@ -218,7 +219,7 @@ class MQTTWrapper(object):
       )
       msg += "\n\n{}\n{}\n{}".format("*" * len(server_port), server_port, "*" * len(server_port))
       self.P(msg, color='r')
-    #endif multiple disconnects
+    # endif multiple disconnects
     self.connected = False
     self.disconnected = True
     self._disconnected_log.append((self.log.time_to_str(), str_error))
@@ -304,8 +305,7 @@ class MQTTWrapper(object):
 
       nr_retry += 1
     # endwhile
-
-    if hasattr(self._mqttc, '_thread') and self._mqttc._thread is not None:
+    if self._mqttc is not None and hasattr(self._mqttc, '_thread') and self._mqttc._thread is not None:
       self._mqttc._thread.name = self._connection_name + '_' + comtype + '_' + client_uid
       self._thread_name = self._mqttc._thread.name
 
