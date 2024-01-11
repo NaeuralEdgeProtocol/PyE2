@@ -372,7 +372,7 @@ class BaseBlockEngine:
       )
     self.__public_key = self._get_pk(private_key=self.__private_key)
     self.__address = self._pk_to_address(self.__public_key)
-    self.P("Current address: {}.".format(self.address), boxed=True)
+    self.P("Current address: {}".format(self.address), boxed=True)
     self.P("Allowed list of senders: {}".format(self.allowed_list))
     return
   

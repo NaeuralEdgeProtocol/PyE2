@@ -11,6 +11,27 @@ class Logger():
     self.print_lock = Lock()
     self.silent = silent
     self._base_folder = kwargs.get('base_folder', '')
+
+    self._logs_dir = os.path.join(self._base_folder, self.get_logs_dir_name())
+    self._outp_dir = os.path.join(self._base_folder, self.get_output_dir_name())
+    self._data_dir = os.path.join(self._base_folder, self.get_data_dir_name())
+    self._modl_dir = os.path.join(self._base_folder, self.get_models_dir_name())
+
+    self._setup_folders([
+      self._outp_dir,
+      self._logs_dir,
+      self._data_dir,
+      self._modl_dir
+    ])
+
+    return
+
+  def _setup_folders(self, folder_list):
+    self.folder_list = folder_list
+    for folder in folder_list:
+      if not os.path.isdir(folder):
+        print("Creating folder [{}]".format(folder))
+        os.makedirs(folder)
     return
 
   def get_base_folder(self):
@@ -212,3 +233,19 @@ class Logger():
 
     self.P("Inner folder of type '{}' not found".format(target))
     return
+
+  @staticmethod
+  def get_logs_dir_name():
+    return '_logs'
+
+  @staticmethod
+  def get_output_dir_name():
+    return '_output'
+
+  @staticmethod
+  def get_data_dir_name():
+    return '_data'
+
+  @staticmethod
+  def get_models_dir_name():
+    return '_models'

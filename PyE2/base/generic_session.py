@@ -58,7 +58,7 @@ class GenericSession(object):
   }
 
   BLOCKCHAIN_CONFIG = {
-      "PEM_FILE": "e2.pem",
+      "PEM_FILE": "_pk_sdk.pem",
       "PASSWORD": None,
       "PEM_LOCATION": "data"
   }
@@ -115,7 +115,7 @@ class GenericSession(object):
         This flag will disable debug logs, set to 'False` for a more verbose log, by default True
     """
     if log is None:
-      log = Logger(silent=silent)
+      log = Logger(silent=silent, base_folder='_local_cache')
 
     super(GenericSession, self).__init__()
 
@@ -291,7 +291,7 @@ class GenericSession(object):
 
     return
 
-  def _send_command_to_box(self, command, worker, payload):
+  def _send_command_to_box(self, command, worker, payload, show_command=False):
     msg_to_send = {
         'EE_ID': worker,
         'SB_ID': worker,
@@ -300,7 +300,8 @@ class GenericSession(object):
         'INITIATOR_ID': self.name
     }
     self.bc_engine.sign(msg_to_send, use_digest=True)
-    self.P("Sending command '{}' to '{}':\n{}".format(command, worker, json.dumps(msg_to_send, indent=2)), color='y')
+    if show_command:
+      self.P("Sending command '{}' to '{}':\n{}".format(command, worker, json.dumps(msg_to_send, indent=2)), color='y')
     self._send_payload(worker, msg_to_send)
     return
 
