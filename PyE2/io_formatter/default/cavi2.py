@@ -273,6 +273,9 @@ class Cavi2Formatter(BaseFormatter):
     encoded_output.pop('version')
     encoded_output.pop('demoMode')
     # assert len(encoded_output) == 0
+    for k in list(encoded_output.keys()):
+      if k.startswith('EE'):
+        output[k] = encoded_output[k]
     return output
 
 
