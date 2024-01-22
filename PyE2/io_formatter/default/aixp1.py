@@ -35,12 +35,12 @@ class Aixp1Formatter(BaseFormatter):
 
   def _encode_output(self, output):
     event_type = output.pop('EE_EVENT_TYPE', None)
-    
+
     # below fields are not required as they will be decorated post-formatting anyway
     output.pop('EE_MESSAGE_ID', None)
     output.pop('EE_MESSAGE_SEQ', None)
     output.pop('EE_TOTAL_MESSAGES', None)
-    
+
     output.pop('EE_TIMESTAMP', None)
     output.pop('EE_ID', None)
     output.pop('STREAM_NAME', None)
@@ -92,9 +92,9 @@ class Aixp1Formatter(BaseFormatter):
 
   def _decode_output(self, encoded_output):
     # Pop the unimportant stuff
-    encoded_output.pop('EE_FORMATTER', None)
+    encoded_output.get('EE_FORMATTER', None)
 
-    ee_id, pipeline, signature, instance_id = encoded_output.pop('EE_PAYLOAD_PATH', [None, None, None, None])
+    ee_id, pipeline, signature, instance_id = encoded_output.get('EE_PAYLOAD_PATH', [None, None, None, None])
 
     encoded_output['EE_ID'] = ee_id
 
