@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "pika", "paho-mqtt", "Pillow", "numpy"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
@@ -17,6 +17,11 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+]
+dependencies = [
+  "pika", 
+  "paho-mqtt", 
+  "numpy"
 ]
 
 [project.urls]
