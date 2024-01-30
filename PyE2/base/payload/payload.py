@@ -24,7 +24,6 @@ import io
 from collections import UserDict
 
 import numpy as np
-from PIL import Image
 
 
 class Payload(UserDict):
@@ -49,7 +48,10 @@ class Payload(UserDict):
     NDArray[Any] | None
         The image if it was found or None otherwise.
     """
-    return np.array(self.get_image_as_PIL(key))
+    image = self.get_image_as_PIL(key)
+    if image is not None:
+      image = np.array(image)
+    return image
 
   def get_image_as_PIL(self, key='IMG'):
     """
@@ -73,6 +75,12 @@ class Payload(UserDict):
     return self._image_from_b64(base64_img)
 
   def _image_from_b64(self, base64_img):
-    base64_decoded = base64.b64decode(base64_img)
-    image = Image.open(io.BytesIO(base64_decoded))
+    image = None
+    try:
+      from PIL import Image
+
+      base64_decoded = base64.b64decode(base64_img)
+      image = Image.open(io.BytesIO(base64_decoded))
+    except ModuleNotFoundError:
+      raise "This functionality requires the PIL library. To use this feature, please install it using 'pip install pillow'"
     return image
