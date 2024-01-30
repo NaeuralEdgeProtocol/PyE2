@@ -151,6 +151,8 @@ class GenericSession(object):
     self.own_pipelines = []
 
     self.connected = False
+    self.closing = False
+    self.close_pipelines = False
 
     self.formatter_wrapper = IOFormatterWrapper(log, plugin_search_locations=formatter_plugins_locations)
 
@@ -514,8 +516,16 @@ class GenericSession(object):
     close_pipelines : bool, optional
         close all the pipelines created by or attached to this session (basically calling `.close_own_pipelines()` for you), by default False
     """
-    if close_pipelines:
-      self.close_own_pipelines()
+
+    self.closing = True
+    self.close_pipelines = close_pipelines
+
+    return
+
+  def _release_resources(self):
+    """
+    Release all resources and close all threads
+    """
     return
 
   def get_active_nodes(self):
@@ -651,12 +661,17 @@ class GenericSession(object):
 
     _start_timer = tm()
     try:
-      while (isinstance(wait, bool) and wait) or (tm() - _start_timer) < wait:
+      while ((isinstance(wait, bool) and wait) or (tm() - _start_timer) < wait) and not self.closing:
         self.maybe_reconnect()
         sleep(0.1)
     except KeyboardInterrupt:
       self.P("CTRL+C detected. Stopping loop.", color='r')
 
-    if close_session:
-      self.close(close_pipelines=close_pipelines)
+    # close all the other threads
+    # TODO:
+    self._release_resources()
+
+    if self.close_pipelines or close_session:
+      self.close_own_pipelines()
+
     return

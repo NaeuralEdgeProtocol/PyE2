@@ -188,12 +188,13 @@ class MqttSession(GenericSession):
     self._heartbeats_communicator.release()
     self._notifications_communicator.release()
     self._running = False
+    return
+
+  def _release_resources(self):
     self._payload_thread.join()
     self._notif_thread.join()
     self._hb_thread.join()
     self.connected = False
-
-    return
 
   def _send_payload(self, to, msg):
     payload = json.dumps(msg)
