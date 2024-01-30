@@ -20,9 +20,12 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 """
 
 import json
+import os
 from time import sleep
 from time import time as tm
 import traceback
+
+from ..utils import load_dotenv
 
 from ..bc import DefaultBlockEngine
 
@@ -63,7 +66,7 @@ class GenericSession(object):
       "PEM_LOCATION": "data"
   }
 
-  def __init__(self, *, host, port, user, pwd, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, blockchain_config=BLOCKCHAIN_CONFIG, formatter_plugins_locations=['plugins.io_formatters'], **kwargs) -> None:
+  def __init__(self, *, host=None, port=None, user=None, pwd=None, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, blockchain_config=BLOCKCHAIN_CONFIG, formatter_plugins_locations=['plugins.io_formatters'], **kwargs) -> None:
     """
     A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
     A Session manages `Pipelines` and handles all messages received from the communication server.
@@ -71,14 +74,14 @@ class GenericSession(object):
 
     Parameters
     ----------
-    host : str
-        The hostname of the server
-    port : int
-        The port
-    user : str
-        The user name
-    pwd : str
-        The password
+    host : str, optional
+        The hostname of the server. If None, it will be retrieved from the environment variable AIXP_HOSTNAME
+    port : int, optional
+        The port. If None, it will be retrieved from the environment variable AIXP_PORT
+    user : str, optional
+        The user name. If None, it will be retrieved from the environment variable AIXP_USERNAME
+    pwd : str, optional
+        The password. If None, it will be retrieved from the environment variable AIXP_PASSWORD
     name : str, optional
         The name of this connection, used to identify owned pipelines on a specific AiXpand node.
         The name will be used as `INITIATOR_ID` and `SESSION_ID` when communicating with AiXp nodes, by default 'pySDK'
@@ -170,17 +173,27 @@ class GenericSession(object):
     if self._config.get(comm_ct.SB_ID, None) is None:
       self._config[comm_ct.SB_ID] = name
 
+    load_dotenv()
+
+    if user is None:
+      user = os.getenv('AIXP_USERNAME')
     if self._config.get(comm_ct.USER, None) is None:
       self._config[comm_ct.USER] = user
 
+    if pwd is None:
+      pwd = os.getenv('AIXP_PASSWORD')
     if self._config.get(comm_ct.PASS, None) is None:
       self._config[comm_ct.PASS] = pwd
 
+    if host is None:
+      host = os.getenv('AIXP_HOSTNAME')
     if self._config.get(comm_ct.HOST, None) is None:
       self._config[comm_ct.HOST] = host
 
+    if port is None:
+      port = os.getenv('AIXP_PORT')
     if self._config.get(comm_ct.PORT, None) is None:
-      self._config[comm_ct.PORT] = port
+      self._config[comm_ct.PORT] = int(port)
     return
 
   def _parse_message(self, dict_msg: dict):

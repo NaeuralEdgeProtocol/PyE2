@@ -6,3 +6,4 @@ from .PyE2 import comm as pye2_comm
 from .PyE2 import const as pye2_const
 from .PyE2 import io_formatter as pye2_io_formatter
 from .PyE2 import utils as pye2_utils
+from .PyE2.utils import load_dotenv
