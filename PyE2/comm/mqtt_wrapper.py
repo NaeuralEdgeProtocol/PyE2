@@ -187,7 +187,9 @@ class MQTTWrapper(object):
     self.connected = False
     if rc == 0:
       self.connected = True
-      self.P("Conn ok clntid '{}' with code: {}".format(str(self._mqttc._client_id), rc), color='g')
+      mqttc = self._mqttc
+      client_id = str(mqttc._client_id) if mqttc is not None else 'None'
+      self.P("Conn ok clntid '{}' with code: {}".format(client_id, rc), color='g')
     return
 
   def _callback_on_disconnect(self, client, userdata, rc):
