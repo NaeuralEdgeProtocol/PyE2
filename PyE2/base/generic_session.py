@@ -66,7 +66,7 @@ class GenericSession(object):
       "PEM_LOCATION": "data"
   }
 
-  def __init__(self, *, host=None, port=None, user=None, pwd=None, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, blockchain_config=BLOCKCHAIN_CONFIG, formatter_plugins_locations=['plugins.io_formatters'], **kwargs) -> None:
+  def __init__(self, *, host=None, port=None, user=None, pwd=None, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, dotenv_path=None, blockchain_config=BLOCKCHAIN_CONFIG, formatter_plugins_locations=['plugins.io_formatters'], **kwargs) -> None:
     """
     A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
     A Session manages `Pipelines` and handles all messages received from the communication server.
@@ -116,6 +116,8 @@ class GenericSession(object):
         Defaults to None.
     silent : bool, optional
         This flag will disable debug logs, set to 'False` for a more verbose log, by default True
+    dotenv_path : str, optional
+        Path to the .env file, by default None. If None, the path will be searched in the current working directory and in the directories of the files from the call stack.
     """
     if log is None:
       log = Logger(silent=silent, base_folder='_local_cache')
@@ -132,7 +134,7 @@ class GenericSession(object):
     self.online_timeout = 60
     self.filter_workers = filter_workers
 
-    self._fill_config(host, port, user, pwd, name)
+    self._fill_config(host, port, user, pwd, name, dotenv_path)
 
     self.custom_on_payload = on_payload
     self.custom_on_heartbeat = on_heartbeat
@@ -171,35 +173,35 @@ class GenericSession(object):
   def server(self):
     return self._config[comm_ct.HOST]
 
-  def _fill_config(self, host, port, user, pwd, name):
+  def _fill_config(self, host, port, user, pwd, name, dotenv_path):
     if self._config.get(comm_ct.SB_ID, None) is None:
       self._config[comm_ct.SB_ID] = name
 
-    load_dotenv(usecwd=True)
+    # this method will search for the credentials in the environment variables
+    # the path to env file, if not specified, will be search in the following order:
+    #  1. current working directory
+    #  2-N. directories of the files from the call stack
+    load_dotenv(dotenv_path=dotenv_path, verbose=False)
 
-    if user is None:
-      user = os.getenv('AIXP_USERNAME') or os.getenv('AIXP_USER')
+    user = user or os.getenv('AIXP_USERNAME') or os.getenv('AIXP_USER')
     if user is None:
       raise ValueError("Error: No user specified for AiXpand network connection")
     if self._config.get(comm_ct.USER, None) is None:
       self._config[comm_ct.USER] = user
 
-    if pwd is None:
-      pwd = os.getenv('AIXP_PASSWORD') or os.getenv('AIXP_PASS') or os.getenv('AIXP_PWD')
+    pwd = pwd or os.getenv('AIXP_PASSWORD') or os.getenv('AIXP_PASS') or os.getenv('AIXP_PWD')
     if pwd is None:
       raise ValueError("Error: No password specified for AiXpand network connection")
     if self._config.get(comm_ct.PASS, None) is None:
       self._config[comm_ct.PASS] = pwd
 
-    if host is None:
-      host = os.getenv('AIXP_HOSTNAME') or os.getenv('AIXP_HOST')
+    host = host or os.getenv('AIXP_HOSTNAME') or os.getenv('AIXP_HOST')
     if host is None:
       raise ValueError("Error: No host specified for AiXpand network connection")
     if self._config.get(comm_ct.HOST, None) is None:
       self._config[comm_ct.HOST] = host
 
-    if port is None:
-      port = os.getenv('AIXP_PORT')
+    port = port or os.getenv('AIXP_PORT')
     if port is None:
       raise ValueError("Error: No port specified for AiXpand network connection")
     if self._config.get(comm_ct.PORT, None) is None:
