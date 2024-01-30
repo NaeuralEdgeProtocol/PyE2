@@ -4,7 +4,7 @@ This is the Python SDK package that allows interactions, development and deploym
 
 ## Dependencies
 
-This packet depends on the following packets: [`pika`, `paho-mqtt`, `Pillow`, `numpy`]. If the installation of the `PyE2` packet does not resolve the dependencies, please install them manually.
+This packet depends on the following packets: [`pika`, `paho-mqtt`, `numpy`, `cryptography`].
 
 ## Installation
 
@@ -40,7 +40,7 @@ The following are the same:
 
 Below is a simple "Hello world!" style application that creates a session by connecting to a known communication broker, listens for processing nodes heartbeats and displays the basic compute capabilities of the discovered nodes such as CPU & RAM.
 
-<details>
+<details open>
   <summary>Expand this tutorial</summary>
 
 #### Importing and configuration
@@ -257,6 +257,14 @@ the persons that are visible, and returns the images back to us.
 
 <details>
   <summary>Expand this tutorial</summary>
+
+#### Pre-requisites
+
+For this application, we need to install the PIL (`pillow`) library to use some advanced functionalities involving image manipulation.
+
+```shell
+python -m pip install pillow
+```
 
 #### Importing and configuration
 
