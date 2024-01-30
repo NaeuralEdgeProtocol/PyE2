@@ -40,9 +40,6 @@ The following are the same:
 
 Below is a simple "Hello world!" style application that creates a session by connecting to a known communication broker, listens for processing nodes heartbeats and displays the basic compute capabilities of the discovered nodes such as CPU & RAM.
 
-<details open>
-  <summary>Expand this tutorial</summary>
-
 #### Importing and configuration
 
 ```python
@@ -70,8 +67,6 @@ if __name__ == '__main__':
   )
   sess.run(wait=10)
 ```
-
-</details>
 
 ### Advanced quick-start with decentralized distributed jobs
 
