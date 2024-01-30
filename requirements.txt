@@ -1,3 +1,4 @@
 pika
 paho-mqtt
 numpy
+cryptography

@@ -21,7 +21,8 @@ classifiers = [
 dependencies = [
   "pika", 
   "paho-mqtt", 
-  "numpy"
+  "numpy",
+  "cryptography"
 ]
 
 [project.urls]
