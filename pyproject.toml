@@ -10,7 +10,7 @@ authors = [
   { name="Cristan Bleotiu", email="cristan.bleotiu@global-technical.com" },
   { name="Andrei Ionut Damian", email="andrei.damian@lummetry.ai" },
 ]
-description = "PyE2 is an SDK used to communicate with the AiXpand network"
+description = "PyE2 is the Python SDK required for client app development in the AiXpand network"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
