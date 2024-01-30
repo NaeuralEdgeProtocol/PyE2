@@ -205,7 +205,8 @@ class MQTTWrapper(object):
       str_error = "Gracefull disconn."
     else:
       str_error = mqtt.error_string(rc) + ' (code={})'.format(rc)
-      client_id = str(self._mqttc._client_id) if self._mqttc is not None else 'None'
+      mqttc = self._mqttc
+      client_id = str(mqttc._client_id) if mqttc is not None else 'None'
       self.P("Unexpected disconn for client id '{}': {}".format(
         client_id, str_error), color='r'
       )
