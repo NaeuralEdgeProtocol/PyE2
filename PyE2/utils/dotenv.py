@@ -61,12 +61,13 @@ def find_dotenv(
   return ''
 
 
-def load_dotenv(dotenv_path=None):
+def load_dotenv(dotenv_path=None, usecwd=False):
   """Load environment variables from a .env file."""
   if dotenv_path is None:
-    dotenv_path = find_dotenv()
+    dotenv_path = find_dotenv(usecwd=usecwd)
   if not os.path.exists(dotenv_path):
-    raise ValueError(f"Error: {dotenv_path} file not found. Please check your bare-metal deployment.")
+    print(f"Error: `{dotenv_path or '.env'}` file not found. Please check your bare-metal deployment.")
+    return
 
   print("Loading {}...".format(dotenv_path))
   with open(dotenv_path, 'r') as f:

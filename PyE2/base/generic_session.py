@@ -175,25 +175,33 @@ class GenericSession(object):
     if self._config.get(comm_ct.SB_ID, None) is None:
       self._config[comm_ct.SB_ID] = name
 
-    load_dotenv()
+    load_dotenv(usecwd=True)
 
     if user is None:
-      user = os.getenv('AIXP_USERNAME')
+      user = os.getenv('AIXP_USERNAME') or os.getenv('AIXP_USER')
+    if user is None:
+      raise ValueError("Error: No user specified for AiXpand network connection")
     if self._config.get(comm_ct.USER, None) is None:
       self._config[comm_ct.USER] = user
 
     if pwd is None:
-      pwd = os.getenv('AIXP_PASSWORD')
+      pwd = os.getenv('AIXP_PASSWORD') or os.getenv('AIXP_PASS') or os.getenv('AIXP_PWD')
+    if pwd is None:
+      raise ValueError("Error: No password specified for AiXpand network connection")
     if self._config.get(comm_ct.PASS, None) is None:
       self._config[comm_ct.PASS] = pwd
 
     if host is None:
-      host = os.getenv('AIXP_HOSTNAME')
+      host = os.getenv('AIXP_HOSTNAME') or os.getenv('AIXP_HOST')
+    if host is None:
+      raise ValueError("Error: No host specified for AiXpand network connection")
     if self._config.get(comm_ct.HOST, None) is None:
       self._config[comm_ct.HOST] = host
 
     if port is None:
       port = os.getenv('AIXP_PORT')
+    if port is None:
+      raise ValueError("Error: No port specified for AiXpand network connection")
     if self._config.get(comm_ct.PORT, None) is None:
       self._config[comm_ct.PORT] = int(port)
     return
