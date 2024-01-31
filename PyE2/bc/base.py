@@ -352,15 +352,16 @@ class BaseBlockEngine:
       self.P("Initializing private blockchain:\n{}".format(json.dumps(self.__config, indent=4)))
     if self.__pem_file is not None:
       try:
-        self.P("Trying to load sk from {}".format(self.__pem_file))
+        full_path = os.path.abspath(self.__pem_file)
+        self.P("Trying to load sk from {}".format(full_path))
         self.__private_key = self._text_to_sk(
           source=self.__pem_file,
           from_file=True,
           password=self.__password,
         )
-        self.P("  Loaded sk from {}".format(self.__pem_file))
+        self.P("  Loaded sk from {}".format(full_path))
       except:
-        self.P("  Failed to load sk from {}".format(self.__pem_file), color='r')
+        self.P("  Failed to load sk from {}".format(full_path), color='r')
 
     if self.__private_key is None:
       self.P("Creating new private key")
@@ -499,7 +500,8 @@ class BaseBlockEngine:
       with open(fn, 'rt') as fh:
         lst_allowed = fh.readlines()
     else:
-      self.P("WARNING: no `{}` file found. Creating empty one.".format(fn))
+      full_path = os.path.abspath(fn)
+      self.P("WARNING: no `{}` file found. Creating empty one.".format(full_path))
       with open(fn, 'wt') as fh:
         fh.write('\n')
     lst_allowed = [x.strip() for x in lst_allowed]
@@ -623,7 +625,8 @@ class BaseBlockEngine:
     )     
     str_pem = pem.decode()
     if fn is not None:
-      self.P("Writing PEM-encoded key to {}".format(fn), color='g')
+      full_path = os.path.abspath(fn)
+      self.P("Writing PEM-encoded key to {}".format(full_path), color='g')
       with open(fn, 'wt') as fh:
         fh.write(str_pem)
     return str_pem  
