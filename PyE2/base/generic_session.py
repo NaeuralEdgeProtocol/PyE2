@@ -133,6 +133,10 @@ class GenericSession(object):
     self._last_seen_boxes = {}
     self.online_timeout = 60
     self.filter_workers = filter_workers
+    
+    pwd = pwd or kwargs.get('password', kwargs.get('pass', None))
+    user = user or kwargs.get('username', None) 
+    host = host or kwargs.get('hostname', None)
 
     self._fill_config(host, port, user, pwd, name, dotenv_path)
 
