@@ -22,7 +22,7 @@ dependencies = [
   "pika", 
   "paho-mqtt", 
   "numpy",
-  "cryptography"
+  "cryptography>=35.0.0"
 ]
 
 [project.urls]
