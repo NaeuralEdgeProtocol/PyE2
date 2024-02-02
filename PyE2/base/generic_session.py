@@ -66,7 +66,23 @@ class GenericSession(object):
       "PEM_LOCATION": "data"
   }
 
-  def __init__(self, *, host=None, port=None, user=None, pwd=None, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, dotenv_path=None, blockchain_config=BLOCKCHAIN_CONFIG, formatter_plugins_locations=['plugins.io_formatters'], **kwargs) -> None:
+  def __init__(
+    self, *, 
+    host=None, port=None, user=None, pwd=None, 
+    name='pySDK', 
+    config={}, 
+    filter_workers=None, 
+    log=None,
+    on_payload=None, 
+    on_notification=None, 
+    on_heartbeat=None, 
+    silent=True, 
+    verbosity=1,
+    dotenv_path=None, 
+    blockchain_config=BLOCKCHAIN_CONFIG, 
+    formatter_plugins_locations=['plugins.io_formatters'], 
+    **kwargs
+  ) -> None:
     """
     A Session is a connection to a communication server which provides the channel to interact with nodes from the AiXpand network.
     A Session manages `Pipelines` and handles all messages received from the communication server.
@@ -128,6 +144,8 @@ class GenericSession(object):
     self._config = {**self.default_config, **config}
     self.log = log
     self.name = name
+    
+    self.__verbosity = verbosity
 
     self._online_boxes = {}
     self._last_seen_boxes = {}
@@ -248,7 +266,7 @@ class GenericSession(object):
     if self._maybe_ignore_message(msg_eeid):
       return
 
-    self.D("Received hb from: {}".format(msg_eeid))
+    self.D("Received hb from: {}".format(msg_eeid), verbosity=2)
 
     # call the custom callback, if defined
     if self.custom_on_heartbeat is not None:
@@ -278,7 +296,8 @@ class GenericSession(object):
               msg_eeid,
               msg_stream,
               notification),
-           color=color)
+           color=color, verbosity=2,
+    )
 
     # call the pipeline defined callbacks, if any
     for pipeline, callback in self.notification_pipeline_callbacks:
@@ -330,7 +349,7 @@ class GenericSession(object):
     }
     self.bc_engine.sign(msg_to_send, use_digest=True)
     if show_command:
-      self.P("Sending command '{}' to '{}':\n{}".format(command, worker, json.dumps(msg_to_send, indent=2)), color='y')
+      self.P("Sending command '{}' to '{}':\n{}".format(command, worker, json.dumps(msg_to_send, indent=2)), color='y', verbosity=1)
     self._send_payload(worker, msg_to_send)
     return
 
@@ -385,6 +404,9 @@ class GenericSession(object):
     -------
 
     """
+    verbosity = kwargs.pop('verbosity', 1)
+    if verbosity > self.__verbosity:
+      return
     self.log.P(*args, **kwargs)
 
   def D(self, *args, **kwargs):
@@ -407,6 +429,9 @@ class GenericSession(object):
     -------
 
     """
+    verbosity = kwargs.pop('verbosity', 1)
+    if verbosity > self.__verbosity:
+      return
     self.log.D(*args, **kwargs)
     return
 
@@ -496,7 +521,7 @@ class GenericSession(object):
     if not found:
       self.P("WARNING: could not find worker '{}' in {:.1f}s. The job may not have a valid active worker.".format(
           e2id, tm() - _start
-      ), color='r')
+      ), color='r', verbosity=1)
     pipeline = Pipeline(
         self,
         self.log,
@@ -679,7 +704,7 @@ class GenericSession(object):
         self.maybe_reconnect()
         sleep(0.1)
     except KeyboardInterrupt:
-      self.P("CTRL+C detected. Stopping loop.", color='r')
+      self.P("CTRL+C detected. Stopping loop.", color='r', verbosity=1)
 
     # close all the other threads
     # TODO:

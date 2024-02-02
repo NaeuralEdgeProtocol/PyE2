@@ -49,6 +49,7 @@ class MQTTWrapper(object):
                post_default_on_message=None,  # callback that gets called after custom or default rcv callback
                debug_errors=False,
                connection_name='MqttWrapper',
+               verbosity=1,
                **kwargs):
     self.log = log
     self._config = config
@@ -58,6 +59,7 @@ class MQTTWrapper(object):
     self._thread_name = None
     self.connected = False
     self.disconnected = False
+    self.__verbosity = verbosity
     self._send_to = None
     self._nr_full_retries = 0
     self.__nr_dropped_messages = 0
@@ -79,7 +81,9 @@ class MQTTWrapper(object):
     super(MQTTWrapper, self).__init__(**kwargs)
     return
 
-  def P(self, s, color=None, **kwargs):
+  def P(self, s, color=None, verbosity=1, **kwargs):
+    if verbosity > self.__verbosity:
+      return
     if color is None or (isinstance(color, str) and color[0] not in ['e', 'r']):
       color = COLORS.COMM
     comtype = self._comm_type[:7] if self._comm_type is not None else 'CUSTOM'
@@ -189,7 +193,7 @@ class MQTTWrapper(object):
       self.connected = True
       mqttc = self._mqttc
       client_id = str(mqttc._client_id) if mqttc is not None else 'None'
-      self.P("Conn ok clntid '{}' with code: {}".format(client_id, rc), color='g')
+      self.P("Conn ok clntid '{}' with code: {}".format(client_id, rc), color='g', verbosity=1)
     return
 
   def _callback_on_disconnect(self, client, userdata, rc):
@@ -201,17 +205,17 @@ class MQTTWrapper(object):
       client.disconnect_flag = True
     """
     if rc == 0:
-      self.P('Gracefull disconn (code={})'.format(rc), color='m')
+      self.P('Gracefull disconn (code={})'.format(rc), color='m', verbosity=1)
       str_error = "Gracefull disconn."
     else:
       str_error = mqtt.error_string(rc) + ' (code={})'.format(rc)
       mqttc = self._mqttc
       client_id = str(mqttc._client_id) if mqttc is not None else 'None'
       self.P("Unexpected disconn for client id '{}': {}".format(
-        client_id, str_error), color='r'
+        client_id, str_error), color='r', verbosity=1,
       )
     if self._disconnected_counter > 0:
-      self.P("Trying to determine IP of target server...")
+      self.P("Trying to determine IP of target server...", verbosity=1)
       ok, str_ip, str_domain = resolve_domain_or_ip(self.cfg_host)
       msg = '  Multiple conn loss ({} disconnects so far), showing previous 10:\n{}'.format(
         self._disconnected_counter, self.last_disconnect_log
@@ -221,7 +225,7 @@ class MQTTWrapper(object):
         "({}:{})".format(str_ip, self.cfg_port) if (ok and str_ip != str_domain) else ""
       )
       msg += "\n\n{}\n{}\n{}".format("*" * len(server_port), server_port, "*" * len(server_port))
-      self.P(msg, color='r')
+      self.P(msg, color='r', verbosity=1)
     # endif multiple disconnects
     self.connected = False
     self.disconnected = True
@@ -298,8 +302,8 @@ class MQTTWrapper(object):
       except Exception as e:
         exception = e
         if self.debug_errors:
-          self.P(e, color='r')
-          self.P(traceback.format_exc(), color='r')
+          self.P(e, color='r', verbosity=1)
+          self.P(traceback.format_exc(), color='r', verbosity=1)
 
       # end try-except
 
@@ -318,7 +322,7 @@ class MQTTWrapper(object):
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_NORMAL
       self._nr_full_retries = 0
-      self.P(msg, color='g')
+      self.P(msg, color='g', verbosity=1)
     else:
       reason = exception
       if reason is None:
@@ -328,7 +332,7 @@ class MQTTWrapper(object):
         self.cfg_host, self.cfg_port, nr_retry, self._nr_full_retries, reason
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_EXCEPTION
-      self.P(msg, color='r')
+      self.P(msg, color='r', verbosity=1)
       # now register failure
     # endif
 

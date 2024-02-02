@@ -226,8 +226,8 @@ class Pipeline(object):
       self._add_notification_instance_callback_to_session(
           signature, instance_id, on_notification)
     self.P("Starting plugin {}:{}".format(
-        signature, instance_id))
-    self.D("with params {}".format(params))
+        signature, instance_id), verbosity=1)
+    self.D("with params {}".format(params), verbosity=2)
     return "##".join([self.e2id, self.name, signature, instance_id])
 
   def stop_plugin_instance(self, signature, instance_id=None, /):
@@ -338,13 +338,13 @@ class Pipeline(object):
         try:
           exec_data = data['specificValue']['exec_result']
         except Exception as e:
-          self.P(e, color='r')
-          self.P(data, color='r')
+          self.P(e, color='r', verbosity=0)
+          self.P(data, color='r', verbosity=1)
         exec_error = data['specificValue']['exec_errors']
 
       if exec_error is not None:
         self.P("Error received from <CUSTOM_EXEC_01:{}>: {}".format(
-            instance_id, exec_error), color="r")
+            instance_id, exec_error), color="r", verbosity=1)
       if exec_data is not None:
         on_data(self, exec_data)
       return
@@ -579,13 +579,13 @@ class Pipeline(object):
         try:
           exec_data = data['specificValue']['exec_result']
         except Exception as e:
-          self.P(e, color='r')
-          self.P(data, color='r')
+          self.P(e, color='r', verbosity=1)
+          self.P(data, color='r', verbosity=1)
         exec_error = data['specificValue']['exec_errors']
 
       if exec_error is not None:
         self.P("Error received from <CUSTOM_EXEC_01:{}>: {}".format(
-            instance_id, exec_error), color="r")
+            instance_id, exec_error), color="r", verbosity=1)
       if exec_data is not None:
         on_data(self, exec_data)
       return

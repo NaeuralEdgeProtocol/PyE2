@@ -31,11 +31,22 @@ from ..const import COLORS, COMMS, BASE_CT, PAYLOAD_CT
 
 
 class AMQPWrapper(object):
-  def __init__(self, log, config, recv_buff=None, send_channel_name=None, recv_channel_name=None, comm_type=None, **kwargs):
+  def __init__(
+    self, 
+    log, 
+    config, 
+    recv_buff=None, 
+    send_channel_name=None, 
+    recv_channel_name=None, 
+    comm_type=None,
+    verbosity=1, 
+    **kwargs
+  ):
     self._config = config
     self._recv_buff = recv_buff
     self._send_to = None
     self._comm_type = comm_type
+    self.__verbosity = verbosity
     self.send_channel_name = send_channel_name
     self.recv_channel_name = recv_channel_name
     self._disconnected_log = []
@@ -52,7 +63,9 @@ class AMQPWrapper(object):
     super(AMQPWrapper, self).__init__(log=log, **kwargs)
     return
 
-  def P(self, s, color=None, **kwargs):
+  def P(self, s, color=None, verbosity=1, **kwargs):
+    if verbosity > self.__verbosity:
+      return
     if color is None or (isinstance(color, str) and color[0] not in ['e', 'r']):
       color = COLORS.COMM
     super().P(s, prefix=False, color=color, **kwargs)
