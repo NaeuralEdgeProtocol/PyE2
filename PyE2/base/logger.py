@@ -24,6 +24,9 @@ class Logger():
       self._modl_dir
     ])
 
+    now_str = self.time_to_str(fmt="%Y%m%d_%H%M%S")
+    self.log_file_name = os.path.join(self.get_logs_folder(), '{}_log.txt'.format(now_str))
+
     return
 
   def _setup_folders(self, folder_list):
@@ -74,6 +77,8 @@ class Logger():
 
   def P(self, msg, **kwargs):
     with self.print_lock:
+      with open(self.log_file_name, 'a') as f:
+        f.write(msg + '\n')
       print(msg, flush=True)
     return
 
