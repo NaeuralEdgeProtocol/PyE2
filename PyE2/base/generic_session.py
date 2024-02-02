@@ -185,6 +185,7 @@ class GenericSession(object):
         log=log,
         name=self.name,
         config=blockchain_config,
+        verbosity=verbosity,
       )
     except:
       raise ValueError("Failure in private blockchain setup:\n{}".format(traceback.format_exc()))

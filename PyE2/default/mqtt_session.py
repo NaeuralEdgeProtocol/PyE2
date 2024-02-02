@@ -32,9 +32,20 @@ from ..base import GenericSession
 # TODO: implement send_command, send_payload,
 #       to be used by the Pipeline class
 class MqttSession(GenericSession):
-  def __init__(self, *, host=None, port=None, user=None, pwd=None, name='pySDK', config={}, filter_workers=None, log=None, on_payload=None, on_notification=None, on_heartbeat=None, silent=True, **kwargs) -> None:
-    super(MqttSession, self).__init__(host=host, port=port, user=user, pwd=pwd, name=name, config=config, filter_workers=filter_workers,
-                                      log=log, on_payload=on_payload, on_notification=on_notification, on_heartbeat=on_heartbeat, silent=silent, **kwargs)
+  def __init__(
+    self, *, 
+    host=None, port=None, user=None, pwd=None, 
+    name='pySDK', config={}, filter_workers=None, log=None, 
+    on_payload=None, on_notification=None, on_heartbeat=None, 
+    silent=True, verbosity=1,
+    **kwargs
+  ) -> None:
+    super(MqttSession, self).__init__(
+      host=host, port=port, user=user, pwd=pwd, name=name, config=config, filter_workers=filter_workers,
+      log=log, on_payload=on_payload, on_notification=on_notification, on_heartbeat=on_heartbeat, 
+      silent=silent, verbosity=verbosity, 
+      **kwargs
+    )
 
     self._payload_messages = deque()
     self._default_communicator = MQTTWrapper(
@@ -45,6 +56,7 @@ class MqttSession(GenericSession):
         comm_type=comm_ct.COMMUNICATION_DEFAULT,
         recv_buff=self._payload_messages,
         connection_name=name,
+        verbosity=verbosity,
         # on_message=self._on_payload_default_mqtt_callback
     )
 
@@ -56,6 +68,7 @@ class MqttSession(GenericSession):
         comm_type=comm_ct.COMMUNICATION_HEARTBEATS,
         recv_buff=self._hb_messages,
         connection_name=name,
+        verbosity=verbosity,
         # on_message=self._on_heartbeat_default_mqtt_callback
     )
 
@@ -67,6 +80,7 @@ class MqttSession(GenericSession):
         comm_type=comm_ct.COMMUNICATION_NOTIFICATIONS,
         recv_buff=self._notif_messages,
         connection_name=name,
+        verbosity=verbosity,
         # on_message=self._on_notification_default_mqtt_callback
     )
 
