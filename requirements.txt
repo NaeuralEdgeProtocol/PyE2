@@ -2,4 +2,4 @@ pika
 paho-mqtt
 numpy
 pyopenssl>=23.0.0
-cryptography>=35.0.0
+cryptography>=39.0.0

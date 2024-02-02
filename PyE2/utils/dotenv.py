@@ -1,5 +1,6 @@
 import os
 import sys
+import configparser
 
 
 def find_dotenv(
@@ -36,7 +37,7 @@ def find_dotenv(
   return ''
 
 
-def load_dotenv(dotenv_path=None, usecwd=False, verbose=False):
+def load_dotenv(dotenv_path=None, usecwd=False, *, verbose=False, load_env=True):
   """Load environment variables from a .env file."""
   if dotenv_path is None:
     dotenv_path = find_dotenv()
@@ -48,13 +49,15 @@ def load_dotenv(dotenv_path=None, usecwd=False, verbose=False):
 
   if verbose:
     print("Loading {}...".format(dotenv_path))
+  parser = configparser.ConfigParser()
   with open(dotenv_path, 'r') as f:
-    for line in f:
-      line = line.strip()
-      if not line or line.startswith('#') or '=' not in line:
-        continue
-      key, value = line.split('=', 1)
+    parser.read_string('[data]\n' + f.read())
+  dct_data = {k.upper(): v for k, v in parser['data'].items()}
+
+  if load_env:
+    for key, value in dct_data.items():
       if verbose:
         print("  Setting '{}'".format(key))
       os.environ[key] = value
-  return
+  # endif load_env
+  return dct_data
