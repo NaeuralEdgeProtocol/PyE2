@@ -23,10 +23,8 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 import json
 
 # local dependencies
-
-# TODO(S): add consts
-from ...io_formatter.base import BaseFormatter
 from ...const import FORMATTER_DATA
+from ...io_formatter.base import BaseFormatter
 
 
 class Cavi2Formatter(BaseFormatter):

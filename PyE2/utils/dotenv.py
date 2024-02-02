@@ -11,10 +11,7 @@ def find_dotenv(
   Returns path to the first env file if found, or an empty string otherwise
   """
 
-  cwd = os.getcwd()
-
-  files_checked_queue = []
-  files_checked_queue.append(cwd)
+  files_checked_queue = [os.getcwd()]
 
   frame = sys._getframe()
   current_dir = None
@@ -37,14 +34,29 @@ def find_dotenv(
   return ''
 
 
-def load_dotenv(dotenv_path=None, usecwd=False, *, verbose=False, load_env=True):
-  """Load environment variables from a .env file."""
+def load_dotenv(dotenv_path=None, *, verbose=False, load_env=True):
+  """
+  Load environment variables from a .env file.
+
+  Parameters
+  ----------
+  dotenv_path : str, optional
+      Path to the .env file. If not specified, it will search in the current directory of each file from the call stack, by default None
+  verbose : bool, optional
+      If True, the method will print logs, by default False
+  load_env : bool, optional
+      If True, the method will load the found variables in the environment, by default True
+
+  Returns
+  -------
+  dict
+      A dictionary containing the variables found in the .env file
+  """
   if dotenv_path is None:
     dotenv_path = find_dotenv()
   if not os.path.exists(dotenv_path):
     if verbose:
-      search_path = os.getcwd() if usecwd else os.path.abspath(os.path.dirname(__file__))
-      print(f"Error: `{dotenv_path or '.env'}` file not found. Search path: `{search_path}` (use cwd: {usecwd})")
+      print(f"Error: `{dotenv_path or '.env'}` file not found.")
     return
 
   if verbose:

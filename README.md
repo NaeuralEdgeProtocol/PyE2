@@ -184,18 +184,19 @@ SERVER_CONFIG = {
 }
 
 
-def instance_on_data(pipeline : Pipeline, data : dict):
-  print(data)
+def instance_on_data(pipeline : Pipeline, custom_code_result: dict, data: dict):
+  """
+  in `custom_code_result` we have the output of our custom code
+  in `data` we have the entire payload
+  """
+  pipeline.P(custom_code_result)
   return
 
 
-def pipeline_on_data(pipeline : Pipeline, signature : str, instance : str, data : dict):
-  pass
-
 if __name__ == '__main__':
 
-  WORKER_CODE_PATH = 'xperimental/dedist_example_worker.py'
-  INITIATOR_CODE_PATH = 'xperimental/dedist_example_initiator.py'
+  WORKER_CODE_PATH = 'dedist_example_worker.py'
+  INITIATOR_CODE_PATH = 'dedist_example_initiator.py'
 
   with open(WORKER_CODE_PATH, 'rt') as fh:
     worker_code = fh.read()
@@ -211,15 +212,11 @@ if __name__ == '__main__':
   pipeline = sess.create_pipeline(
       e2id=e2id,
       name='test_dist_jobs',
-      # data_source='Void',
-      # config={},
       data_source='IotQueueListener', # this DCT allows data acquisition from MQTT brokers
       config={
           'STREAM_CONFIG_METADATA': listener_params,
           "RECONNECTABLE": True,
       },
-      plugins=None,
-      on_data=pipeline_on_data,
   )
 
 
@@ -238,7 +235,7 @@ if __name__ == '__main__':
       process_delay=0.2
   )
 
-  sess.wait_until_sigint(close_session=True, close_pipelines=True)
+  sess.run(wait=True, close_session=True, close_pipelines=True)
 
 ```
 
@@ -278,9 +275,6 @@ the image stored at that key, and converts it from base64 to a PIL format.
 #### Preparing callbacks
 
 ```python
-def on_pipeline_data(pipeline : Pipeline, plugin : str, instance_id : str, data : Payload):
-  return
-
 val = 0
 
 def on_instance_data(pipeline : Pipeline, payload: Payload):
@@ -322,7 +316,6 @@ if __name__ == '__main__':
     config={
       "URL": "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
     },
-    on_data=on_data,
   )
 
   # Create an object_tracking plugin instance that will track only the persons in the video

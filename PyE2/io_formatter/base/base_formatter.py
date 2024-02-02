@@ -22,8 +22,7 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 import traceback
 from time import time
 
-# TODO(S): add consts
-from ...const import PAYLOAD_DATA, STATUS_TYPE
+from ...const import PAYLOAD_DATA
 
 
 class BaseFormatter(object):

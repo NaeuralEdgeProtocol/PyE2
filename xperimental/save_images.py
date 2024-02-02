@@ -1,15 +1,4 @@
-import os
-from time import sleep
-
-from dotenv import load_dotenv
-
 from PyE2 import Payload, Pipeline, Session
-
-load_dotenv()
-
-
-def on_data(pipeline: Pipeline, plugin: str, instance: str, payload: Payload):
-  return
 
 
 val = 0
@@ -23,10 +12,6 @@ def instance_on_data(pipeline: Pipeline, payload: Payload):
 
 if __name__ == '__main__':
   sess = Session(
-      host=os.getenv('PYE2_HOSTNAME'),
-      port=int(os.getenv('PYE2_PORT')),
-      user=os.getenv('PYE2_USERNAME'),
-      pwd=os.getenv('PYE2_PASSWORD'),
       filter_workers=['e2id']
   )
 
@@ -40,7 +25,6 @@ if __name__ == '__main__':
       "URL": "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
       "LIVE": False,
     },
-    on_data=on_data,
   )
 
   instance = pipeline.start_plugin_instance(

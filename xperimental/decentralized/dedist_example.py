@@ -1,27 +1,12 @@
 
 import os
 
-from dotenv import load_dotenv
-
-from PyE2 import Session, code_to_base64
-
-load_dotenv()
-
-SERVER_CONFIG = {
-    'host': os.getenv('PYE2_HOSTNAME'),
-    'port': int(os.getenv('PYE2_PORT')),
-    'user': os.getenv('PYE2_USERNAME'),
-    'pwd': os.getenv('PYE2_PASSWORD')
-}
+from pye2 import Session, Payload, code_to_base64
 
 
-def instance_on_data(pipeline, data):
-  print(data)
+def instance_on_data(pipeline, custom_code_data: dict, data: Payload):
+  print(custom_code_data)
   return
-
-
-def pipeline_on_data(pipeline, signature, instance, data):
-  pass
 
 
 if __name__ == '__main__':
@@ -32,28 +17,25 @@ if __name__ == '__main__':
   with open(WORKER_CODE_PATH, 'rt') as fh:
     worker_code = fh.read()
 
-  e2id = 'e2id'  # provide a known EE id
-  sess = Session(**SERVER_CONFIG, silent=False)
-  sess.connect()
+  e2id = 'stefan-box'  # provide a known EE id
+  sess = Session(filter_workers=[e2id])
 
   listener_params = {
-      **SERVER_CONFIG
+    'HOST': os.getenv('AIXP_HOSTNAME'),
+    'PORT': int(os.getenv('AIXP_PORT')),
+    'USER': os.getenv('AIXP_USERNAME'),
+    'PASS': os.getenv('AIXP_PASSWORD'),
+    'TOPIC': 'lummetry/ctrl',
   }
-  listener_params["PASS"] = listener_params["pwd"]
-  listener_params["TOPIC"] = "lummetry/payloads"
 
   pipeline = sess.create_pipeline(
       e2id=e2id,
       name='test_dist_jobs',
-      # data_source='Void',
-      # config={},
       data_source='IotQueueListener',  # this DCT allows data acquisition from MQTT brokers
       config={
           'STREAM_CONFIG_METADATA': listener_params,
           "RECONNECTABLE": True,
       },
-      plugins=None,
-      on_data=pipeline_on_data,
   )
 
   pipeline.start_custom_plugin(

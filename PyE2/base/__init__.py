@@ -23,3 +23,4 @@ from .generic_session import GenericSession
 from .logger import Logger
 from .payload import Payload
 from .pipeline import Pipeline
+from .instance import Instance

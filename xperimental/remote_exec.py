@@ -1,35 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Reserved.
-
-
-* NOTICE:  All information contained herein is, and remains
-* the property of Knowledge Investment Group SRL.  
-* The intellectual and technical concepts contained
-* herein are proprietary to Knowledge Investment Group SRL
-* and may be covered by Romanian and Foreign Patents,
-* patents in process, and are protected by trade secret or copyright law.
-* Dissemination of this information or reproduction of this material
-* is strictly forbidden unless prior written permission is obtained
-* from Knowledge Investment Group SRL.
-
-
-@copyright: Lummetry.AI
-@author: Lummetry.AI - AID
-@project: 
-@description:
-Created on Thu Jan 26 14:57:44 2023
-"""
-
 import os
 from time import sleep, time
 
-from dotenv import load_dotenv
+from PyE2 import Payload, Pipeline, Session, load_dotenv
 
-from PyE2 import Payload, Pipeline, Session
-
-load_dotenv()
-print(os.environ['PYTHONPATH'].split(os.pathsep))
 
 boxes = {}
 
@@ -69,14 +42,6 @@ def instance_on_data(pipeline: Pipeline, data: Payload):
   return
 
 
-def instance_on_data2(pipeline: Pipeline, data: Payload):
-  return
-
-
-def pipeline_on_data(pipeline: Pipeline, signature: str, instance: str, data: Payload):
-  pass
-
-
 def pipeline_on_notification(pipeline, notification: dict):
   pipeline.P(
       "Received specific notification for pipeline {}".format(pipeline.name))
@@ -89,20 +54,20 @@ def sess_on_hb(sess, e2id, hb):
     sess.P((e2id, plug['STREAM_ID'], plug['SIGNATURE'], plug['INSTANCE_ID']))
 
 
-dct_server = {
-    'host': os.getenv('PYE2_HOSTNAME'),
-    'port': int(os.getenv('PYE2_PORT')),
-    'user': os.getenv('PYE2_USERNAME'),
-    'pwd': os.getenv('PYE2_PASSWORD')
+load_dotenv()
+
+listener_params = {
+  'HOST': os.getenv('AIXP_HOSTNAME'),
+  'PORT': int(os.getenv('AIXP_PORT')),
+  'USER': os.getenv('AIXP_USERNAME'),
+  'PASS': os.getenv('AIXP_PASSWORD'),
+  'TOPIC': 'lummetry/ctrl',
 }
 
 e2id = 'e2id'
-sess = Session(**dct_server, on_heartbeat=sess_on_hb)
-sess.connect()
-
-listener_params = {k.upper(): v for k, v in dct_server.items()}
-listener_params["PASS"] = listener_params["PWD"]
-listener_params["TOPIC"] = "lummetry/ctrl"
+sess = Session(
+  on_heartbeat=sess_on_hb
+)
 
 pipeline = sess.create_pipeline(
     e2id=e2id,
@@ -113,7 +78,6 @@ pipeline = sess.create_pipeline(
         "RECONNECTABLE": True,
     },
     plugins=None,
-    on_data=pipeline_on_data,
     on_notification=pipeline_on_notification
 )
 
@@ -122,11 +86,8 @@ pipeline.start_custom_plugin(
     instance_id='inst01',
     # plain_code_path="./custom_exec_scripts/custom_exec_tutorial.txt", # you can provide it as a file
     plain_code=custom_worker_code,
-    params={},
     on_data=instance_on_data,
-    # working_hours=
     process_delay=2
-    # on_notification=instance_on_notification # TODO
 )
 
 
@@ -166,7 +127,4 @@ except KeyboardInterrupt:
   pipeline.P("CTRL+C detected. Closing example..", color='r')
 
 
-pipeline.close()
-# pipeline2.close()
-# now close conn to comm server
-sess.close()
+sess.close(close_pipelines=True)

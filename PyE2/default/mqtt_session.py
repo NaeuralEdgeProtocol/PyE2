@@ -20,34 +20,14 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 """
 
 import json
-from time import sleep
-from collections import deque
-from threading import Thread
 
-from ..const import comms as comm_ct
-from ..comm import MQTTWrapper
 from ..base import GenericSession
+from ..comm import MQTTWrapper
+from ..const import comms as comm_ct
 
 
-# TODO: implement send_command, send_payload,
-#       to be used by the Pipeline class
 class MqttSession(GenericSession):
-  def __init__(
-    self, *, 
-    host=None, port=None, user=None, pwd=None, 
-    name='pySDK', config={}, filter_workers=None, log=None, 
-    on_payload=None, on_notification=None, on_heartbeat=None, 
-    silent=True, verbosity=1,
-    **kwargs
-  ) -> None:
-    super(MqttSession, self).__init__(
-      host=host, port=port, user=user, pwd=pwd, name=name, config=config, filter_workers=filter_workers,
-      log=log, on_payload=on_payload, on_notification=on_notification, on_heartbeat=on_heartbeat, 
-      silent=silent, verbosity=verbosity, 
-      **kwargs
-    )
-
-    self._payload_messages = deque()
+  def startup(self):
     self._default_communicator = MQTTWrapper(
         log=self.log,
         config=self._config,
@@ -55,122 +35,32 @@ class MqttSession(GenericSession):
         recv_channel_name=comm_ct.COMMUNICATION_PAYLOADS_CHANNEL,
         comm_type=comm_ct.COMMUNICATION_DEFAULT,
         recv_buff=self._payload_messages,
-        connection_name=name,
-        verbosity=verbosity,
-        # on_message=self._on_payload_default_mqtt_callback
+        connection_name=self.name,
+        verbosity=self._verbosity,
     )
 
-    self._hb_messages = deque()
     self._heartbeats_communicator = MQTTWrapper(
         log=self.log,
         config=self._config,
         recv_channel_name=comm_ct.COMMUNICATION_CTRL_CHANNEL,
         comm_type=comm_ct.COMMUNICATION_HEARTBEATS,
         recv_buff=self._hb_messages,
-        connection_name=name,
-        verbosity=verbosity,
-        # on_message=self._on_heartbeat_default_mqtt_callback
+        connection_name=self.name,
+        verbosity=self._verbosity,
     )
 
-    self._notif_messages = deque()
     self._notifications_communicator = MQTTWrapper(
         log=self.log,
         config=self._config,
         recv_channel_name=comm_ct.COMMUNICATION_NOTIF_CHANNEL,
         comm_type=comm_ct.COMMUNICATION_NOTIFICATIONS,
         recv_buff=self._notif_messages,
-        connection_name=name,
-        verbosity=verbosity,
-        # on_message=self._on_notification_default_mqtt_callback
+        connection_name=self.name,
+        verbosity=self._verbosity,
     )
+    return super(MqttSession, self).startup()
 
-    self._running = False
-
-    self._payload_thread = Thread(
-      target=self._handle_payloads,
-      args=(),
-      daemon=True
-    )
-    self._notif_thread = Thread(
-      target=self._handle_notifs,
-      args=(),
-      daemon=True
-    )
-    self._hb_thread = Thread(
-      target=self._handle_hbs,
-      args=(),
-      daemon=True
-    )
-
-    return
-
-  def _handle_payloads(self):
-    while self._running:
-      if len(self._payload_messages) == 0:
-        sleep(0.01)
-        continue
-      current_msg = self._payload_messages.popleft()
-      self._on_payload_default_mqtt_callback(current_msg)
-    # end while self.running
-
-    while len(self._payload_messages) > 0:
-      current_msg = self._payload_messages.popleft()
-      self._on_payload_default_mqtt_callback(current_msg)
-    return
-
-  def _handle_notifs(self):
-    while self._running:
-      if len(self._notif_messages) == 0:
-        sleep(0.01)
-        continue
-      current_msg = self._notif_messages.popleft()
-      self._on_notification_default_mqtt_callback(current_msg)
-    # end while self.running
-
-    while len(self._notif_messages) > 0:
-      current_msg = self._notif_messages.popleft()
-      self._on_notification_default_mqtt_callback(current_msg)
-    return
-
-  def _handle_hbs(self):
-    while self._running:
-      if len(self._hb_messages) == 0:
-        sleep(0.01)
-        continue
-      current_msg = self._hb_messages.popleft()
-      self._on_heartbeat_default_mqtt_callback(current_msg)
-    # end while self.running
-
-    while len(self._hb_messages) > 0:
-      current_msg = self._hb_messages.popleft()
-      self._on_heartbeat_default_mqtt_callback(current_msg)
-    return
-
-  def _on_payload_default_mqtt_callback(self, message) -> None:
-    dict_msg = json.loads(message)
-    # parse the message
-    dict_msg_parsed = self._parse_message(dict_msg)
-    if dict_msg_parsed is None:
-      return
-    return self.on_payload(dict_msg_parsed)
-
-  def _on_notification_default_mqtt_callback(self, message) -> None:
-    dict_msg = json.loads(message)
-    # parse the message
-    dict_msg_parsed = self._parse_message(dict_msg)
-    if dict_msg_parsed is None:
-      return
-    return self.on_notification(dict_msg_parsed)
-
-  def _on_heartbeat_default_mqtt_callback(self, message) -> None:
-    dict_msg = json.loads(message)
-    # parse the message
-    dict_msg_parsed = self._parse_message(dict_msg)
-    if dict_msg_parsed is None:
-      return
-    return self.on_heartbeat(dict_msg_parsed)
-
-  def maybe_reconnect(self):
+  def _connect(self) -> None:
     if self._default_communicator.connection is None:
       self._default_comm_con_res = self._default_communicator.server_connect()
       self._default_comm_sub_res = self._default_communicator.subscribe()
@@ -181,34 +71,15 @@ class MqttSession(GenericSession):
       self._notif_comm_con_res = self._notifications_communicator.server_connect()
       self._notif_comm_sub_res = self._notifications_communicator.subscribe()
 
-  def connect(self) -> None:
-    self.maybe_reconnect()
-    self.connected = True
-
-    self._running = True
-    self._payload_thread.setDaemon(True)
-    self._payload_thread.start()
-    self._notif_thread.setDaemon(True)
-    self._notif_thread.start()
-    self._hb_thread.setDaemon(True)
-    self._hb_thread.start()
+    self.connected = self._default_communicator.connected and self._heartbeats_communicator.connected and self._notifications_communicator.connected
 
     return
 
-  def close(self, close_pipelines=False, **kwargs):
-    super(MqttSession, self).close(close_pipelines=close_pipelines, **kwargs)
-
+  def _communication_close(self, **kwargs):
     self._default_communicator.release()
     self._heartbeats_communicator.release()
     self._notifications_communicator.release()
-    self._running = False
     return
-
-  def _release_resources(self):
-    self._payload_thread.join()
-    self._notif_thread.join()
-    self._hb_thread.join()
-    self.connected = False
 
   def _send_payload(self, to, msg):
     payload = json.dumps(msg)
