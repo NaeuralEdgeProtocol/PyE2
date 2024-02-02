@@ -330,7 +330,7 @@ class BaseBlockEngine:
     return
   
   def P(self, s, color=None, boxed=False, verbosity=1, **kwargs):
-    if verbosity >= self.__verbosity:
+    if verbosity > self.__verbosity:
       return
     if not boxed:
       s = "<BC:{}> ".format(self.__name) + s
