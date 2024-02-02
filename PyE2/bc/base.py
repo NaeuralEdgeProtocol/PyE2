@@ -263,14 +263,6 @@ def ripemd160(data):
   
 # END ## RIPEMD160  
 
-class SimpleLogger:
-  def __init__(self):
-    return
-  
-  def P(s, color=None):
-    print(s, flush=True)
-    return
-
 class BaseBlockEngine:
   """
   This multiton (multi-singleton via key) is the base workhorse of the private blockchain. 
@@ -295,13 +287,14 @@ class BaseBlockEngine:
   _lock: Lock = Lock()
   __instances = {}
   
-  def __new__(cls, name, config, log, ensure_ascii_payloads=False):
+  def __new__(cls, name, config, log, ensure_ascii_payloads=False, verbosity=1):
     with cls._lock:
       if name not in cls.__instances:
         instance = super(BaseBlockEngine, cls).__new__(cls)
         instance._build(
           name=name, log=log, config=config, 
-          ensure_ascii_payloads=ensure_ascii_payloads
+          ensure_ascii_payloads=ensure_ascii_payloads,
+          verbosity=verbosity,
         )
         cls.__instances[name] = instance
       else:
@@ -314,6 +307,7 @@ class BaseBlockEngine:
       config:dict, 
       log=None, 
       ensure_ascii_payloads=False,
+      verbosity=1,
     ):
 
     self.__name = name
@@ -321,6 +315,7 @@ class BaseBlockEngine:
       
     self.log = log
     self.__private_key = None
+    self.__verbosity = verbosity
     self.__public_key = None    
     self.__password = config.get(BCct.K_PASSWORD)    
     self.__config = config
@@ -334,7 +329,9 @@ class BaseBlockEngine:
     self._init()
     return
   
-  def P(self, s, color=None, boxed=False, **kwargs):
+  def P(self, s, color=None, boxed=False, verbosity=1, **kwargs):
+    if verbosity >= self.__verbosity:
+      return
     if not boxed:
       s = "<BC:{}> ".format(self.__name) + s
     return self.log.P(
@@ -346,25 +343,27 @@ class BaseBlockEngine:
      
 
   def _init(self):
-    self.P("Initializing Blockchain engine manager...", boxed=True, box_char='*')
+    self.P("Initializing Blockchain engine manager...", boxed=True, box_char='*', verbosity=1)
 
     if True:
-      self.P("Initializing private blockchain:\n{}".format(json.dumps(self.__config, indent=4)))
+      self.P("Initializing private blockchain:\n{}".format(
+        json.dumps(self.__config, indent=4)), verbosity=2
+      )
     if self.__pem_file is not None:
       try:
         full_path = os.path.abspath(self.__pem_file)
-        self.P("Trying to load sk from {}".format(full_path))
+        self.P("Trying to load sk from {}".format(full_path), verbosity=1)
         self.__private_key = self._text_to_sk(
           source=self.__pem_file,
           from_file=True,
           password=self.__password,
         )
-        self.P("  Loaded sk from {}".format(full_path))
+        self.P("  Loaded sk from {}".format(full_path), verbosity=1)
       except:
-        self.P("  Failed to load sk from {}".format(full_path), color='r')
+        self.P("  Failed to load sk from {}".format(full_path), color='r', verbosity=1)
 
     if self.__private_key is None:
-      self.P("Creating new private key")
+      self.P("Creating new private key", verbosity=1)
       self.__private_key = self._create_new_sk()
       self._sk_to_text(
         private_key=self.__private_key,
@@ -373,8 +372,8 @@ class BaseBlockEngine:
       )
     self.__public_key = self._get_pk(private_key=self.__private_key)
     self.__address = self._pk_to_address(self.__public_key)
-    self.P("Current address: {}".format(self.address), boxed=True)
-    self.P("Allowed list of senders: {}".format(self.allowed_list))
+    self.P("Current address: {}".format(self.address), boxed=True, verbosity=1)
+    self.P("Allowed list of senders: {}".format(self.allowed_list), verbosity=1)
     return
   
  
@@ -501,7 +500,7 @@ class BaseBlockEngine:
         lst_allowed = fh.readlines()
     else:
       full_path = os.path.abspath(fn)
-      self.P("WARNING: no `{}` file found. Creating empty one.".format(full_path))
+      self.P("WARNING: no `{}` file found. Creating empty one.".format(full_path), verbosity=1)
       with open(fn, 'wt') as fh:
         fh.write('\n')
     lst_allowed = [x.strip() for x in lst_allowed]
@@ -579,7 +578,7 @@ class BaseBlockEngine:
 
     """
     if from_file and os.path.isfile(source):
-      self.P("Reading SK from '{}'".format(source), color='g')
+      self.P("Reading SK from '{}'".format(source), color='g', verbosity=1)
       with open(source, 'rt') as fh:
         data = fh.read()
     else:
@@ -626,7 +625,7 @@ class BaseBlockEngine:
     str_pem = pem.decode()
     if fn is not None:
       full_path = os.path.abspath(fn)
-      self.P("Writing PEM-encoded key to {}".format(full_path), color='g')
+      self.P("Writing PEM-encoded key to {}".format(full_path), color='g', verbosity=2)
       with open(fn, 'wt') as fh:
         fh.write(str_pem)
     return str_pem  
@@ -757,7 +756,7 @@ class BaseBlockEngine:
       saved file name.
 
     """
-    self.P("Serializing the private key...")
+    self.P("Serializing the private key...", verbosity=2)
     _ = self._sk_to_text(
       private_key=self.__private_key,
       password=password,
@@ -944,7 +943,7 @@ class BaseBlockEngine:
       if log_hash_sign_fails and signature is not None and sender_address is not None:
         self.P("Signature failed on msg from {}: {}".format(
           sender_address, verify_msg.message
-          ), color='r'
+          ), color='r', verbosity=1,
         )
     elif verify_allowed and verify_msg.valid:
       if not self.is_allowed(sender_address):
