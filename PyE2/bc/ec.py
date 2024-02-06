@@ -21,10 +21,15 @@ Copyright 2019-2021 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 @created on: Mon Jul 17 14:44:49 2023
 @created by: AID
 """
+import base64
+import os
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from .base import BaseBlockEngine, VerifyMessage, BCct
 
@@ -218,3 +223,87 @@ class BaseBCEllipticCurveEngine(BaseBlockEngine):
       data=bpublic_key
     )
     return public_key
+
+  def __derive_shared_key(self, peer_public_key):
+    """
+    Derives a shared key using own private key and peer's public key.
+
+    Parameters
+    ----------
+    private_key : cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey
+        The private key to use for derivation.
+    peer_public_key : cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey
+        The peer's public key.
+    
+    Returns
+    -------
+    bytes
+        The derived shared key.
+    """
+    private_key = self.private_key
+    shared_key = private_key.exchange(ec.ECDH(), peer_public_key)
+    derived_key = HKDF(
+      algorithm=hashes.SHA256(),
+      length=32,
+      salt=None,
+      info=b'AiXp handshake data',
+      backend=default_backend()
+    ).derive(shared_key)
+    return derived_key
+
+  def encrypt(self, plaintext: str, receiver_address: str):
+    """
+    Encrypts plaintext using the sender's private key and receiver's public key, 
+    then base64 encodes the output.
+
+    Parameters
+    ----------
+    receiver_address : str
+        The receiver's address
+        
+    plaintext : str
+        The plaintext to encrypt.
+
+    Returns
+    -------
+    str
+        The base64 encoded nonce and ciphertext.
+    """
+    receiver_pk = self._address_to_pk(receiver_address)
+    shared_key = self.__derive_shared_key(receiver_pk)
+    aesgcm = AESGCM(shared_key)
+    nonce = os.urandom(12)  # Generate a unique nonce for each encryption
+    ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
+    encrypted_data = nonce + ciphertext  # Prepend the nonce to the ciphertext
+    return base64.b64encode(encrypted_data).decode()  # Encode to base64
+
+  def decrypt(self, encrypted_data_b64 : str, sender_address : str):
+    """
+    Decrypts base64 encoded encrypted data using the receiver's private key.
+
+    Parameters
+    ----------        
+    encrypted_data_b64 : str
+        The base64 encoded nonce and ciphertext.
+        
+    sender_address : str
+        The sender's address.
+
+    Returns
+    -------
+    str
+        The decrypted plaintext.
+
+    """
+    try:
+      sender_pk = self._address_to_pk(sender_address)
+      encrypted_data = base64.b64decode(encrypted_data_b64)  # Decode from base64
+      nonce = encrypted_data[:12]  # Extract the nonce
+      ciphertext = encrypted_data[12:]  # The rest is the ciphertext
+      shared_key = self.__derive_shared_key(sender_pk)
+      aesgcm = AESGCM(shared_key)
+      plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+      result = plaintext.decode()
+    except Exception as exc:
+      result = None
+    return result

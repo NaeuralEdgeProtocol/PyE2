@@ -376,6 +376,10 @@ class BaseBlockEngine:
     self.P("Allowed list of senders: {}".format(self.allowed_list), verbosity=1)
     return
   
+  @property
+  def private_key(self):
+    return self.__private_key
+  
  
   @staticmethod
   def _compute_hash(data : bytes, method='SHA256'):
@@ -962,6 +966,40 @@ class BaseBlockEngine:
   def is_allowed(self, sender_address):
     is_allowed = sender_address in self.allowed_list or sender_address == self.address
     return is_allowed
-      
   
+  
+  def encrypt(self, data, destination):
+    """
+    Encrypts the data for a given destination
+
+    Parameters
+    ----------
+    data : dict
+      the data to be encrypted.
+      
+    destination : str
+      the destination address.
+
+    Returns
+    -------
+    None.
+
+    """
+    raise NotImplementedError()
+      
+  def decrypt(self, data):
+    """
+    Decrypts the data
+
+    Parameters
+    ----------
+    data : dict
+      the data to be decrypted.
+
+    Returns
+    -------
+    None.
+
+    """
+    raise NotImplementedError()
   
