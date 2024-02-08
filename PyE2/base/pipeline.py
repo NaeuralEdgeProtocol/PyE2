@@ -603,7 +603,7 @@ class Pipeline(object):
       Close the pipeline, stopping all the instances associated with it.
       """
       # remove callbacks
-      self.session._send_command_delete_pipeline(self.e2id, self.name)
+      self.session._send_command_archive_pipeline(self.e2id, self.name)
       return
 
     def P(self, *args, **kwargs):

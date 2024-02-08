@@ -665,7 +665,7 @@ class GenericSession(object):
         self._config[comm_ct.PORT] = int(port)
       return
 
-    def __send_command_to_box(self, command, worker, payload, show_command=False):
+    def _send_command_to_box(self, command, worker, payload, show_command=False, **kwargs):
       """
       Send a command to a node.
 
@@ -680,7 +680,10 @@ class GenericSession(object):
       show_command : bool, optional
           If True, will print the complete command that is being sent, by default False
       """
-      # TODO: remove this command calls from examples
+
+      if len(kwargs) > 0:
+        self.D("Ignoring extra kwargs: {}".format(kwargs), verbosity=2)
+
       msg_to_send = {
           'EE_ID': worker,
           'ACTION': command,
@@ -696,30 +699,34 @@ class GenericSession(object):
       self._send_payload(worker, msg_to_send)
       return
 
-    def _send_command_create_pipeline(self, worker, pipeline_config):
-      self.__send_command_to_box(COMMANDS.UPDATE_CONFIG, worker, pipeline_config)
+    def _send_command_create_pipeline(self, worker, pipeline_config, **kwargs):
+      self._send_command_to_box(COMMANDS.UPDATE_CONFIG, worker, pipeline_config, **kwargs)
       return
 
-    def _send_command_delete_pipeline(self, worker, pipeline_name):
+    def _send_command_delete_pipeline(self, worker, pipeline_name, **kwargs):
       # TODO: remove this command calls from examples
-      self.__send_command_to_box(COMMANDS.ARCHIVE_CONFIG, worker, pipeline_name)
+      self._send_command_to_box(COMMANDS.DELETE_CONFIG, worker, pipeline_name, **kwargs)
       return
 
-    def _send_command_update_pipeline_config(self, worker, pipeline_config):
-      self.__send_command_to_box(COMMANDS.UPDATE_CONFIG, worker, pipeline_config)
+    def _send_command_archive_pipeline(self, worker, pipeline_name, **kwargs):
+      self._send_command_to_box(COMMANDS.ARCHIVE_CONFIG, worker, pipeline_name, **kwargs)
       return
 
-    def _send_command_update_instance_config(self, worker, pipeline, signature, instance_id, instance_config):
+    def _send_command_update_pipeline_config(self, worker, pipeline_config, **kwargs):
+      self._send_command_to_box(COMMANDS.UPDATE_CONFIG, worker, pipeline_config, **kwargs)
+      return
+
+    def _send_command_update_instance_config(self, worker, pipeline, signature, instance_id, instance_config, **kwargs):
       payload = {
         PAYLOAD_DATA.NAME: pipeline,
         PAYLOAD_DATA.SIGNATURE: signature,
         PAYLOAD_DATA.INSTANCE: instance_id,
         PAYLOAD_DATA.CONFIG: instance_config
       }
-      self.__send_command_to_box(COMMANDS.UPDATE_PIPELINE_INSTANCE, worker, payload)
+      self._send_command_to_box(COMMANDS.UPDATE_PIPELINE_INSTANCE, worker, payload, **kwargs)
       return
 
-    def _send_command_batch_update_instance_config(self, worker, lst_updates):
+    def _send_command_batch_update_instance_config(self, worker, lst_updates, **kwargs):
       for update in lst_updates:
         assert isinstance(update, dict), "All updates must be dicts"
         assert PAYLOAD_DATA.NAME in update, "All updates must have a pipeline name"
@@ -728,19 +735,19 @@ class GenericSession(object):
         assert PAYLOAD_DATA.INSTANCE_CONFIG in update, "All updates must have a plugin instance config"
         assert isinstance(update[PAYLOAD_DATA.INSTANCE_CONFIG], dict), \
             "All updates must have a plugin instance config as dict"
-      self.__send_command_to_box(COMMANDS.BATCH_UPDATE_PIPELINE_INSTANCES, worker, lst_updates)
+      self._send_command_to_box(COMMANDS.BATCH_UPDATE_PIPELINE_INSTANCES, worker, lst_updates, **kwargs)
 
-    def _send_command_pipeline_command(self, worker, pipeline, command, payload={}, command_params={}):
+    def _send_command_pipeline_command(self, worker, pipeline, command, payload={}, command_params={}, **kwargs):
       payload = {
         PAYLOAD_DATA.NAME: pipeline,
         COMMANDS.PIPELINE_COMMAND: command,
         # 'COMMAND_PARAMS': command_params, # TODO: check if this is oke
         **payload,
       }
-      self.__send_command_to_box(COMMANDS.PIPELINE_COMMAND, worker, payload)
+      self._send_command_to_box(COMMANDS.PIPELINE_COMMAND, worker, payload, **kwargs)
       return
 
-    def _send_command_instance_command(self, worker, pipeline, signature, instance_id, command, payload={}, command_params={}):
+    def _send_command_instance_command(self, worker, pipeline, signature, instance_id, command, payload={}, command_params={}, **kwargs):
       payload = {
         'INSTANCE_COMMAND': command,
         **payload,
@@ -749,16 +756,29 @@ class GenericSession(object):
       self._send_command_update_instance_config(worker, pipeline, signature, instance_id, payload)
       return
 
-    def _send_command_stop_node(self, worker):
-      self.__send_command_to_box(COMMANDS.STOP, worker, None)
+    def _send_command_stop_node(self, worker, **kwargs):
+      self._send_command_to_box(COMMANDS.STOP, worker, None, **kwargs)
       return
 
-    def _send_command_restart_node(self, worker):
-      self.__send_command_to_box(COMMANDS.RESTART, worker, None)
+    def _send_command_restart_node(self, worker, **kwargs):
+      self._send_command_to_box(COMMANDS.RESTART, worker, None, **kwargs)
       return
 
-    def _send_command_request_heartbeat(self):  # TODO
-      pass
+    def _send_command_request_heartbeat(self, worker, full_heartbeat=False, **kwargs):
+      command = COMMANDS.FULL_HEARTBEAT if full_heartbeat else COMMANDS.TIMERS_ONLY_HEARTBEAT
+      self._send_command_to_box(command, worker, None, **kwargs)
+
+    def _send_command_reload_from_disk(self, worker, **kwargs):
+      self._send_command_to_box(COMMANDS.RELOAD_CONFIG_FROM_DISK, worker, None, **kwargs)
+      return
+
+    def _send_command_archive_all(self, worker, **kwargs):
+      self._send_command_to_box(COMMANDS.ARCHIVE_CONFIG_ALL, worker, None, **kwargs)
+      return
+
+    def _send_command_delete_all(self, worker, **kwargs):
+      self._send_command_to_box(COMMANDS.DELETE_CONFIG_ALL, worker, None, **kwargs)
+      return
 
   # API
   if True:
