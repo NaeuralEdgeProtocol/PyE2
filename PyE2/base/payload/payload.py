@@ -66,13 +66,15 @@ class Payload(UserDict):
 
     Returns
     -------
-    Image | None
-        The image if it was found or None otherwise.
+    List[Image] | None
+        A list of images if there were any or None otherwise.
     """
     base64_img = self.data.get(key, None)
     if base64_img is None:
       return None
-    return self._image_from_b64(base64_img)
+    if isinstance(base64_img, list):
+      return [self._image_from_b64(b64) for b64 in base64_img]
+    return [self._image_from_b64(base64_img)]
 
   def _image_from_b64(self, base64_img):
     image = None

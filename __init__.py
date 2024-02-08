@@ -1,4 +1,4 @@
-from .PyE2 import Payload, Pipeline, Session, Instance
+from .PyE2 import Payload, Pipeline, Session, Instance, CustomPluginTemplate
 from .PyE2 import base as pye2_base
 from .PyE2 import bc as pye2_bc
 from .PyE2 import code_to_base64

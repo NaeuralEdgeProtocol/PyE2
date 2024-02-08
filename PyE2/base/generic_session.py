@@ -594,13 +594,13 @@ class GenericSession(object):
       """
       _start_timer = tm()
       try:
-        while ((isinstance(wait, bool) and wait) or (wait == 0) or (tm() - _start_timer) < wait) and self.__running_main_loop_thread:
+        while ((isinstance(wait, bool) and wait) or (wait == 0) or (tm() - _start_timer) < wait) and not self.__closed_everything:
           sleep(0.1)
       except KeyboardInterrupt:
         self.P("CTRL+C detected. Stopping loop.", color='r', verbosity=1)
 
       if close_session:
-        self.close(close_pipelines)
+        self.close(close_pipelines, wait_close=True)
 
       return
 

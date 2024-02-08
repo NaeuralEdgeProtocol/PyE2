@@ -8,22 +8,24 @@ For this example, we will count the number of persons that appear in the frames
     of a movie, so we will use a general object detection model.
 """
 
-from PyE2 import Session, Pipeline, Instance, Payload
-
 from time import sleep
 
-# TODO: make this a method that is called by the custom code on remote
-real_time_code = """
-frame=plugin.dataapi_image()
-plugin.set_image(frame)
+from PyE2 import CustomPluginTemplate, Instance, Payload, Pipeline, Session
 
-persons = plugin.dataapi_image_instance_inferences()
-persons_count = len(persons)
 
-result = {
-  'PERSONS_COUNT': persons_count,
-}
-"""
+def real_time_code(plugin: CustomPluginTemplate):
+  frame = plugin.dataapi_image()
+  plugin.set_image(frame)
+
+  persons = plugin.dataapi_image_instance_inferences()
+  persons_count = len(persons)
+
+  if persons_count > 0:
+    return {
+      'PERSONS_COUNT': persons_count,
+    }
+
+  return
 
 
 def custom_instance_on_data(pipeline: Pipeline, custom_code_data: dict, data: Payload):
@@ -43,6 +45,7 @@ if __name__ == '__main__':
     sleep(1)
 
   chosen_node = session.get_active_nodes()[0]
+  chosen_node = 'stefan-box'
 
   # we have our node, let's deploy a plugin
 
@@ -60,7 +63,7 @@ if __name__ == '__main__':
   # next, we deploy a custom code plugin instance
   instance: Instance = pipeline.start_custom_plugin(
     instance_id='inst01',
-    plain_code=real_time_code,
+    custom_code=real_time_code,
     on_data=custom_instance_on_data,
     # we can specify the configuration for the plugin instance as kwargs
     process_delay=3,

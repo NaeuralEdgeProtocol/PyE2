@@ -19,6 +19,8 @@ Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Res
 @description:
 """
 
+import os
+
 from ..utils.code import CodeUtils
 from .instance import Instance
 
@@ -216,6 +218,33 @@ class Pipeline(object):
       )
       return
 
+    @staticmethod
+    def __custom_exec_on_data(self, instance_id, on_data_callback, data):
+      """
+      Handle the data received from a custom execution instance. This method is called by the Session object when a message is received from a custom execution instance.
+
+      Parameters
+      ----------
+      instance_id : str
+          The name of the instance that sent the message.
+      on_data_callback : Callable[[Pipeline, dict, dict], None]
+          The callback that handles the message. The first dict is the payload, and the second dict is the entire message.
+      data : dict | Payload
+          The payload of the message.
+      """
+      # TODO: use formatter for this message
+      # TODO: expose the other fields from data
+      exec_data = None
+
+      exec_data = data.get('EXEC_RESULT', data.get('EXEC_INFO'))
+      exec_error = data.get('EXEC_ERRORS', 'no keyword error')
+
+      if exec_error is not None:
+        self.P("Error received from <CUSTOM_EXEC_01:{}>: {}".format(instance_id, exec_error), color="r", verbosity=1)
+      if exec_data is not None:
+        on_data_callback(self, exec_data, data)
+      return
+
   # Message handling
   if True:
     def _on_data(self, signature, instance_id, data):
@@ -383,7 +412,7 @@ class Pipeline(object):
 
       return
 
-    def start_custom_plugin(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, params={}, on_data=None, on_notification=None, **kwargs) -> Instance:
+    def start_custom_plugin(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, custom_code: str = None, params={}, on_data=None, on_notification=None, **kwargs) -> Instance:
       """
       Create a new custom execution instance, with a given configuration. This instance is attached to this pipeline, 
       meaning it processes data from this pipelines data source. The code used for the custom instance must be provided
@@ -398,6 +427,9 @@ class Pipeline(object):
           A string containing the entire code that is to be executed remotely on an AiXp node. Defaults to None.
       plain_code_path : str, optional
           A string containing the path to the code that is to be executed remotely on an AiXp node. Defaults to None.
+      custom_code : str | Callable[[CustomPluginTemplate], Any], optional
+          A string containing the entire code, a path to a file containing the code as a string or a function with the code.
+          This code will be executed remotely on an AiXp node. Defaults to None.
       params : dict, optional
           parameters used to customize the functionality. One can change the AI engine used for object detection, 
           or finetune alerter parameters to better fit a camera located in a low light environment.
@@ -424,41 +456,43 @@ class Pipeline(object):
           Plugin instance already exists. 
       """
 
-      def custom_exec_on_data(self, data):
-        # TODO: use formatter for this message
-        # TODO: expose the other fields from data
-        exec_data = None
-        if "SB_IMPLEMENTATION" in data or "EE_FORMATTER" in data:
-          exec_data = data.get('EXEC_RESULT', data.get('EXEC_INFO'))
-          exec_error = data.get('EXEC_ERRORS', 'no keyword error')
-        else:
-          try:
-            exec_data = data['specificValue']['exec_result']
-          except Exception as e:
-            self.P(e, color='r', verbosity=0)
-            self.P(data, color='r', verbosity=1)
-          exec_error = data['specificValue']['exec_errors']
-
-        if exec_error is not None:
-          self.P("Error received from <CUSTOM_EXEC_01:{}>: {}".format(
-              instance_id, exec_error), color="r", verbosity=1)
-        if exec_data is not None:
-          on_data(self, exec_data, data)
-        return
-
-      if plain_code is None and plain_code_path is None:
+      if plain_code is None and plain_code_path is None and custom_code is None:
         raise Exception(
-            "Need to specify at least one of the following: plain_code, plain_code_path")
+            "Need to specify at least one of the following: plain_code, plain_code_path, custom_code")
 
-      if plain_code is not None and plain_code_path is not None:
+      if plain_code is not None and plain_code_path is not None and custom_code is not None:
         raise Exception(
-            "Need to specify at most one of the following: plain_code, plain_code_path")
+            "Need to specify at most one of the following: plain_code, plain_code_path, custom_code")
 
-      if plain_code is None:
+      if custom_code is None:
+        self.P("Warning: custom_code is None. Using plain_code or plain_code_path. In the future support for " +
+               "plain_code and plain_code_path will be removed. Use custom_code instead.", color="y", verbosity=0)
+
+      if plain_code_path is not None:
         with open(plain_code_path, "r") as fd:
           plain_code = "".join(fd.readlines())
 
+      if custom_code is not None:
+        if isinstance(custom_code, str):
+          # it is a path
+          if os.path.exists(custom_code):
+            with open(custom_code, "r") as fd:
+              plain_code = "".join(fd.readlines())
+          # it is a string
+          else:
+            plain_code = custom_code
+
+        elif callable(custom_code):
+          # we have a function
+          plain_code = CodeUtils().get_function_source_code(custom_code)
+        else:
+          raise Exception("custom_code is not a string or a callable")
+        # endif get plain code
+
       b64code = CodeUtils().code_to_base64(plain_code)
+
+      def callback(pipeline, data): return self.__custom_exec_on_data(pipeline, instance_id, on_data, data)
+
       return self.start_plugin_instance(
           signature='CUSTOM_EXEC_01',
           instance_id=instance_id,
@@ -466,7 +500,7 @@ class Pipeline(object):
               'CODE': b64code,
               **params
           },
-          on_data=custom_exec_on_data,
+          on_data=callback,
           on_notification=on_notification,
           **kwargs
       )
@@ -668,27 +702,9 @@ class Pipeline(object):
           The pipeline does not contain the desired instance.
       """
 
-      def custom_exec_on_data(self, data):
-        exec_data = None
-        if "SB_IMPLEMENTATION" in data or "EE_FORMATTER" in data:
-          exec_data = data.get('EXEC_RESULT', data.get('EXEC_INFO'))
-          exec_error = data.get('EXEC_ERRORS', 'no keyword error')
-        else:
-          try:
-            exec_data = data['specificValue']['exec_result']
-          except Exception as e:
-            self.P(e, color='r', verbosity=1)
-            self.P(data, color='r', verbosity=1)
-          exec_error = data['specificValue']['exec_errors']
+      def callback(pipeline, data): return self.__custom_exec_on_data(pipeline, instance_id, on_data, data)
 
-        if exec_error is not None:
-          self.P("Error received from <CUSTOM_EXEC_01:{}>: {}".format(
-              instance_id, exec_error), color="r", verbosity=1)
-        if exec_data is not None:
-          on_data(self, exec_data)
-        return
-
-      return self.attach_to_instance("CUSTOM_EXEC_01", instance_id, custom_exec_on_data, on_notification)
+      return self.attach_to_instance("CUSTOM_EXEC_01", instance_id, callback, on_notification)
 
     def detach_from_instance(self, instance: Instance):
       # search for the instance in the list
