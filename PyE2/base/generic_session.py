@@ -720,8 +720,8 @@ class GenericSession(object):
       payload = {
         PAYLOAD_DATA.NAME: pipeline,
         PAYLOAD_DATA.SIGNATURE: signature,
-        PAYLOAD_DATA.INSTANCE: instance_id,
-        PAYLOAD_DATA.CONFIG: instance_config
+        PAYLOAD_DATA.INSTANCE_ID: instance_id,
+        PAYLOAD_DATA.INSTANCE_CONFIG: instance_config
       }
       self._send_command_to_box(COMMANDS.UPDATE_PIPELINE_INSTANCE, worker, payload, **kwargs)
       return
