@@ -24,14 +24,16 @@ TODO:
 """
 
 # PAHO
+import paho.mqtt.client as mqtt
+import traceback
+
+from paho.mqtt import __version__ as mqtt_version
 
 from collections import OrderedDict, deque
 
 from select import select
 from time import sleep
 
-import paho.mqtt.client as mqtt
-import traceback
 
 from ..const import COLORS, COMMS, BASE_CT, PAYLOAD_CT
 from ..utils import resolve_domain_or_ip
@@ -78,6 +80,7 @@ class MQTTWrapper(object):
     if self.recv_channel_name is not None and on_message is None:
       assert self._recv_buff is not None
 
+    self.P(f"Initializing MQTTWrapper using Paho MQTT v{mqtt_version}")
     super(MQTTWrapper, self).__init__(**kwargs)
     return
 
@@ -187,7 +190,7 @@ class MQTTWrapper(object):
   def connection(self):
     return self._mqttc
 
-  def _callback_on_connect(self, client, userdata, flags, rc):
+  def _callback_on_connect(self, client, userdata, flags, rc, *args, **kwargs):
     self.connected = False
     if rc == 0:
       self.connected = True
@@ -196,7 +199,7 @@ class MQTTWrapper(object):
       self.P("Conn ok clntid '{}' with code: {}".format(client_id, rc), color='g', verbosity=1)
     return
 
-  def _callback_on_disconnect(self, client, userdata, rc):
+  def _callback_on_disconnect(self, client, userdata, rc, *args, **kwargs):
     """
     Tricky callback
 
@@ -205,10 +208,10 @@ class MQTTWrapper(object):
       client.disconnect_flag = True
     """
     if rc == 0:
-      self.P('Gracefull disconn (code={})'.format(rc), color='m', verbosity=1)
+      self.P('Gracefull disconn (reason_code={})'.format(rc), color='m', verbosity=1)
       str_error = "Gracefull disconn."
     else:
-      str_error = mqtt.error_string(rc) + ' (code={})'.format(rc)
+      str_error = mqtt.error_string(rc) + ' (reason_code={})'.format(rc)
       mqttc = self._mqttc
       client_id = str(mqttc._client_id) if mqttc is not None else 'None'
       self.P("Unexpected disconn for client id '{}': {}".format(
@@ -237,10 +240,10 @@ class MQTTWrapper(object):
     self.release()
     return
 
-  def _callback_on_publish(self, client, userdata, mid):
+  def _callback_on_publish(self, client, userdata, mid, *args, **kwargs):
     return
 
-  def _callback_on_message(self, client, userdata, message):
+  def _callback_on_message(self, client, userdata, message, *args, **kwargs):
     if self._custom_on_message is not None:
       self._custom_on_message(client, userdata, message)
     else:
@@ -270,10 +273,18 @@ class MQTTWrapper(object):
     while nr_retry <= max_retries:
       try:
         client_uid = self.log.get_unique_id()
-        self._mqttc = mqtt.Client(
-          client_id=self._connection_name + '_' + comtype + '_' + client_uid,
-          clean_session=True
-        )
+        client_id = self._connection_name + '_' + comtype + '_' + client_uid
+        if mqtt_version.startswith('2'):
+          self._mqttc = mqtt.Client(
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+            client_id=client_id,
+            clean_start=True
+          )
+        else:
+          self._mqttc = mqtt.Client(
+            client_id=client_id,
+            clean_session=True
+          )
 
         self._mqttc.username_pw_set(
           username=self.cfg_user,
