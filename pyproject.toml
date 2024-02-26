@@ -6,9 +6,9 @@ build-backend = "hatchling.build"
 name = "PyE2"
 version = "0.0.0"
 authors = [
-  { name="Stefan Saraev", email="stefan.saraev@global-technical.com" },
-  { name="Cristan Bleotiu", email="cristan.bleotiu@global-technical.com" },
+  { name="Stefan Saraev", email="stefan.saraev@hyperfy.tech" },
   { name="Andrei Ionut Damian", email="andrei.damian@lummetry.ai" },
+  { name="Cristan Bleotiu", email="cristan.bleotiu@hyperfy.tech" },
 ]
 description = "PyE2 is the Python SDK required for client app development in the AiXpand network"
 readme = "README.md"
