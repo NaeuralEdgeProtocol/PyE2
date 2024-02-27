@@ -341,8 +341,7 @@ class GenericSession(object):
         return
 
       # default action
-      self._online_boxes[msg_eeid] = {
-          config['NAME']: config for config in msg_active_configs}
+      self._online_boxes[msg_eeid] = {config['NAME']: config for config in msg_active_configs}
       self.__track_online_node(msg_eeid)
 
       # TODO: move this call in `__on_message_default_callback`
