@@ -254,8 +254,6 @@ class GenericSession(object):
         self.D("Message does not respect standard: {}".format(dict_msg), verbosity=2)
         return
 
-      self.__track_online_node(msg_eeid)
-
       message_callback(dict_msg_parsed, msg_eeid, msg_pipeline, msg_signature, msg_instance)
       return
 
@@ -345,6 +343,7 @@ class GenericSession(object):
       # default action
       self._online_boxes[msg_eeid] = {
           config['NAME']: config for config in msg_active_configs}
+      self.__track_online_node(msg_eeid)
 
       # TODO: move this call in `__on_message_default_callback`
       if self.__maybe_ignore_message(msg_eeid):
@@ -1055,7 +1054,7 @@ class GenericSession(object):
           k.lower(): v for k, v in self._online_boxes[e2id][name].items()}
       data_source = pipeline_config['type']
 
-      return Pipeline(
+      pipeline = Pipeline(
         session=self,
         log=self.log,
         e2id=e2id,
@@ -1066,3 +1065,7 @@ class GenericSession(object):
         **pipeline_config,
         **kwargs
       )
+
+      self.own_pipelines.append(pipeline)
+
+      return pipeline

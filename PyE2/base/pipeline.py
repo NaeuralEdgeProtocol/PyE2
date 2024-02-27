@@ -44,7 +44,7 @@ class Pipeline(object):
     `Plugin` == `Signature`
   """
 
-  def __init__(self, session, log, *, e2id, name, data_source, config={}, plugins=[], on_data=None, on_notification=None, **kwargs) -> None:
+  def __init__(self, session, log, *, e2id, name, data_source, config={}, plugins=[], on_data=None, on_notification=None, create_pipeline=True, **kwargs) -> None:
     """
     A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
@@ -118,7 +118,7 @@ class Pipeline(object):
     self.lst_plugin_instances = []
 
     self.__init_plugins(plugins)
-    self.__maybe_create_new_pipeline_on_box()
+    self.__maybe_create_new_pipeline_on_box(create_pipeline=create_pipeline)
     return
 
   # Utils
@@ -661,14 +661,14 @@ class Pipeline(object):
           break
 
       if found_instance is None:
-        raise Exception("Unable to attach to instance. Instance <{}/{}> does not exist")
+        raise Exception(f"Unable to attach to instance. Instance <{signature}/{instance_id}> does not exist")
 
       # add the callbacks to the session
       if on_data is not None:
-        instance.add_on_data_callback(on_data)
+        instance._add_on_data_callback(on_data)
 
       if on_notification is not None:
-        instance.add_on_notification_callback(on_notification)
+        instance._add_on_notification_callback(on_notification)
 
       return found_instance
 
