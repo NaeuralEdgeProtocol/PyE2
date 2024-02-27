@@ -223,6 +223,28 @@ class GenericSession(object):
       """
       Get the formatter from the payload and decode the message
       """
+      # check if payload is encrypted
+      if dict_msg.get(PAYLOAD_DATA.EE_IS_ENCRYPTED, False):
+        encrypted_data = dict_msg.get(PAYLOAD_DATA.EE_ENCRYPTED_DATA, None)
+        sender_addr = dict_msg.get(comm_ct.COMM_SEND_MESSAGE.K_SENDER_ADDR, None)
+
+        str_data = self.bc_engine.decrypt(encrypted_data, sender_addr)
+
+        if str_data is None:
+          self.D("Cannot decrypt message, dropping..\n{}".format(str_data), verbosity=2)
+          return None
+
+        try:
+          dict_data = json.loads(str_data)
+        except Exception as e:
+          self.P("Error while decrypting message: {}".format(e), color='r', verbosity=1)
+          self.D("Message: {}".format(str_data), verbosity=2)
+          return None
+
+        dict_msg = {**dict_data, **dict_msg}
+        dict_msg.pop(PAYLOAD_DATA.EE_ENCRYPTED_DATA, None)
+      # end if encrypted
+
       formatter = self.formatter_wrapper \
           .get_required_formatter_from_payload(dict_msg)
       if formatter is not None:
