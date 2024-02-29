@@ -139,9 +139,9 @@ class Pipeline(object):
         signature = dct_signature_instances['SIGNATURE']
         instances = dct_signature_instances['INSTANCES']
         for dct_instance in instances:
-          config = {k: v for k, v in dct_instance.items()}
-          instance_id = config.pop('INSTANCE_ID')
-          instance = Instance(self, instance_id, signature, config=config)
+          params = {k: v for k, v in dct_instance.items()}
+          instance_id = params.pop('INSTANCE_ID')
+          instance = Instance(self, instance_id, signature, params=params)
           self.lst_plugin_instances.append(instance)
         # end for dct_instance
       # end for dct_signature_instances
