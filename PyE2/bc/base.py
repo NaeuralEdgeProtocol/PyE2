@@ -507,7 +507,7 @@ class BaseBlockEngine:
       self.P("WARNING: no `{}` file found. Creating empty one.".format(full_path), verbosity=1)
       with open(fn, 'wt') as fh:
         fh.write('\n')
-    lst_allowed = [x.strip() for x in lst_allowed]
+    lst_allowed = [x.strip().split(' ')[0] for x in lst_allowed]
     return lst_allowed
       
   
@@ -731,6 +731,10 @@ class BaseBlockEngine:
   def allowed_list(self):
     """Returns the allowed senders"""
     return self._load_and_maybe_create_allowed()
+  
+  @property
+  def whitelist(self):
+    return self.allowed_list
     
   
   def dict_digest(self, dct_data, return_str=True):
