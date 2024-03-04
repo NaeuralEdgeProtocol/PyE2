@@ -11,8 +11,8 @@ def instance_on_data(pipeline, custom_code_data: dict, data: Payload):
 
 if __name__ == '__main__':
   folder = os.path.split(__file__)[0]
-  WORKER_CODE_PATH = os.path.join(folder, 'dedist_example_worker.py')
-  INITIATOR_CODE_PATH = os.path.join(folder, 'dedist_example_initiator.py')
+  WORKER_CODE_PATH = os.path.join(folder, 'chain_dist_example_worker.py')
+  INITIATOR_CODE_PATH = os.path.join(folder, 'chain_dist_example_initiator.py')
 
   with open(WORKER_CODE_PATH, 'rt') as fh:
     worker_code = fh.read()

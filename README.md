@@ -195,8 +195,8 @@ def instance_on_data(pipeline : Pipeline, custom_code_result: dict, data: dict):
 
 if __name__ == '__main__':
 
-  WORKER_CODE_PATH = 'dedist_example_worker.py'
-  INITIATOR_CODE_PATH = 'dedist_example_initiator.py'
+  WORKER_CODE_PATH = 'chain_dist_example_worker.py'
+  INITIATOR_CODE_PATH = 'chain_dist_example_initiator.py'
 
   with open(WORKER_CODE_PATH, 'rt') as fh:
     worker_code = fh.read()
