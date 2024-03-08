@@ -26,9 +26,10 @@ from collections import deque
 from threading import Thread
 from time import sleep
 from time import time as tm
+from datetime import datetime as dt
 
 from ..bc import DefaultBlockEngine
-from ..const import PAYLOAD_DATA, COMMANDS
+from ..const import PAYLOAD_DATA, COMMANDS, HB, STATUS_TYPE, ENVIRONMENT
 from ..const import comms as comm_ct
 from ..io_formatter import IOFormatterWrapper
 from ..utils import load_dotenv
@@ -353,17 +354,17 @@ class GenericSession(object):
       """
       # extract relevant data from the message
 
-      if dict_msg.get("HEARTBEAT_VERSION") == "v2":
-        str_data = CodeUtils().decompress_text(dict_msg["ENCODED_DATA"])
+      if dict_msg.get(HB.HEARTBEAT_VERSION) == HB.V2:
+        str_data = CodeUtils().decompress_text(dict_msg[HB.ENCODED_DATA])
         data = json.loads(str_data)
         dict_msg = {**dict_msg, **data}
 
-      msg_active_configs = dict_msg.get('CONFIG_STREAMS')
+      msg_active_configs = dict_msg.get(HB.CONFIG_STREAMS)
       if msg_active_configs is None:
         return
 
       # default action
-      self._online_boxes[msg_eeid] = {config['NAME']: config for config in msg_active_configs}
+      self._online_boxes[msg_eeid] = {config[PAYLOAD_DATA.NAME]: config for config in msg_active_configs}
       self.__track_online_node(msg_eeid)
 
       # TODO: move this call in `__on_message_default_callback`
@@ -396,14 +397,14 @@ class GenericSession(object):
           The name of the instance that sent the message.
       """
       # extract relevant data from the message
-      notification_type = dict_msg.get("NOTIFICATION_TYPE")
-      notification = dict_msg.get("NOTIFICATION")
+      notification_type = dict_msg.get(STATUS_TYPE.NOTIFICATION_TYPE)
+      notification = dict_msg.get(PAYLOAD_DATA.NOTIFICATION)
 
       if self.__maybe_ignore_message(msg_eeid):
         return
 
       color = None
-      if notification_type != "NORMAL":
+      if notification_type != STATUS_TYPE.STATUS_NORMAL:
         color = 'r'
       self.D("Received notification {} from <{}/{}>: {}"
              .format(
@@ -660,25 +661,26 @@ class GenericSession(object):
       #  2-N. directories of the files from the call stack
       load_dotenv(dotenv_path=dotenv_path, verbose=False)
 
-      user = user or os.getenv('AIXP_USERNAME') or os.getenv('AIXP_USER')
+      user = user or os.getenv(ENVIRONMENT.AIXP_USERNAME) or os.getenv(ENVIRONMENT.AIXP_USER)
       if user is None:
         raise ValueError("Error: No user specified for AiXpand network connection")
       if self._config.get(comm_ct.USER, None) is None:
         self._config[comm_ct.USER] = user
 
-      pwd = pwd or os.getenv('AIXP_PASSWORD') or os.getenv('AIXP_PASS') or os.getenv('AIXP_PWD')
+      pwd = pwd or os.getenv(ENVIRONMENT.AIXP_PASSWORD) or os.getenv(
+        ENVIRONMENT.AIXP_PASS) or os.getenv(ENVIRONMENT.AIXP_PWD)
       if pwd is None:
         raise ValueError("Error: No password specified for AiXpand network connection")
       if self._config.get(comm_ct.PASS, None) is None:
         self._config[comm_ct.PASS] = pwd
 
-      host = host or os.getenv('AIXP_HOSTNAME') or os.getenv('AIXP_HOST')
+      host = host or os.getenv(ENVIRONMENT.AIXP_HOSTNAME) or os.getenv(ENVIRONMENT.AIXP_HOST)
       if host is None:
         raise ValueError("Error: No host specified for AiXpand network connection")
       if self._config.get(comm_ct.HOST, None) is None:
         self._config[comm_ct.HOST] = host
 
-      port = port or os.getenv('AIXP_PORT')
+      port = port or os.getenv(ENVIRONMENT.AIXP_PORT)
       if port is None:
         raise ValueError("Error: No port specified for AiXpand network connection")
       if self._config.get(comm_ct.PORT, None) is None:
@@ -705,10 +707,11 @@ class GenericSession(object):
         self.D("Ignoring extra kwargs: {}".format(kwargs), verbosity=2)
 
       msg_to_send = {
-          'EE_ID': worker,
-          'ACTION': command,
-          'PAYLOAD': payload,
-          'INITIATOR_ID': self.name
+          comm_ct.COMM_SEND_MESSAGE.K_EE_ID: worker,
+          comm_ct.COMM_SEND_MESSAGE.K_ACTION: command,
+          comm_ct.COMM_SEND_MESSAGE.K_PAYLOAD: payload,
+          comm_ct.COMM_SEND_MESSAGE.K_INITIATOR_ID: self.name,
+          PAYLOAD_DATA.EE_TIMESTAMP: dt.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
       }
       self.bc_engine.sign(msg_to_send, use_digest=True)
       if show_command:
@@ -769,9 +772,9 @@ class GenericSession(object):
 
     def _send_command_instance_command(self, worker, pipeline, signature, instance_id, command, payload={}, command_params={}, **kwargs):
       payload = {
-        'INSTANCE_COMMAND': command,
+        COMMANDS.INSTANCE_COMMAND: command,
         **payload,
-        'COMMAND_PARAMS': command_params,
+        COMMANDS.COMMAND_PARAMS: command_params,
       }
       self._send_command_update_instance_config(worker, pipeline, signature, instance_id, payload)
       return
