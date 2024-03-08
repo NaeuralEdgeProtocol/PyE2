@@ -22,6 +22,9 @@ Created on Sat Oct 15 10:01:35 2022
 
 """
 
+# BC Consts:
+from ..bc.base import BCct as BC_CT
+
 TLBR_POS = 'TLBR_POS'
 PROB_PRC = 'PROB_PRC'
 TYPE = 'TYPE'
@@ -185,6 +188,9 @@ class PAYLOAD_DATA:
   EE_VERSION = 'EE_VERSION'
   EE_ID = 'EE_ID'
   EE_PIPELINE_NAME = 'EE_PIPELINE_NAME'
+  EE_SENDER = BC_CT.SENDER
+  EE_HASH = BC_CT.HASH
+  EE_SIGN = BC_CT.SIGN
   
 
   NOTIFICATION = 'NOTIFICATION'

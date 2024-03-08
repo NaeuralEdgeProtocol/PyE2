@@ -22,6 +22,8 @@ Created on Sat Jan 28 13:01:28 2023
 """
 
 from . import base as BASE_CT
+# BC Consts:
+from ..bc.base import BCct as BC_CT
 
 SB_ID = BASE_CT.SB_ID
 EE_ID = BASE_CT.EE_ID
@@ -70,7 +72,7 @@ class COMM_SEND_MESSAGE:
   K_EE_ID = EE_ID
   K_INITIATOR_ID = 'INITIATOR_ID'
   K_SESSION_ID = 'SESSION_ID'
-  K_SENDER_ADDR = 'EE_SENDER'
+  K_SENDER_ADDR = BC_CT.SENDER
 
   ACTION_VALUE_PAYLOAD = K_PAYLOAD
 
