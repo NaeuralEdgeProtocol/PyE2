@@ -278,7 +278,7 @@ class MQTTWrapper(object):
           self._mqttc = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=client_id,
-            clean_start=True
+            clean_session=True
           )
         else:
           self._mqttc = mqtt.Client(
