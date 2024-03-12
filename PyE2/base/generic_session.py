@@ -711,7 +711,7 @@ class GenericSession(object):
           comm_ct.COMM_SEND_MESSAGE.K_ACTION: command,
           comm_ct.COMM_SEND_MESSAGE.K_PAYLOAD: payload,
           comm_ct.COMM_SEND_MESSAGE.K_INITIATOR_ID: self.name,
-          PAYLOAD_DATA.EE_TIMESTAMP: dt.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+          comm_ct.COMM_SEND_MESSAGE.K_TIME: dt.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
       }
       self.bc_engine.sign(msg_to_send, use_digest=True)
       if show_command:
