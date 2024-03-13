@@ -173,7 +173,6 @@ class GenericSession(object):
     self.__running_main_loop_thread = False
     self.__closed_everything = False
 
-    self.connected = False
     self.__close_pipelines = False
 
     self.formatter_wrapper = IOFormatterWrapper(log, plugin_search_locations=formatter_plugins_locations)
@@ -490,6 +489,13 @@ class GenericSession(object):
       self._main_loop_thread.start()
       return
 
+    @property
+    def _connected(self):
+      """
+      Check if the session is connected to the communication server.
+      """
+      raise NotImplementedError
+
     def __maybe_reconnect(self) -> None:
       """
       Attempt reconnecting to the communication server if an unexpected disconnection ocurred,
@@ -498,7 +504,7 @@ class GenericSession(object):
       This method should be called in a user-defined main loop.
       This method is called in `run` method, in the main loop.
       """
-      if self.connected == False:
+      if self._connected == False:
         self._connect()
       return
 

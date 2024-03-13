@@ -60,6 +60,13 @@ class MqttSession(GenericSession):
     )
     return super(MqttSession, self).startup()
 
+  @property
+  def _connected(self):
+    """
+    Check if the session is connected to the communication server.
+    """
+    return self._default_communicator.connected and self._heartbeats_communicator.connected and self._notifications_communicator.connected
+
   def _connect(self) -> None:
     if self._default_communicator.connection is None:
       self._default_comm_con_res = self._default_communicator.server_connect()
@@ -70,8 +77,6 @@ class MqttSession(GenericSession):
     if self._notifications_communicator.connection is None:
       self._notif_comm_con_res = self._notifications_communicator.server_connect()
       self._notif_comm_sub_res = self._notifications_communicator.subscribe()
-
-    self.connected = self._default_communicator.connected and self._heartbeats_communicator.connected and self._notifications_communicator.connected
 
     return
 
