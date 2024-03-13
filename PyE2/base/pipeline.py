@@ -375,12 +375,6 @@ class Pipeline(object):
       # send an update config command to the box to create the instance there
       self.__send_update_config_to_box()
 
-      # add the callbacks to the session
-      if on_data is not None:
-        instance._add_on_data_callback(on_data)
-      if on_notification is not None:
-        instance._add_on_notification_callback(on_notification)
-
       self.P("Starting plugin {}:{}".format(signature, instance_id), verbosity=1)
       self.D("with params {}".format(params), verbosity=2)
 
