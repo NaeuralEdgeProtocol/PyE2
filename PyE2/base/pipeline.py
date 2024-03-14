@@ -375,7 +375,7 @@ class Pipeline(object):
       # send an update config command to the box to create the instance there
       self.__send_update_config_to_box()
 
-      self.P("Starting plugin {}:{}".format(signature, instance_id), verbosity=1)
+      self.P("Starting plugin {}:{} on {}:{}".format(signature, instance_id, self.e2id, self.name), verbosity=1)
       self.D("with params {}".format(params), verbosity=2)
 
       return instance
