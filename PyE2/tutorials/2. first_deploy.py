@@ -49,6 +49,9 @@ if __name__ == '__main__':
     on_data=instance_on_data,
     # we can specify the configuration for the plugin instance as kwargs
     process_delay=3,
+    # we can also specify if the payloads should be encrypted
+    # if so, only the creator of this pipeline, in our case us, will be able to decrypt the payloads
+    encrypt_payload=True,
   )
 
   # run the program for 30 seconds, then close the session

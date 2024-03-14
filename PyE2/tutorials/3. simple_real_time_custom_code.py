@@ -70,6 +70,9 @@ if __name__ == '__main__':
     allow_empty_inputs=False,
     ai_engine="lowres_general_detector",
     object_type=["person"],
+    # we can also specify if the payloads should be encrypted
+    # if so, only the creator of this pipeline, in our case us, will be able to decrypt the payloads
+    encrypt_payload=True,
   )
 
   # run the program for 120 seconds, then close the session
