@@ -160,7 +160,9 @@ class Pipeline(object):
       if create_pipeline:
         self.session._send_command_create_pipeline(
           worker=self.e2id,
-          pipeline_config=self.__get_pipeline_config()
+          pipeline_config=self.__get_pipeline_config(),
+          worker_address=self._get_worker_address(),
+
         )
       return
 
@@ -214,7 +216,9 @@ class Pipeline(object):
       """
       self.session._send_command_update_pipeline_config(
           worker=self.e2id,
-          pipeline_config=self.__get_pipeline_config()
+          pipeline_config=self.__get_pipeline_config(),
+          worker_address=self._get_worker_address(),
+          show_command=True,
       )
       return
 
@@ -244,6 +248,9 @@ class Pipeline(object):
       if exec_data is not None:
         on_data_callback(self, exec_data, data)
       return
+
+    def _get_worker_address(self):
+      return self.session._get_worker_address(self.e2id)
 
   # Message handling
   if True:
@@ -597,7 +604,11 @@ class Pipeline(object):
       Close the pipeline, stopping all the instances associated with it.
       """
       # remove callbacks
-      self.session._send_command_archive_pipeline(self.e2id, self.name)
+      self.session._send_command_archive_pipeline(
+        worker=self.e2id,
+        pipeline_name=self.name,
+        show_command=True
+      )
       return
 
     def P(self, *args, **kwargs):
@@ -754,7 +765,11 @@ class Pipeline(object):
       lst_updates : List[dict]
           A list of dictionaries containing the updates for each instance.
       """
-      self.session._send_command_batch_update_instance_config(self.e2id, lst_updates)
+      self.session._send_command_batch_update_instance_config(
+        worker=self.e2id,
+        lst_updates=lst_updates,
+        worker_address=self._get_worker_address(),
+      )
 
     def send_pipeline_command(self, command, payload={}, command_params={}):
       # TODO: test if this is oke like this
@@ -770,5 +785,12 @@ class Pipeline(object):
       command_params : dict, optional
           The parameters of the command, by default {}
       """
-      self.session._send_command_pipeline_command(self.e2id, self.name, command, payload, command_params)
+      self.session._send_command_pipeline_command(
+        worker=self.e2id,
+        pipeline_name=self.name,
+        command=command,
+        payload=payload,
+        command_params=command_params,
+        worker_address=self._get_worker_address(),
+      )
       return

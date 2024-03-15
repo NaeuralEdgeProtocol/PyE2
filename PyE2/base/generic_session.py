@@ -75,6 +75,7 @@ class GenericSession(object):
                user=None,
                pwd=None,
                name='pySDK',
+               encrypt_comms=False,
                config={},
                filter_workers=None,
                log=None,
@@ -85,6 +86,7 @@ class GenericSession(object):
                verbosity=1,
                dotenv_path=None,
                blockchain_config=BLOCKCHAIN_CONFIG,
+               bc_engine=None,
                formatter_plugins_locations=['plugins.io_formatters'],
                **kwargs) -> None:
     """
@@ -149,12 +151,12 @@ class GenericSession(object):
     self.log = log
     self.name = name
 
-    self.__verbosity = verbosity
-
     self._verbosity = verbosity
+    self.encrypt_comms = encrypt_comms
 
     self._online_boxes = {}
     self._last_seen_boxes = {}
+    self._box_addr = {}
     self.online_timeout = 60
     self.filter_workers = filter_workers
 
@@ -179,7 +181,7 @@ class GenericSession(object):
 
     self.sdk_main_loop_thread = Thread(target=self.__main_loop, daemon=True)
 
-    self.__start_blockchain(blockchain_config)
+    self.__start_blockchain(bc_engine, blockchain_config)
     self.__create_user_callback_threads()
 
     self.startup()
@@ -322,7 +324,7 @@ class GenericSession(object):
       """
       return self.filter_workers is not None and e2id not in self.filter_workers
 
-    def __track_online_node(self, e2id):
+    def __track_online_node(self, e2id, ee_address):
       """
       Track the last time a node was seen online.
 
@@ -332,6 +334,7 @@ class GenericSession(object):
           The name of the AiXpand node that sent the message.
       """
       self._last_seen_boxes[e2id] = tm()
+      self._box_addr[e2id] = ee_address
       return
 
     def __on_heartbeat(self, dict_msg: dict, msg_eeid, msg_pipeline, msg_signature, msg_instance):
@@ -364,7 +367,9 @@ class GenericSession(object):
 
       # default action
       self._online_boxes[msg_eeid] = {config[PAYLOAD_DATA.NAME]: config for config in msg_active_configs}
-      self.__track_online_node(msg_eeid)
+
+      ee_address = dict_msg[HB.EE_ADDR]
+      self.__track_online_node(msg_eeid, ee_address)
 
       # TODO: move this call in `__on_message_default_callback`
       if self.__maybe_ignore_message(msg_eeid):
@@ -470,7 +475,11 @@ class GenericSession(object):
 
   # Main loop
   if True:
-    def __start_blockchain(self, blockchain_config):
+    def __start_blockchain(self, bc_engine, blockchain_config):
+      if bc_engine is not None:
+        self.bc_engine = bc_engine
+        return
+
       try:
         self.bc_engine = DefaultBlockEngine(
           log=self.log,
@@ -693,7 +702,7 @@ class GenericSession(object):
         self._config[comm_ct.PORT] = int(port)
       return
 
-    def _send_command_to_box(self, command, worker, payload, show_command=False, **kwargs):
+    def _send_command_to_box(self, command, worker, payload, show_command=False, worker_address=None, **kwargs):
       """
       Send a command to a node.
 
@@ -712,11 +721,32 @@ class GenericSession(object):
       if len(kwargs) > 0:
         self.D("Ignoring extra kwargs: {}".format(kwargs), verbosity=2)
 
+      critical_data = {
+        comm_ct.COMM_SEND_MESSAGE.K_ACTION: command,
+        comm_ct.COMM_SEND_MESSAGE.K_PAYLOAD: payload,
+      }
+
+      # This part is duplicated with the creation of payloads
+      encrypt_payload = self.encrypt_comms
+      if encrypt_payload and worker_address is not None:
+        # TODO: use safe_json_dumps
+        str_data = json.dumps(critical_data)
+        str_enc_data = self.bc_engine.encrypt(str_data, worker_address)
+        critical_data = {
+          comm_ct.COMM_SEND_MESSAGE.K_EE_IS_ENCRYPTED: True,
+          comm_ct.COMM_SEND_MESSAGE.K_EE_ENCRYPTED_DATA: str_enc_data,
+        }
+      else:
+        critical_data[comm_ct.COMM_SEND_MESSAGE.K_EE_IS_ENCRYPTED] = False
+        if encrypt_payload:
+          critical_data[comm_ct.COMM_SEND_MESSAGE.K_EE_ENCRYPTED_DATA] = "Error! No receiver address found!"
+
+      # endif
       msg_to_send = {
+          **critical_data,
           comm_ct.COMM_SEND_MESSAGE.K_EE_ID: worker,
-          comm_ct.COMM_SEND_MESSAGE.K_ACTION: command,
-          comm_ct.COMM_SEND_MESSAGE.K_PAYLOAD: payload,
           comm_ct.COMM_SEND_MESSAGE.K_INITIATOR_ID: self.name,
+          comm_ct.COMM_SEND_MESSAGE.K_SENDER_ADDR: self.bc_engine.address,
           comm_ct.COMM_SEND_MESSAGE.K_TIME: dt.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
       }
       self.bc_engine.sign(msg_to_send, use_digest=True)
@@ -745,9 +775,9 @@ class GenericSession(object):
       self._send_command_to_box(COMMANDS.UPDATE_CONFIG, worker, pipeline_config, **kwargs)
       return
 
-    def _send_command_update_instance_config(self, worker, pipeline, signature, instance_id, instance_config, **kwargs):
+    def _send_command_update_instance_config(self, worker, pipeline_name, signature, instance_id, instance_config, **kwargs):
       payload = {
-        PAYLOAD_DATA.NAME: pipeline,
+        PAYLOAD_DATA.NAME: pipeline_name,
         PAYLOAD_DATA.SIGNATURE: signature,
         PAYLOAD_DATA.INSTANCE_ID: instance_id,
         PAYLOAD_DATA.INSTANCE_CONFIG: instance_config
@@ -766,9 +796,9 @@ class GenericSession(object):
             "All updates must have a plugin instance config as dict"
       self._send_command_to_box(COMMANDS.BATCH_UPDATE_PIPELINE_INSTANCES, worker, lst_updates, **kwargs)
 
-    def _send_command_pipeline_command(self, worker, pipeline, command, payload={}, command_params={}, **kwargs):
+    def _send_command_pipeline_command(self, worker, pipeline_name, command, payload={}, command_params={}, **kwargs):
       payload = {
-        PAYLOAD_DATA.NAME: pipeline,
+        PAYLOAD_DATA.NAME: pipeline_name,
         COMMANDS.PIPELINE_COMMAND: command,
         # 'COMMAND_PARAMS': command_params, # TODO: check if this is oke
         **payload,
@@ -776,13 +806,13 @@ class GenericSession(object):
       self._send_command_to_box(COMMANDS.PIPELINE_COMMAND, worker, payload, **kwargs)
       return
 
-    def _send_command_instance_command(self, worker, pipeline, signature, instance_id, command, payload={}, command_params={}, **kwargs):
+    def _send_command_instance_command(self, worker, pipeline_name, signature, instance_id, command, payload={}, command_params={}, **kwargs):
       payload = {
         COMMANDS.INSTANCE_COMMAND: command,
         **payload,
         COMMANDS.COMMAND_PARAMS: command_params,
       }
-      self._send_command_update_instance_config(worker, pipeline, signature, instance_id, payload)
+      self._send_command_update_instance_config(worker, pipeline_name, signature, instance_id, payload)
       return
 
     def _send_command_stop_node(self, worker, **kwargs):
@@ -808,6 +838,9 @@ class GenericSession(object):
     def _send_command_delete_all(self, worker, **kwargs):
       self._send_command_to_box(COMMANDS.DELETE_CONFIG_ALL, worker, None, **kwargs)
       return
+
+    def _get_worker_address(self, worker):
+      return self._box_addr.get(worker)
 
   # API
   if True:

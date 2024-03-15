@@ -180,10 +180,11 @@ class Instance():
       if send_command:
         self.pipeline.session._send_command_update_instance_config(
           worker=self.pipeline.e2id,
-          pipeline=self.pipeline.name,
+          pipeline_name=self.pipeline.name,
           signature=self.signature,
           instance_id=self.instance_id,
           instance_config={**config, **kwargs},
+          worker_address=self.pipeline._get_worker_address(),
         )
       else:
         return {
@@ -211,12 +212,13 @@ class Instance():
       """
       self.pipeline.session._send_command_instance_command(
         worker=self.pipeline.e2id,
-        pipeline=self.pipeline.name,
+        pipeline_name=self.pipeline.name,
         signature=self.signature,
         instance_id=self.instance_id,
         command=command,
         payload=payload,
         command_params=command_params,
+        worker_address=self.pipeline._get_worker_address(),
       )
       return
 

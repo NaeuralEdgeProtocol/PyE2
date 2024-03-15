@@ -13,13 +13,15 @@ from time import sleep
 def instance_on_data(pipeline: Pipeline, data: Payload):
   # the images can be extracted from the Payload object
   # PIL needs to be installed for this to work
-  data.get_image_as_PIL()[0].save('frame.jpg')
+  images = data.get_image_as_PIL()
+  if images is not None:
+    images[0].save('frame.jpg')
 
 
 if __name__ == '__main__':
   # create a session
   # the network credentials are read from the .env file automatically
-  session: Session = Session()
+  session: Session = Session(encrypt_comms=True)
 
   while session.get_active_nodes() == []:
     session.P("Waiting for nodes to send heartbeats...")
