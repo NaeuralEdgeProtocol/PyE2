@@ -218,7 +218,6 @@ class Pipeline(object):
           worker=self.e2id,
           pipeline_config=self.__get_pipeline_config(),
           worker_address=self._get_worker_address(),
-          show_command=True,
       )
       return
 
@@ -607,7 +606,6 @@ class Pipeline(object):
       self.session._send_command_archive_pipeline(
         worker=self.e2id,
         pipeline_name=self.name,
-        show_command=True
       )
       return
 
