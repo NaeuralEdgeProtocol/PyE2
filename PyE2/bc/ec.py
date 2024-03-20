@@ -225,7 +225,7 @@ class BaseBCEllipticCurveEngine(BaseBlockEngine):
     )
     return public_key
 
-  def __derive_shared_key(self, peer_public_key, info='AiXp handshake data', debug=False):
+  def __derive_shared_key(self, peer_public_key : str, info : str = BCct.DEFAULT_INFO, debug : bool = False):
     """
     Derives a shared key using own private key and peer's public key.
 
@@ -258,7 +258,7 @@ class BaseBCEllipticCurveEngine(BaseBlockEngine):
       print('derived-shared_key: ', base64.b64encode(derived_key))
     return derived_key
 
-  def encrypt(self, plaintext: str, receiver_address: str, info: bytes = None, debug: bool = False):
+  def encrypt(self, plaintext: str, receiver_address: str, info: str = BCct.DEFAULT_INFO, debug: bool = False):
     """
     Encrypts plaintext using the sender's private key and receiver's public key, 
     then base64 encodes the output.
@@ -277,14 +277,14 @@ class BaseBCEllipticCurveEngine(BaseBlockEngine):
         The base64 encoded nonce and ciphertext.
     """
     receiver_pk = self._address_to_pk(receiver_address)
-    shared_key = self.__derive_shared_key(receiver_pk, info=info)
+    shared_key = self.__derive_shared_key(receiver_pk, info=info, debug=debug)
     aesgcm = AESGCM(shared_key)
     nonce = os.urandom(12)  # Generate a unique nonce for each encryption
     ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
     encrypted_data = nonce + ciphertext  # Prepend the nonce to the ciphertext
     return base64.b64encode(encrypted_data).decode()  # Encode to base64
 
-  def decrypt(self, encrypted_data_b64 : str, sender_address : str, info: bytes = None, debug: bool = False):
+  def decrypt(self, encrypted_data_b64 : str, sender_address : str, info: str = BCct.DEFAULT_INFO, debug: bool = False):
     """
     Decrypts base64 encoded encrypted data using the receiver's private key.
 

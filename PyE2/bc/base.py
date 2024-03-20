@@ -56,6 +56,8 @@ class BCct:
   
   AUTHORISED_ADDRS = 'authorized_addrs'
   
+  DEFAULT_INFO = 'AiXp handshake data'
+  
   
 class _DotDict(dict):
   __getattr__ = dict.__getitem__
