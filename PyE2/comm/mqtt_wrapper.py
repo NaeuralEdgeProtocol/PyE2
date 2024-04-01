@@ -1,18 +1,15 @@
 # PAHO
 #TODO: implement config validation and base config format
 
-import paho.mqtt.client as mqtt
 import traceback
-
-from paho.mqtt import __version__ as mqtt_version
-
-from collections import OrderedDict, deque
-
-from select import select
+from collections import deque
+from threading import Lock
 from time import sleep
 
+import paho.mqtt.client as mqtt
+from paho.mqtt import __version__ as mqtt_version
 
-from ..const import COLORS, COMMS, BASE_CT, PAYLOAD_CT
+from ..const import BASE_CT, COLORS, COMMS, PAYLOAD_CT
 from ..utils import resolve_domain_or_ip
 
 
@@ -34,6 +31,7 @@ class MQTTWrapper(object):
     self._config = config
     self._recv_buff = recv_buff
     self._mqttc = None
+    self._mqttc_lock = Lock()
     self.debug_errors = debug_errors
     self._thread_name = None
     self.connected = False
@@ -171,9 +169,9 @@ class MQTTWrapper(object):
     self.connected = False
     if rc == 0:
       self.connected = True
-      mqttc = self._mqttc
-      client_id = str(mqttc._client_id) if mqttc is not None else 'None'
-      self.P("Conn ok clntid '{}' with code: {}".format(client_id, rc), color='g', verbosity=1)
+      with self._mqttc_lock:
+        client_id = str(self._mqttc._client_id) if self._mqttc is not None else 'None'
+        self.P("Conn ok clntid '{}' with code: {}".format(client_id , rc), color='g', verbosity=1)
     return
 
   def _callback_on_disconnect(self, client, userdata, rc, *args, **kwargs):
@@ -184,16 +182,20 @@ class MQTTWrapper(object):
       client.connected_flag = False 
       client.disconnect_flag = True
     """
+    
+    if mqtt_version.startswith('2'):
+      # In version 2, on_disconnect has a different order of parameters, and rc is passed as the 4th parameter
+      # check https://eclipse.dev/paho/files/paho.mqtt.python/html/migrations.html for more info
+      rc = args[0]
     if rc == 0:
       self.P('Gracefull disconn (reason_code={})'.format(rc), color='m', verbosity=1)
       str_error = "Gracefull disconn."
     else:
       str_error = mqtt.error_string(rc) + ' (reason_code={})'.format(rc)
-      mqttc = self._mqttc
-      client_id = str(mqttc._client_id) if mqttc is not None else 'None'
-      self.P("Unexpected disconn for client id '{}': {}".format(
-        client_id, str_error), color='r', verbosity=1,
-      )
+      with self._mqttc_lock:
+        client_id = str(self._mqttc._client_id) if self._mqttc is not None else 'None'
+        self.P("Unexpected disconn for client id '{}': {}".format(client_id, str_error), color='r', verbosity=1)
+
     if self._disconnected_counter > 0:
       self.P("Trying to determine IP of target server...", verbosity=1)
       ok, str_ip, str_domain = resolve_domain_or_ip(self.cfg_host)
@@ -275,6 +277,7 @@ class MQTTWrapper(object):
         # TODO: more verbose logging including when there is no actual exception
         self._mqttc.connect(host=self.cfg_host, port=self.cfg_port)
 
+        # TODO: check if locking is needed here
         if self._mqttc is not None:
           self._mqttc.loop_start()  # start loop in another thread
 
@@ -300,9 +303,10 @@ class MQTTWrapper(object):
 
       nr_retry += 1
     # endwhile
-    if self._mqttc is not None and hasattr(self._mqttc, '_thread') and self._mqttc._thread is not None:
-      self._mqttc._thread.name = self._connection_name + '_' + comtype + '_' + client_uid
-      self._thread_name = self._mqttc._thread.name
+    with self._mqttc_lock:
+      if self._mqttc is not None and hasattr(self._mqttc, '_thread') and self._mqttc._thread is not None:
+        self._mqttc._thread.name = self._connection_name + '_' + comtype + '_' + client_uid
+        self._thread_name = self._mqttc._thread.name
 
     if has_connection:
       msg = "MQTT conn ok by '{}' in {:.1f}s - {}:{}".format(
@@ -330,7 +334,9 @@ class MQTTWrapper(object):
       'msg_type': msg_type
     }
 
-    if self._mqttc is not None and not has_connection:
+    with self._mqttc_lock:
+      can_release = self._mqttc is not None and not has_connection
+    if can_release:
       self.release()
 
     return dct_ret
@@ -350,11 +356,13 @@ class MQTTWrapper(object):
 
     while nr_retry <= max_retries:
       try:
-        self._mqttc.subscribe(
-          topic=topic,
-          qos=self.cfg_qos
-        )
-        has_connection = True
+        with self._mqttc_lock:
+          if self._mqttc is not None:
+            self._mqttc.subscribe(
+              topic=topic,
+              qos=self.cfg_qos
+            )
+            has_connection = True
       except Exception as e:
         exception = e
 
@@ -385,14 +393,15 @@ class MQTTWrapper(object):
     return
 
   def send(self, message):
-    if self._mqttc is None:
-      return
+    with self._mqttc_lock:
+      if self._mqttc is None:
+        return
 
-    result = self._mqttc.publish(
-      topic=self.send_channel_def[COMMS.TOPIC],
-      payload=message,
-      qos=self.cfg_qos
-    )
+      result = self._mqttc.publish(
+        topic=self.send_channel_def[COMMS.TOPIC],
+        payload=message,
+        qos=self.cfg_qos
+      )
 
     ####
     self.D("Sent message '{}'".format(message))
@@ -405,11 +414,13 @@ class MQTTWrapper(object):
 
   def release(self):
     try:
-      self._mqttc.disconnect()
+      with self._mqttc_lock:
+        self._mqttc.disconnect()
       self._mqttc.loop_stop()  # stop the loop thread
-      self.connected = False
+      
       del self._mqttc
       self._mqttc = None
+      self.connected = False
       msg = 'MQTT (Paho) connection released.'
     except Exception as e:
       msg = 'MQTT (Paho) exception while releasing connection: `{}`'.format(str(e))
