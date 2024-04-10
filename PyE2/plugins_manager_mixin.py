@@ -53,10 +53,16 @@ class _PluginsManagerMixin:
 
   def _get_plugin_by_name(self, lst_plugins_locations, name, safe=False):
     name = self.log.camel_to_snake(name)
-    # the root location is supposed to be the first position in the list
-    root_location = lst_plugins_locations[0].replace('.', '/')
-    sub_locations = self.log.get_all_subfolders(root_location, as_package=True)
-    lst_plugins_locations = sub_locations + lst_plugins_locations
+    total_sub_locations = []
+    # First we extract all the sublocations
+    for location in lst_plugins_locations:
+      root_location = location.replace('.', '/')
+      sub_locations = self.log.get_all_subfolders(root_location, as_package=True)
+      total_sub_locations += sub_locations
+    # endfor
+    # we remove duplicates
+    total_sub_locations = list(set(total_sub_locations))
+    lst_plugins_locations = total_sub_locations + lst_plugins_locations
     for loc in lst_plugins_locations:
       if loc.endswith('__pycache__'):
         continue
