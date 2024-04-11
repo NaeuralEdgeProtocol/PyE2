@@ -62,7 +62,7 @@ class _PluginsManagerMixin:
     # endfor
     # we remove duplicates
     total_sub_locations = list(set(total_sub_locations))
-    lst_plugins_locations = total_sub_locations + lst_plugins_locations
+    lst_plugins_locations = lst_plugins_locations + total_sub_locations
     for loc in lst_plugins_locations:
       if loc.endswith('__pycache__'):
         continue
