@@ -1,7 +1,7 @@
 
 import os
 
-from pye2 import Session, Payload, code_to_base64
+from PyE2 import Session, Payload, code_to_base64
 
 
 def instance_on_data(pipeline, custom_code_data: dict, data: Payload):

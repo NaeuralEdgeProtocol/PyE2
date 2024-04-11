@@ -1,23 +1,4 @@
-"""
-Copyright 2019-2022 Lummetry.AI (Knowledge Investment Group SRL). All Rights Reserved.
-
-
-* NOTICE:  All information contained herein is, and remains
-* the property of Knowledge Investment Group SRL.  
-* The intellectual and technical concepts contained
-* herein are proprietary to Knowledge Investment Group SRL
-* and may be covered by Romanian and Foreign Patents,
-* patents in process, and are protected by trade secret or copyright law.
-* Dissemination of this information or reproduction of this material
-* is strictly forbidden unless prior written permission is obtained
-* from Knowledge Investment Group SRL.
-
-
-@copyright: Lummetry.AI
-@author: Lummetry\.AI - Stefan Saraev
-@project: 
-@description:
-"""
+# TODO: for custom plugin, do the plugin verification locally too
 
 import os
 
@@ -70,7 +51,7 @@ class Pipeline(object):
         In the future, the documentation for the Logger base class will be available and developers will be able to use
         custom-made Loggers. 
     e2id : str
-        Name of the AiXpand node that will handle this pipeline.  
+        Name of the DecentrAI node that will handle this pipeline.  
     name : str
         The name of this pipeline.
     data_source : str
@@ -149,13 +130,13 @@ class Pipeline(object):
 
     def __maybe_create_new_pipeline_on_box(self, *, create_pipeline=True):
       """
-      Create a new pipeline on the AiXpand node. 
-      This method is called at the creation of the pipeline and is used to create the pipeline on the AiXpand node.
+      Create a new pipeline on the DecentrAI node. 
+      This method is called at the creation of the pipeline and is used to create the pipeline on the DecentrAI node.
 
       Parameters
       ----------
       create_pipeline : bool, optional
-          If True, will send a message to the AiXpand node to create this pipeline, by default True
+          If True, will send a message to the DecentrAI node to create this pipeline, by default True
       """
       if create_pipeline:
         self.session._send_command_create_pipeline(
@@ -212,7 +193,7 @@ class Pipeline(object):
 
     def __send_update_config_to_box(self):
       """
-      Send an update pipeline configuration command to the AiXpand node.
+      Send an update pipeline configuration command to the DecentrAI node.
       """
       self.session._send_command_update_pipeline_config(
           worker=self.e2id,
@@ -255,7 +236,7 @@ class Pipeline(object):
   if True:
     def _on_data(self, signature, instance_id, data):
       """
-      Handle the data received from the AiXpand node. This method is called by the Session object when a message is received from the AiXpand node.
+      Handle the data received from the DecentrAI node. This method is called by the Session object when a message is received from the DecentrAI node.
       This method will call all the `on_data` callbacks of the pipeline and the instance that received the message.
 
       Parameters
@@ -277,7 +258,7 @@ class Pipeline(object):
 
     def _on_notification(self, signature, instance_id, data):
       """
-      Handle the notification received from the AiXpand node. This method is called by the Session object when a notification is received from the AiXpand node.
+      Handle the notification received from the DecentrAI node. This method is called by the Session object when a notification is received from the DecentrAI node.
 
       Parameters
       ----------
@@ -424,12 +405,12 @@ class Pipeline(object):
       instance_id : str
           The name of the instance. There can be multiple instances of the same plugin, mostly with different parameters
       plain_code : str, optional
-          A string containing the entire code that is to be executed remotely on an AiXp node. Defaults to None.
+          A string containing the entire code that is to be executed remotely on an DecentrAI node. Defaults to None.
       plain_code_path : str, optional
-          A string containing the path to the code that is to be executed remotely on an AiXp node. Defaults to None.
+          A string containing the path to the code that is to be executed remotely on an DecentrAI node. Defaults to None.
       custom_code : str | Callable[[CustomPluginTemplate], Any], optional
           A string containing the entire code, a path to a file containing the code as a string or a function with the code.
-          This code will be executed remotely on an AiXp node. Defaults to None.
+          This code will be executed remotely on an DecentrAI node. Defaults to None.
       params : dict, optional
           parameters used to customize the functionality. One can change the AI engine used for object detection, 
           or finetune alerter parameters to better fit a camera located in a low light environment.
@@ -527,9 +508,9 @@ class Pipeline(object):
       Parameters
       ----------
       plain_code : str, optional
-          A string containing the entire code that is to be executed remotely on an AiXp node, by default None
+          A string containing the entire code that is to be executed remotely on an DecentrAI node, by default None
       plain_code_path : str, optional
-          A string containing the path to the code that is to be executed remotely on an AiXp node, by default None
+          A string containing the path to the code that is to be executed remotely on an DecentrAI node, by default None
       params : dict, optional
           parameters used to customize the functionality, by default {}
 
@@ -741,7 +722,7 @@ class Pipeline(object):
       """
       Update the configuration of multiple instances at once.
       This method is useful when one wants to update the configuration of multiple instances at once, 
-        while only sending one message to the AiXpand node.
+        while only sending one message to the DecentrAI node.
 
       Example:
       ```
@@ -772,7 +753,7 @@ class Pipeline(object):
     def send_pipeline_command(self, command, payload={}, command_params={}):
       # TODO: test if this is oke like this
       """
-      Send a pipeline command to the AiXpand node.
+      Send a pipeline command to the DecentrAI node.
 
       Parameters
       ----------

@@ -1,6 +1,6 @@
 # PyE2 SDK
 
-This is the Python SDK package that allows interactions, development and deployment of jobs in AiXpand network. The SDK enables low-code development and deployment of end-to-end AI (and not only) cooperative application pipelines within the AiXpand Execution Engine processing nodes ecosystem. For further information please see "AiXpand - Decentralized ubiquitous computing MLOps execution engine".
+This is the Python SDK package that allows interactions, development and deployment of jobs in DecentrAI network. The SDK enables low-code development and deployment of end-to-end AI (and not only) cooperative application pipelines within the DecentrAI Execution Engine processing nodes ecosystem. For further information please see "DecentrAI - Decentralized ubiquitous computing MLOps execution engine".
 
 ## Dependencies
 

@@ -2,7 +2,7 @@
 This is a simple example of how to use the PyE2 library.
 
 In this example, we connect to the network, listen for heartbeats from 
-  AiXpand nodes and print the CPU of each node.
+  DecentrAI nodes and print the CPU of each node.
 """
 
 from PyE2 import Session

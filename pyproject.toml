@@ -6,11 +6,11 @@ build-backend = "hatchling.build"
 name = "PyE2"
 version = "0.0.0"
 authors = [
-  { name="Stefan Saraev", email="stefan.saraev@hyperfy.tech" },
-  { name="Andrei Ionut Damian", email="andrei.damian@lummetry.ai" },
-  { name="Cristan Bleotiu", email="cristan.bleotiu@hyperfy.tech" },
+  { name="Stefan Saraev", email="saraevstefan@gmail.com" },
+  { name="Andrei Ionut Damian", email="andrei.damian@me.com" },
+  { name="Cristan Bleotiu", email="cristibleotiu@gmail.com" },
 ]
-description = "PyE2 is the Python SDK required for client app development in the AiXpand network"
+description = "PyE2 is the Python SDK required for client app development in the DecentrAI network"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -23,9 +23,11 @@ dependencies = [
   "paho-mqtt", 
   "numpy",
   "pyopenssl>=23.0.0",
-  "cryptography>=39.0.0"
+  "cryptography>=39.0.0",
+  "python-dateutil",
+  "pyaml"
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/AiXpand/PyE2"
-"Bug Tracker" = "https://github.com/AiXpand/PyE2/issues"
+"Homepage" = "https://github.com/DecentrAI/PyE2"
+"Bug Tracker" = "https://github.com/DecentrAI/PyE2/issues"
