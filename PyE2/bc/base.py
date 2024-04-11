@@ -19,6 +19,7 @@ class BCct:
   HASH      = 'EE_HASH'
   
   ADDR_PREFIX   = "aixp_"
+  ADDR_PREFIX_NEW   = "0xai_"
   
   K_PEM_FILE = 'PEM_FILE'
   K_PASSWORD = 'PASSWORD'
@@ -35,7 +36,7 @@ class BCct:
   
   AUTHORISED_ADDRS = 'authorized_addrs'
   
-  DEFAULT_INFO = 'AiXp handshake data'
+  DEFAULT_INFO = '0xai handshake data'
   
   
 class _DotDict(dict):
@@ -537,6 +538,7 @@ class BaseBlockEngine:
       the pk object.
 
     """
+    simple_address = address.replace(BCct.ADDR_PREFIX_NEW, '')
     simple_address = address.replace(BCct.ADDR_PREFIX, '')
     bpublic_key = self._text_to_binary(simple_address)
     # below works for DER / SubjectPublicKeyInfo
