@@ -539,7 +539,7 @@ class BaseBlockEngine:
 
     """
     simple_address = address.replace(BCct.ADDR_PREFIX_NEW, '')
-    simple_address = address.replace(BCct.ADDR_PREFIX, '')
+    simple_address = simple_address.replace(BCct.ADDR_PREFIX, '')
     bpublic_key = self._text_to_binary(simple_address)
     # below works for DER / SubjectPublicKeyInfo
     public_key = serialization.load_der_public_key(bpublic_key)
