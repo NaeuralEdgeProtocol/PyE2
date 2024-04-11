@@ -194,6 +194,7 @@ class BaseBCEllipticCurveEngine(BaseBlockEngine):
       the pk object.
 
     """
+    simple_address = address.replace(BCct.ADDR_PREFIX_NEW, '')
     simple_address = address.replace(BCct.ADDR_PREFIX, '')
     bpublic_key = self._text_to_binary(simple_address)
     public_key = ec.EllipticCurvePublicKey.from_encoded_point(
