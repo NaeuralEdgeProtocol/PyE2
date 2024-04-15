@@ -1,5 +1,11 @@
 # PAHO
-#TODO: implement config validation and base config format
+# TODO: implement config validation and base config format
+# TODO: add queue for to_send messages
+
+# TODO: adding a lock for accessing self._mqttc should solve some of the bugs, but it introduces a new one
+# basically, when a user thread calls send, they should acquire the lock for the self._mqttc object
+# and use it to send messages. However, if the mqttc has loop started but did not connect, the lock will
+# prevent the client from ever connecting.
 
 import traceback
 from collections import deque
@@ -31,7 +37,6 @@ class MQTTWrapper(object):
     self._config = config
     self._recv_buff = recv_buff
     self._mqttc = None
-    self._mqttc_lock = Lock()
     self.debug_errors = debug_errors
     self._thread_name = None
     self.connected = False
@@ -165,13 +170,51 @@ class MQTTWrapper(object):
   def connection(self):
     return self._mqttc
 
+  def __get_client_id(self):
+    mqttc = self._mqttc
+    client_id = str(mqttc._client_id) if mqttc is not None else 'None'
+    return client_id
+
+  def __create_mqttc_object(self, comtype, client_uid):
+    client_id = self._connection_name + '_' + comtype + '_' + client_uid
+    if mqtt_version.startswith('2'):
+      mqttc = mqtt.Client(
+        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+        client_id=client_id,
+        clean_session=True
+      )
+    else:
+      mqttc = mqtt.Client(
+        client_id=client_id,
+        clean_session=True
+      )
+
+    mqttc.username_pw_set(
+      username=self.cfg_user,
+      password=self.cfg_pass
+    )
+
+    mqttc.on_connect = self._callback_on_connect
+    mqttc.on_disconnect = self._callback_on_disconnect
+    mqttc.on_message = self._callback_on_message
+    mqttc.on_publish = self._callback_on_publish
+
+    return mqttc
+
+  def __sleep_until_connected(self, max_sleep, sleep_time):
+    for sleep_iter in range(1, int(max_sleep / sleep_time) + 1):
+      sleep(sleep_time)
+      if self.connected:
+        break
+    # endfor
+    return sleep_iter
+
   def _callback_on_connect(self, client, userdata, flags, rc, *args, **kwargs):
     self.connected = False
     if rc == 0:
       self.connected = True
-      with self._mqttc_lock:
-        client_id = str(self._mqttc._client_id) if self._mqttc is not None else 'None'
-        self.P("Conn ok clntid '{}' with code: {}".format(client_id , rc), color='g', verbosity=1)
+      self.P("Conn ok clntid '{}' with code: {}".format(
+        self.__get_client_id(), rc), color='g', verbosity=1)
     return
 
   def _callback_on_disconnect(self, client, userdata, rc, *args, **kwargs):
@@ -179,10 +222,10 @@ class MQTTWrapper(object):
     Tricky callback
 
     we can piggy-back ride the client with flags:
-      client.connected_flag = False 
+      client.connected_flag = False
       client.disconnect_flag = True
     """
-    
+
     if mqtt_version.startswith('2'):
       # In version 2, on_disconnect has a different order of parameters, and rc is passed as the 4th parameter
       # check https://eclipse.dev/paho/files/paho.mqtt.python/html/migrations.html for more info
@@ -192,9 +235,8 @@ class MQTTWrapper(object):
       str_error = "Gracefull disconn."
     else:
       str_error = mqtt.error_string(rc) + ' (reason_code={})'.format(rc)
-      with self._mqttc_lock:
-        client_id = str(self._mqttc._client_id) if self._mqttc is not None else 'None'
-        self.P("Unexpected disconn for client id '{}': {}".format(client_id, str_error), color='r', verbosity=1)
+      self.P("Unexpected disconn for client id '{}': {}".format(
+        self.__get_client_id(), str_error), color='r', verbosity=1)
 
     if self._disconnected_counter > 0:
       self.P("Trying to determine IP of target server...", verbosity=1)
@@ -216,6 +258,7 @@ class MQTTWrapper(object):
     self.last_disconnect_log = '\n'.join([f"* Comm error '{x2}' occured at {x1}" for x1, x2 in self._disconnected_log])
     # we need to stop the loop otherwise the client thread will keep working
     # so we call release->loop_stop
+
     self.release()
     return
 
@@ -243,6 +286,8 @@ class MQTTWrapper(object):
     return {x1: x2 for x1, x2 in self._disconnected_log}
 
   def server_connect(self, max_retries=5):
+    max_sleep = 2
+    sleep_time = 0.01
     nr_retry = 1
     has_connection = False
     exception = None
@@ -251,49 +296,27 @@ class MQTTWrapper(object):
 
     while nr_retry <= max_retries:
       try:
+        # 1. create a unique client id
         client_uid = self.log.get_unique_id()
-        client_id = self._connection_name + '_' + comtype + '_' + client_uid
-        if mqtt_version.startswith('2'):
-          self._mqttc = mqtt.Client(
-            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-            client_id=client_id,
-            clean_session=True
-          )
-        else:
-          self._mqttc = mqtt.Client(
-            client_id=client_id,
-            clean_session=True
-          )
 
-        self._mqttc.username_pw_set(
-          username=self.cfg_user,
-          password=self.cfg_pass
-        )
+        # 2. create the mqtt client object (with callbacks set)
+        self._mqttc = self.__create_mqttc_object(comtype, client_uid)
 
-        self._mqttc.on_connect = self._callback_on_connect
-        self._mqttc.on_disconnect = self._callback_on_disconnect
-        self._mqttc.on_message = self._callback_on_message
-        self._mqttc.on_publish = self._callback_on_publish
         # TODO: more verbose logging including when there is no actual exception
+        # 3. connect to the server
         self._mqttc.connect(host=self.cfg_host, port=self.cfg_port)
 
-        # TODO: check if locking is needed here
+        # 4. start the loop in another thread
         if self._mqttc is not None:
           self._mqttc.loop_start()  # start loop in another thread
 
-        sleep_time = 0.01
-        max_sleep = 2
-        for sleep_iter in range(1, int(max_sleep / sleep_time) + 1):
-          sleep(sleep_time)
-          if self.connected:
-            break
-        # endfor
+        # 5. wait until connected
+        sleep_iter = self.__sleep_until_connected(max_sleep=max_sleep, sleep_time=sleep_time)
 
         has_connection = self.connected
-      except Exception as e:
-        exception = e
+      except Exception as exception:
         if self.debug_errors:
-          self.P(e, color='r', verbosity=1)
+          self.P(exception, color='r', verbosity=1)
           self.P(traceback.format_exc(), color='r', verbosity=1)
 
       # end try-except
@@ -303,29 +326,41 @@ class MQTTWrapper(object):
 
       nr_retry += 1
     # endwhile
-    with self._mqttc_lock:
-      if self._mqttc is not None and hasattr(self._mqttc, '_thread') and self._mqttc._thread is not None:
-        self._mqttc._thread.name = self._connection_name + '_' + comtype + '_' + client_uid
-        self._thread_name = self._mqttc._thread.name
+
+    # set thread name ; useful for debugging
+    mqttc = self._mqttc
+    if mqttc is not None and hasattr(mqttc, '_thread') and mqttc._thread is not None:
+      mqttc._thread.name = self._connection_name + '_' + comtype + '_' + client_uid
+      self._thread_name = mqttc._thread.name
 
     if has_connection:
       msg = "MQTT conn ok by '{}' in {:.1f}s - {}:{}".format(
-        self._thread_name, sleep_iter * sleep_time, self.cfg_host, self.cfg_port
+        self._thread_name,
+        sleep_iter * sleep_time,
+        self.cfg_host,
+        self.cfg_port
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_NORMAL
       self._nr_full_retries = 0
-      self.P(msg, color='g', verbosity=1)
+
+      self.P(msg)
+
     else:
       reason = exception
       if reason is None:
         reason = " max retries in {:.1f}s".format(sleep_iter * sleep_time)
+
       self._nr_full_retries += 1
       msg = 'MQTT (Paho) conn to {}:{} failed after {} retr ({} trials) (reason:{})'.format(
-        self.cfg_host, self.cfg_port, nr_retry, self._nr_full_retries, reason
+        self.cfg_host,
+        self.cfg_port,
+        nr_retry,
+        self._nr_full_retries,
+        reason
       )
       msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_EXCEPTION
       self.P(msg, color='r', verbosity=1)
-      # now register failure
+
     # endif
 
     dct_ret = {
@@ -334,9 +369,10 @@ class MQTTWrapper(object):
       'msg_type': msg_type
     }
 
-    with self._mqttc_lock:
-      can_release = self._mqttc is not None and not has_connection
-    if can_release:
+    # if release was not called from on_disconnect, basically
+    # this method of checking self._mqttc is not None is not
+    # very reliable, as race conditions can occur
+    if self._mqttc is not None and not has_connection:
       self.release()
 
     return dct_ret
@@ -356,13 +392,12 @@ class MQTTWrapper(object):
 
     while nr_retry <= max_retries:
       try:
-        with self._mqttc_lock:
-          if self._mqttc is not None:
-            self._mqttc.subscribe(
-              topic=topic,
-              qos=self.cfg_qos
-            )
-            has_connection = True
+        if self._mqttc is not None:
+          self._mqttc.subscribe(
+            topic=topic,
+            qos=self.cfg_qos
+          )
+          has_connection = True
       except Exception as e:
         exception = e
 
@@ -393,15 +428,15 @@ class MQTTWrapper(object):
     return
 
   def send(self, message):
-    with self._mqttc_lock:
-      if self._mqttc is None:
-        return
+    mqttc = self._mqttc
+    if mqttc is None:
+      return
 
-      result = self._mqttc.publish(
-        topic=self.send_channel_def[COMMS.TOPIC],
-        payload=message,
-        qos=self.cfg_qos
-      )
+    result = mqttc.publish(
+      topic=self.send_channel_def[COMMS.TOPIC],
+      payload=message,
+      qos=self.cfg_qos
+    )
 
     ####
     self.D("Sent message '{}'".format(message))
@@ -414,16 +449,20 @@ class MQTTWrapper(object):
 
   def release(self):
     try:
-      with self._mqttc_lock:
+      mqttc = self._mqttc
+
+      if mqttc is not None:
         self._mqttc.disconnect()
-      self._mqttc.loop_stop()  # stop the loop thread
-      
-      del self._mqttc
+        self._mqttc.loop_stop()  # stop the loop thread
       self._mqttc = None
       self.connected = False
       msg = 'MQTT (Paho) connection released.'
     except Exception as e:
       msg = 'MQTT (Paho) exception while releasing connection: `{}`'.format(str(e))
 
+    self.P(msg)
+
+    # TODO: method should return None; update code in core to reflect this
     dct_ret = {'msgs': [msg]}
+
     return dct_ret

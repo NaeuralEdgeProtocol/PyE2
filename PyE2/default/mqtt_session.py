@@ -48,15 +48,14 @@ class MqttSession(GenericSession):
 
   def _connect(self) -> None:
     if self._default_communicator.connection is None:
-      self._default_comm_con_res = self._default_communicator.server_connect()
-      self._default_comm_sub_res = self._default_communicator.subscribe()
+      self._default_communicator.server_connect()
+      self._default_communicator.subscribe()
     if self._heartbeats_communicator.connection is None:
-      self._hb_comm_con_res = self._heartbeats_communicator.server_connect()
-      self._hb_comm_sub_res = self._heartbeats_communicator.subscribe()
+      self._heartbeats_communicator.server_connect()
+      self._heartbeats_communicator.subscribe()
     if self._notifications_communicator.connection is None:
-      self._notif_comm_con_res = self._notifications_communicator.server_connect()
-      self._notif_comm_sub_res = self._notifications_communicator.subscribe()
-
+      self._notifications_communicator.server_connect()
+      self._notifications_communicator.subscribe()
     return
 
   def _communication_close(self, **kwargs):
