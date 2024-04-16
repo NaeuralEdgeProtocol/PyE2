@@ -14,7 +14,7 @@ from time import time as tm
 from time import strftime, localtime, strptime, mktime
 from collections import OrderedDict
 from datetime import datetime as dt
-from datetime import timedelta, timezone
+from datetime import timedelta, timezone, tzinfo
 from dateutil import tz
 from pathlib import Path
 
@@ -1431,7 +1431,7 @@ class BaseLogger(object):
 
     Parameters
     ----------
-    remote_datetime: datetime or str
+    remote_datetime: datetime or str or tzinfo
       The remote datetime
       
     remote_utc: int or str
@@ -1444,24 +1444,23 @@ class BaseLogger(object):
     if remote_utc is None:
       remote_utc = 'UTC+3'
     if isinstance(remote_utc, str):
-      utc_offset = int(remote_utc.replace('UTC', ''))
+      remote_utc = tz.gettz(remote_utc)
     elif isinstance(remote_utc, int):
       utc_offset = remote_utc
-    else:
-      raise ValueError("Uknown remote_utc type: {}".format(type(remote_utc)))
-      
+      remote_utc = tz.tzoffset(None, timedelta(hours=utc_offset))
+    elif not isinstance(remote_utc, tzinfo):
+      raise ValueError("Unknown remote_utc type: {}".format(type(remote_utc)))
+
     if isinstance(remote_datetime, str):
       remote_datetime = dt.strptime(remote_datetime, fmt)
-      
-    offset_timezone = timezone(timedelta(hours=utc_offset))
-    remote_datetime = remote_datetime.replace(tzinfo=offset_timezone)
+
+    remote_datetime = remote_datetime.replace(tzinfo=remote_utc)
     local_timezone = tz.tzlocal()
     local_datetime = remote_datetime.astimezone(local_timezone)
     local_datetime = local_datetime.replace(tzinfo=None)
     if as_string:
       local_datetime = local_datetime.strftime(fmt)
     return local_datetime
-    
   
   @staticmethod
   def str_to_sec(s):
