@@ -314,7 +314,8 @@ class MQTTWrapper(object):
         sleep_iter = self.__sleep_until_connected(max_sleep=max_sleep, sleep_time=sleep_time)
 
         has_connection = self.connected
-      except Exception as exception:
+      except Exception as e:
+        exception = e
         if self.debug_errors:
           self.P(exception, color='r', verbosity=1)
           self.P(traceback.format_exc(), color='r', verbosity=1)
