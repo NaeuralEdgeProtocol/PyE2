@@ -7,3 +7,14 @@ class COLORS:
   BIZ = 'b'
   COMM = 'y'
   TIMERS = 'd'
+
+
+WEEKDAYS_SHORT = [
+  'MON',
+  'TUE',
+  'WED',
+  'THU',
+  'FRI',
+  'SAT',
+  'SUN'
+]

@@ -1,4 +1,4 @@
-from .misc import COLORS
+from .misc import COLORS, WEEKDAYS_SHORT
 from . import comms as COMMS
 from . import base as BASE_CT
 from . import payload as PAYLOAD_CT

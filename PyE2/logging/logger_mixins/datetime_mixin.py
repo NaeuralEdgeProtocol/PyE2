@@ -1,16 +1,8 @@
 from datetime import datetime as dt, timedelta
 from dateutil.relativedelta import relativedelta
+from ...const import WEEKDAYS_SHORT
 
 
-WEEKDAYS_SHORT = [
-  'MON',
-  'TUE',
-  'WED',
-  'THU',
-  'FRI',
-  'SAT',
-  'SUN'
-]
 class _DateTimeMixin(object):
   """
   Mixin for date and time functionalities that are attached to `pye2.Logger`.
