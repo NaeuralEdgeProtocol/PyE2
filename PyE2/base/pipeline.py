@@ -142,8 +142,6 @@ class Pipeline(object):
         self.session._send_command_create_pipeline(
           worker=self.e2id,
           pipeline_config=self.__get_pipeline_config(),
-          worker_address=self._get_worker_address(),
-
         )
       return
 
@@ -198,7 +196,6 @@ class Pipeline(object):
       self.session._send_command_update_pipeline_config(
           worker=self.e2id,
           pipeline_config=self.__get_pipeline_config(),
-          worker_address=self._get_worker_address(),
       )
       return
 
@@ -228,9 +225,6 @@ class Pipeline(object):
       if exec_data is not None:
         on_data_callback(self, exec_data, data)
       return
-
-    def _get_worker_address(self):
-      return self.session._get_worker_address(self.e2id)
 
   # Message handling
   if True:
@@ -747,7 +741,6 @@ class Pipeline(object):
       self.session._send_command_batch_update_instance_config(
         worker=self.e2id,
         lst_updates=lst_updates,
-        worker_address=self._get_worker_address(),
       )
 
     def send_pipeline_command(self, command, payload={}, command_params={}):
@@ -770,6 +763,5 @@ class Pipeline(object):
         command=command,
         payload=payload,
         command_params=command_params,
-        worker_address=self._get_worker_address(),
       )
       return

@@ -163,7 +163,6 @@ class Instance():
           signature=self.signature,
           instance_id=self.instance_id,
           instance_config={**config, **kwargs},
-          worker_address=self.pipeline._get_worker_address(),
         )
       else:
         return {
@@ -197,7 +196,6 @@ class Instance():
         command=command,
         payload=payload,
         command_params=command_params,
-        worker_address=self.pipeline._get_worker_address(),
       )
       return
 

@@ -58,7 +58,7 @@ class GenericSession(BaseDecentrAIObject):
                encrypt_comms=False,
                config={},
                filter_workers=None,
-               log : Logger =None,
+               log: Logger = None,
                on_payload=None,
                on_notification=None,
                on_heartbeat=None,
@@ -683,7 +683,7 @@ class GenericSession(BaseDecentrAIObject):
         self._config[comm_ct.PORT] = int(port)
       return
 
-    def _send_command_to_box(self, command, worker, payload, show_command=False, worker_address=None, **kwargs):
+    def _send_command_to_box(self, command, worker, payload, show_command=False, **kwargs):
       """
       Send a command to a node.
 
@@ -709,6 +709,7 @@ class GenericSession(BaseDecentrAIObject):
 
       # This part is duplicated with the creation of payloads
       encrypt_payload = self.encrypt_comms
+      worker_address = self._get_worker_address(worker)
       if encrypt_payload and worker_address is not None:
         # TODO: use safe_json_dumps
         str_data = json.dumps(critical_data)
