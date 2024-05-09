@@ -954,7 +954,10 @@ class BaseBlockEngine:
   
   
   def is_allowed(self, sender_address):
-    is_allowed = sender_address in self.allowed_list or sender_address == self.address
+    to_search_address = sender_address
+    if sender_address.begins_with(BCct.ADDR_PREFIX) or sender_address.begins_with(BCct.ADDR_PREFIX_NEW):
+      to_search_address = sender_address[5:]
+    is_allowed = to_search_address in self.allowed_list or sender_address == self.address
     return is_allowed
   
   
