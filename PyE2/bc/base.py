@@ -490,6 +490,9 @@ class BaseBlockEngine:
       with open(fn, 'wt') as fh:
         fh.write('\n')
     lst_allowed = [x.strip().split(' ')[0] for x in lst_allowed]
+    lst_allowed = [x[5:]
+                   if x.startswith(BCct.ADDR_PREFIX) or x.startswith(BCct.ADDR_PREFIX_NEW) else x
+                   for x in lst_allowed if x != '']
     return lst_allowed
       
   
