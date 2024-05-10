@@ -441,13 +441,31 @@ class BaseLogger(object):
     
   
   def lock_resource(self, str_res):
+    """
+    Possible critical failure:
+    
+    1. base plugin runs try stuff etc
+    2. plugin runs lock
+    3. threading.Lock() fails
+    4. base plugin runs except
+    5. except locks in log (no output) due to _lock_table_mutex.acquire(blocking=True)
+    6. any thread running lock_reource will hang with NO LOG OUTPUT
+    """
+    result = None
     self._lock_table_mutex.acquire(blocking=True)
-    if str_res not in self._lock_table:      
-      self._lock_table[str_res] = threading.Lock()
-    self._lock_table_mutex.release()
+    try:
+      if str_res not in self._lock_table:      
+        self._lock_table[str_res] = threading.Lock()
+    except:
+      print("**************************************************************\nPANIC: Failed to create lock for resource '{}'\n**************************************************************".format(str_res))
+    finally:
+      self._lock_table_mutex.release()
 
-    self._lock_table[str_res].acquire(blocking=True)
-    return self._lock_table[str_res]
+    if str_res in self._lock_table:      
+      self._lock_table[str_res].acquire(blocking=True)
+      result = self._lock_table[str_res]
+      
+    return result
   
   def unlock_resource(self, str_res):
     if str_res in self._lock_table:
