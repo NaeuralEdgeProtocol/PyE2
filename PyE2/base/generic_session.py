@@ -783,7 +783,7 @@ class GenericSession(BaseDecentrAIObject):
         assert PAYLOAD_DATA.INSTANCE_CONFIG in update, "All updates must have a plugin instance config"
         assert isinstance(update[PAYLOAD_DATA.INSTANCE_CONFIG], dict), \
             "All updates must have a plugin instance config as dict"
-      self._send_command_to_box(COMMANDS.BATCH_UPDATE_PIPELINE_INSTANCES, worker, lst_updates, **kwargs)
+      self._send_command_to_box(COMMANDS.BATCH_UPDATE_PIPELINE_INSTANCE, worker, lst_updates, **kwargs)
 
     def _send_command_pipeline_command(self, worker, pipeline_name, command, payload={}, command_params={}, **kwargs):
       payload = {
