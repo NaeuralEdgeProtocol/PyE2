@@ -65,6 +65,7 @@ class GenericSession(BaseDecentrAIObject):
                silent=True,
                verbosity=1,
                dotenv_path=None,
+               show_commands=False,
                blockchain_config=BLOCKCHAIN_CONFIG,
                bc_engine=None,
                formatter_plugins_locations=['plugins.io_formatters'],
@@ -95,6 +96,9 @@ class GenericSession(BaseDecentrAIObject):
     filter_workers: list, optional
         If set, process the messages that come only from the nodes from this list. 
         Defaults to None
+    show_commands : bool
+        If True, will print the commands that are being sent to the DecentrAI nodes.
+        Defaults to False
     log : Logger, optional
         A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
         In the future, the documentation for the Logger base class will be available and developers will be able to use
@@ -136,6 +140,7 @@ class GenericSession(BaseDecentrAIObject):
     self._box_addr = {}
     self.online_timeout = 60
     self.filter_workers = filter_workers
+    self.__show_commands = show_commands
 
     pwd = pwd or kwargs.get('password', kwargs.get('pass', None))
     user = user or kwargs.get('username', None)
@@ -699,6 +704,8 @@ class GenericSession(BaseDecentrAIObject):
           If True, will print the complete command that is being sent, by default False
       """
 
+      show_command = show_command or self.__show_commands
+
       if len(kwargs) > 0:
         self.D("Ignoring extra kwargs: {}".format(kwargs), verbosity=2)
 
@@ -762,7 +769,7 @@ class GenericSession(BaseDecentrAIObject):
         PAYLOAD_DATA.NAME: pipeline_name,
         PAYLOAD_DATA.SIGNATURE: signature,
         PAYLOAD_DATA.INSTANCE_ID: instance_id,
-        PAYLOAD_DATA.INSTANCE_CONFIG: instance_config
+        PAYLOAD_DATA.INSTANCE_CONFIG: {k.upper(): v for k, v in instance_config.items()}
       }
       self._send_command_to_box(COMMANDS.UPDATE_PIPELINE_INSTANCE, worker, payload, **kwargs)
       return
