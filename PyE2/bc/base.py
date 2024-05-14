@@ -18,8 +18,8 @@ class BCct:
   SENDER    = 'EE_SENDER'
   HASH      = 'EE_HASH'
   
-  ADDR_PREFIX   = "aixp_"
-  ADDR_PREFIX_NEW   = "0xai_"
+  ADDR_PREFIX_OLD = "aixp_"
+  ADDR_PREFIX   = "0xai_"
   
   K_PEM_FILE = 'PEM_FILE'
   K_PASSWORD = 'PASSWORD'
@@ -490,12 +490,28 @@ class BaseBlockEngine:
       with open(fn, 'wt') as fh:
         fh.write('\n')
     lst_allowed = [x.strip().split(' ')[0] for x in lst_allowed]
-    lst_allowed = [x[5:]
-                   if x.startswith(BCct.ADDR_PREFIX) or x.startswith(BCct.ADDR_PREFIX_NEW) else x
-                   for x in lst_allowed if x != '']
+    lst_allowed = [self._remove_prefix(x) for x in lst_allowed if x != '']
     return lst_allowed
       
-  
+  def _remove_prefix(self, address):
+    """
+    Removes the prefix from the address
+
+    Parameters
+    ----------
+    address : str
+      the text address.
+
+    Returns
+    -------
+    address : str
+      the address without the prefix.
+    """
+    if address.startswith(BCct.ADDR_PREFIX):
+      address = address[len(BCct.ADDR_PREFIX):]
+    elif address.startswith(BCct.ADDR_PREFIX_OLD):
+      address = address[len(BCct.ADDR_PREFIX_OLD):]
+    return address
   
   def _pk_to_address(self, public_key):
     """
@@ -541,8 +557,7 @@ class BaseBlockEngine:
       the pk object.
 
     """
-    simple_address = address.replace(BCct.ADDR_PREFIX_NEW, '')
-    simple_address = simple_address.replace(BCct.ADDR_PREFIX, '')
+    simple_address = self._remove_prefix(address)
     bpublic_key = self._text_to_binary(simple_address)
     # below works for DER / SubjectPublicKeyInfo
     public_key = serialization.load_der_public_key(bpublic_key)
@@ -954,10 +969,8 @@ class BaseBlockEngine:
   
   
   def is_allowed(self, sender_address: str):
-    to_search_address = sender_address
-    if sender_address.startswith(BCct.ADDR_PREFIX) or sender_address.startswith(BCct.ADDR_PREFIX_NEW):
-      to_search_address = sender_address[5:]
-    is_allowed = to_search_address in self.allowed_list or sender_address == self.address
+    to_search_address = self._remove_prefix(sender_address)
+    is_allowed = to_search_address in self.allowed_list or to_search_address == self._remove_prefix(self.address)
     return is_allowed
   
   
