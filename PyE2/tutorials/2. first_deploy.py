@@ -13,7 +13,7 @@ from time import sleep
 def instance_on_data(pipeline: Pipeline, data: Payload):
   # the images can be extracted from the Payload object
   # PIL needs to be installed for this to work
-  images = data.get_image_as_PIL()
+  images = data.get_images_as_PIL()
   if images is not None:
     images[0].save('frame.jpg')
 

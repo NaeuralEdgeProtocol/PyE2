@@ -11,7 +11,7 @@ class Payload(UserDict):
   helpful methods to process the payloads received from DecentrAI nodes.
   """
 
-  def get_image_as_np(self, key='IMG'):
+  def get_images_as_np(self, key='IMG') -> list:
     """
     Extract the image from the payload.
     The image is returned as a numpy array.
@@ -27,12 +27,12 @@ class Payload(UserDict):
     NDArray[Any] | None
         The image if it was found or None otherwise.
     """
-    image = self.get_image_as_PIL(key)
-    if image is not None:
-      image = np.array(image)
-    return image
+    images = self.get_images_as_PIL(key)
+    if images is not None:
+      images = [np.array(image) for image in images]
+    return images
 
-  def get_image_as_PIL(self, key='IMG'):
+  def get_images_as_PIL(self, key='IMG') -> list:
     """
     Extract the image from the payload.
     The image is returned as a PIL image.
