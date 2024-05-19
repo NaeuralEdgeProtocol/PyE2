@@ -1,6 +1,7 @@
 import os
 import inspect
 import importlib
+import sys
 import traceback
 
 from pkgutil import iter_modules
@@ -179,6 +180,8 @@ class _PluginsManagerMixin:
 
     module = None
     try:
+      if _module_name in sys.modules:
+        del sys.modules[_module_name]
       module = importlib.import_module(_module_name)
       if module is not None and safety_check:
         is_good, msg = self._perform_module_safety_check(module, safe_imports=safe_imports)
