@@ -765,3 +765,95 @@ class Pipeline(object):
         command_params=command_params,
       )
       return
+
+    def create_or_attach_to_instance(self, *, signature, instance_id, params={}, on_data=None, on_notification=None, **kwargs):
+      """
+      Create a new instance of a desired plugin, with a given configuration, or attach to an existing instance.
+
+      Parameters
+      ----------
+      signature : str
+          The name of the plugin signature. This is the name of the desired overall functionality.
+      instance_id : str
+          The name of the instance. There can be multiple instances of the same plugin, mostly with different parameters
+      params : dict, optional
+          parameters used to customize the functionality. One can change the AI engine used for object detection, 
+          or finetune alerter parameters to better fit a camera located in a low light environment.
+          Defaults to {}
+      on_data : Callable[[Pipeline, dict], None], optional
+          Callback that handles messages received from this instance. 
+          As arguments, it has a reference to this Pipeline object, along with the payload itself.
+          Defaults to None
+      on_notification : Callable[[Pipeline, dict], None], optional
+          Callback that handles notifications received from this instance. 
+          As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+          Defaults to None
+
+      Returns
+      -------
+      instance : Instance
+          An `Instance` object.
+      """
+      try:
+        instance = self.attach_to_instance(signature, instance_id, on_data, on_notification)
+        instance.update_instance_config(params, kwargs)
+      except Exception:
+        instance = self.start_plugin_instance(
+          signature=signature,
+          instance_id=instance_id,
+          params=params,
+          on_data=on_data,
+          on_notification=on_notification,
+          **kwargs
+        )
+      return instance
+
+    def create_or_attach_to_custom_instance(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, custom_code: str = None, params={}, on_data=None, on_notification=None, **kwargs) -> Instance:
+      """
+      Create a new instance of a desired plugin, with a given configuration, or attach to an existing instance. 
+
+      Parameters
+      ----------
+      signature : str
+          The name of the plugin signature. This is the name of the desired overall functionality.
+      instance_id : str
+          The name of the instance. There can be multiple instances of the same plugin, mostly with different parameters
+      params : dict, optional
+          parameters used to customize the functionality. One can change the AI engine used for object detection, 
+          or finetune alerter parameters to better fit a camera located in a low light environment.
+          Defaults to {}
+      on_data : Callable[[Pipeline, dict], None], optional
+          Callback that handles messages received from this instance. 
+          As arguments, it has a reference to this Pipeline object, along with the payload itself.
+          Defaults to None
+      on_notification : Callable[[Pipeline, dict], None], optional
+          Callback that handles notifications received from this instance. 
+          As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+          Defaults to None
+
+      Returns
+      -------
+      instance : Instance
+          An `Instance` object.
+
+      Raises
+      ------
+      Exception
+          Plugin instance already exists. 
+      """
+
+      try:
+        instance = self.attach_to_custom_instance(instance_id, on_data, on_notification)
+        instance.update_instance_config(params, kwargs)
+      except:
+        instance = self.start_custom_plugin(
+          instance_id=instance_id,
+          plain_code=plain_code,
+          plain_code_path=plain_code_path,
+          custom_code=custom_code,
+          params=params,
+          on_data=on_data,
+          on_notification=on_notification,
+          **kwargs
+        )
+      return instance
