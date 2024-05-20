@@ -7,96 +7,98 @@ import re
 __VER__ = '0.6.1'
 
 UNALLOWED_DICT = {
-  'import '       : {
-    'error' : 'Imports are not allowed in plugin code ',
-    'type' : 'import',
-    },
-  
-  'from '         : {
-    'error' : 'Imports are not allowed in plugin code ',
-    'type' : 'import',
-    },
-  
-  'globals'       : {
-    'error' : 'Global vars access is not allowed in plugin code ',
-    'type' : 'var',
-    },
-  
-  'locals'        : {
+  'import ': {
+    'error': 'Imports are not allowed in plugin code ',
+    'type': 'import',
+  },
+
+  'from ': {
+    'error': 'Imports are not allowed in plugin code ',
+    'type': 'import',
+  },
+
+  'globals': {
+    'error': 'Global vars access is not allowed in plugin code ',
+    'type': 'var',
+  },
+
+  'locals': {
     'error': 'Local vars dict access is not allowed in plugin code ',
-    'type' : 'var',
-    },
-  
-  'memoryview'    : {
-    'error' : 'Pointer handling is unsafe in plugin code ',
-    'type' : 'var',
-    },
-  
-  'self.log.'     : {
-    'error' : 'Logger object cannot be used directly in plugin code - please use API ',
-    'type' : 'var',
-    },
-  
-  'vars('         : {
-    'error' : 'Usage of `vars(obj)` is not allowed in plugin code ',
-    'type' : 'var',
-  },
-  
-  'dir('          : {
-    'error' : 'Usage of `dir(obj)` is not allowed in plugin code ',
-    'type' : 'var',
-  },
-  
-  '.global_shmem' : {
-    'error' : 'Usage of `global_shmem` is not allowed in plugin code ',
-    'type' : 'var',
+    'type': 'var',
   },
 
-  '.plugins_shmem' : {
-    'error' : 'Usage of `plugins_shmem` is not allowed in plugin code ',
-    'type' : 'var',
-  },
-  
-  '.config_data'   : {
-    'error' : 'Usage of `config_data` is not allowed in plugin code ',
-    'type' : 'var',
-  },
-  
-
-  '._default_config'   : {
-    'error' : 'Usage of `_default_config` is not allowed in plugin code ',
-    'type' : 'var',
+  'memoryview': {
+    'error': 'Pointer handling is unsafe in plugin code ',
+    'type': 'var',
   },
 
-  '._upstream_config'   : {
-    'error' : 'Usage of `_upstream_config` is not allowed in plugin code ',
-    'type' : 'var',
+  'self.log.': {
+    'error': 'Logger object cannot be used directly in plugin code - please use API ',
+    'type': 'var',
   },
-  
-  'exec('         : {
-    'error' : 'Usage of `exec()` is not allowed in plugin code ',
-    'type' : 'var',
+
+  'vars(': {
+    'error': 'Usage of `vars(obj)` is not allowed in plugin code ',
+    'type': 'var',
   },
-  
-  'eval('         : {
-    'error' : 'Usage of `eval()` is not allowed in plugin code ',
-    'type' : 'var',
+
+  'dir(': {
+    'error': 'Usage of `dir(obj)` is not allowed in plugin code ',
+    'type': 'var',
   },
-  
+
+  '.global_shmem': {
+    'error': 'Usage of `global_shmem` is not allowed in plugin code ',
+    'type': 'var',
+  },
+
+  '.plugins_shmem': {
+    'error': 'Usage of `plugins_shmem` is not allowed in plugin code ',
+    'type': 'var',
+  },
+
+  '.config_data': {
+    'error': 'Usage of `config_data` is not allowed in plugin code ',
+    'type': 'var',
+  },
+
+
+  '._default_config': {
+    'error': 'Usage of `_default_config` is not allowed in plugin code ',
+    'type': 'var',
+  },
+
+  '._upstream_config': {
+    'error': 'Usage of `_upstream_config` is not allowed in plugin code ',
+    'type': 'var',
+  },
+
+  'exec(': {
+    'error': 'Usage of `exec()` is not allowed in plugin code ',
+    'type': 'var',
+  },
+
+  'eval(': {
+    'error': 'Usage of `eval()` is not allowed in plugin code ',
+    'type': 'var',
+  },
+
 
 }
 
 RESULT_VARS = ['__result', '_result', 'result']
+
 
 class BaseCodeChecker:
   """
   This class should be used either as a associated object for code checking or
   as a mixin for running code
   """
+
   def __init__(self):
     super(BaseCodeChecker, self).__init__()
     return
-  
+
   def __msg(self, m, color='d'):
     if hasattr(self, 'P'):
       self.P(m, color=color)
@@ -105,7 +107,7 @@ class BaseCodeChecker:
     else:
       print(m)
     return
-  
+
   def _preprocess_code(self, code):
     res = ''
     in_string = False
@@ -121,13 +123,13 @@ class BaseCodeChecker:
           in_string = True
         else:
           in_string = False
-      
+
       if c == '\n' and in_string:
         res += '\\n'
       else:
         res += c
     return res
-  
+
   def _is_safe_import(self, code, safe_imports):
     if safe_imports is None:
       return False
@@ -135,7 +137,6 @@ class BaseCodeChecker:
       if imp in code:
         return True
     return False
-    
 
   def _check_unsafe_code(self, code, safe_imports=None):
     errors = {}
@@ -153,17 +154,17 @@ class BaseCodeChecker:
         if fault_type == 'import':
           if (
               str_line.startswith(fault)
-              ):
+          ):
             safe_import = self._is_safe_import(str_line, safe_imports=safe_imports)
             found = True if not safe_import else False
-        elif fault_type == 'var':             
+        elif fault_type == 'var':
           if (
               str_line.startswith(fault) or
               (' ' + fault) in str_line or   # contains a fault with a space before
               ('\t' + fault) in str_line or  # contains the fault with the tab before
               (',' + fault) in str_line or   # contains the fault with a leading comma
               (';' + fault) in str_line      # contains the fault with a leading ;
-              ):
+          ):
             found = True
         else:
           if fault in str_line:
@@ -177,15 +178,13 @@ class BaseCodeChecker:
       return None
     else:
       return errors
-    
-  ###### PUB
-  
-  
+
+  # PUB
+
   def check_code_text(self, code, safe_imports=None):
     return self._check_unsafe_code(code, safe_imports=safe_imports)
-    
-  
-  def code_to_base64(self, code, verbose=True, compress=True):   
+
+  def code_to_base64(self, code, verbose=True, compress=True):
     if verbose:
       self.__msg("Processing:\n{}".format(code), color='y')
     errors = self._check_unsafe_code(code)
@@ -194,7 +193,7 @@ class BaseCodeChecker:
       return None
     l_i = len(code)
     l_c = -1
-    b_code = bytes(code, 'utf-8')    
+    b_code = bytes(code, 'utf-8')
     if compress:
       b_code = zlib.compress(b_code, level=9)
       l_c = sys.getsizeof(b_code)
@@ -205,8 +204,7 @@ class BaseCodeChecker:
       l_i, l_c, l_b64), color='g'
     )
     return str_encoded
-  
-  
+
   def base64_to_code(self, b64code, decompress=True):
     decoded = None
     try:
@@ -218,8 +216,7 @@ class BaseCodeChecker:
     except:
       pass
     return decoded
-      
-    
+
   def prepare_b64code(self, str_b64code, check_for_result=True, result_vars=RESULT_VARS):
     errors, code = None, None
     code = self.base64_to_code(str_b64code)
@@ -231,12 +228,11 @@ class BaseCodeChecker:
       else:
         code = self._preprocess_code(code)
     return code, errors
-  
-  
+
   def _add_line_after_each_line(self, code, codeline='plugin.sleep(0.001)'):
     lines = code.splitlines()
     refactor = []
-    has_loop = False    
+    has_loop = False
     for line in lines:
       rstripped = line.rstrip()
       stripped = line.lstrip()
@@ -246,18 +242,17 @@ class BaseCodeChecker:
         parts = line.split(':')
         if len(parts) > 0:
           line = parts[0] + ': ' + codeline + ';' + parts[1]
-          has_loop = False # loop solved 
+          has_loop = False  # loop solved
       elif has_loop and not is_loop:
         nspc = len(line) - len(stripped)
         spc = nspc * ' '
-        refactor.append(spc + codeline)      
-        has_loop = False # loop solved
-      # endif 
+        refactor.append(spc + codeline)
+        has_loop = False  # loop solved
+      # endif
       refactor.append(line)
     str_refactor = '\n'.join(refactor)
     return str_refactor
-    
-  
+
   def exec_code(self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True):
     exec_code__result_vars = result_vars
     exec_code__debug = debug
@@ -265,7 +260,7 @@ class BaseCodeChecker:
     exec_code__modify = modify
     exec_code__warnings = []
     exec_code__code, exec_code__errors = self.prepare_b64code(
-      str_b64code, 
+      str_b64code,
       result_vars=exec_code__result_vars,
     )
     exec_code__result_var = None
@@ -281,10 +276,10 @@ class BaseCodeChecker:
         locals()[exec_code__self_var] = self
       try:
         if re.search(r'\breturn\b', exec_code__code) is not None:
-          # we have a return statement in the code, 
+          # we have a return statement in the code,
           # so we need to encapsulate the code in a function
           # 1. indent the code
-          exec_code__code = "\n".join(['  '+ l for l in exec_code__code.splitlines()])
+          exec_code__code = "\n".join(['  ' + l for l in exec_code__code.splitlines()])
           # 2. add the function definition
           exec_code__code = "{}\n{}\n\n{}".format(
             "def __exec_code__(plugin):",
@@ -292,14 +287,14 @@ class BaseCodeChecker:
             "result = __exec_code__(plugin)"
           )
         # endif we have a return statement
-          
+
         exec(exec_code__code)
         if exec_code__debug:
           self.__msg("DEBUG EXEC: locals(): \n{}".format(locals()))
         for _var in exec_code__result_vars:
           if _var in locals():
             if exec_code__debug:
-              self.__msg("DEBUG EXEC: Extracting var '{}' from {}".format(_var, locals()))      
+              self.__msg("DEBUG EXEC: Extracting var '{}' from {}".format(_var, locals()))
             exec_code__result_var = locals().get(_var)
             has_result = True
             break
@@ -313,9 +308,5 @@ class BaseCodeChecker:
         else:
           exec_code__errors = str(e)
       # end try-except
-    # else execute as there are no errors from code checking 
+    # else execute as there are no errors from code checking
     return exec_code__result_var, exec_code__errors, exec_code__warnings
-
-
-
-
