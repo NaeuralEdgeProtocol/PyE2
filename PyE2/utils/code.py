@@ -47,6 +47,10 @@ class CodeUtils:
     )
     return str_encoded
 
+  def method_to_base64(self, func):
+    code = self.get_function_source_code(func)
+    return self.code_to_base64(code)
+
   def compress_bytes(self, data):
     if not isinstance(data, bytes):
       data = bytes(str(data), 'utf-8')

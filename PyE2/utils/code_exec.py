@@ -1,3 +1,4 @@
+import inspect
 import zlib
 import sys
 import base64
@@ -26,3 +27,16 @@ def code_to_base64(plain_code, verbose=False, compress=True, code_checker_callba
         l_i, l_c, l_b64), color='g'
     )
   return str_encoded
+
+
+def _get_function_source_code(func):
+  plain_code = inspect.getsourcelines(func)[0]
+  plain_code = plain_code[1:]
+  indent = len(plain_code[0]) - len(plain_code[0].lstrip())
+  plain_code = '\n'.join([line.rstrip()[indent:] for line in plain_code])
+  return plain_code
+
+
+def method_to_base64(func, verbose=False, compress=True, code_checker_callback=None):
+  code = _get_function_source_code(func)
+  return code_to_base64(code, verbose=verbose, compress=compress, code_checker_callback=code_checker_callback)

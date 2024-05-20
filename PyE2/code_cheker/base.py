@@ -253,6 +253,24 @@ class BaseCodeChecker:
     str_refactor = '\n'.join(refactor)
     return str_refactor
 
+  def _can_encapsulate_code_in_method(self, exec_code__code):
+    return re.search(r'\breturn\b', exec_code__code) is not None
+
+  def _encapsulate_code_in_method(self, exec_code__code, exec_code__arguments):
+    exec_code__arguments = ', '.join(exec_code__arguments)
+
+    if re.search(r'\breturn\b', exec_code__code) is not None:
+      # we have a return statement in the code,
+      # so we need to encapsulate the code in a function
+      # 1. indent the code
+      exec_code__code = "\n".join(['  ' + l for l in exec_code__code.splitlines()])
+      # 2. add the function definition
+      exec_code__code = "{}\n{}".format(
+        f"def __exec_code__({exec_code__arguments}):",
+        exec_code__code,
+      )
+    return exec_code__code
+
   def exec_code(self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True):
     exec_code__result_vars = result_vars
     exec_code__debug = debug
@@ -267,46 +285,113 @@ class BaseCodeChecker:
     has_result = False
     if exec_code__errors is not None:
       self.__msg("Cannot execute remote code: {}".format(exec_code__errors), color='r')
-    else:
-      if exec_code__modify:
-        exec_code__code = self._add_line_after_each_line(code=exec_code__code)
-      if exec_code__debug:
-        self.__msg("DEBUG EXEC: Executing: \n{}".format(exec_code__code))
-      if exec_code__self_var is not None and isinstance(exec_code__self_var, str) and len(exec_code__self_var) > 3:
-        locals()[exec_code__self_var] = self
-      try:
-        if re.search(r'\breturn\b', exec_code__code) is not None:
-          # we have a return statement in the code,
-          # so we need to encapsulate the code in a function
-          # 1. indent the code
-          exec_code__code = "\n".join(['  ' + l for l in exec_code__code.splitlines()])
-          # 2. add the function definition
-          exec_code__code = "{}\n{}\n\n{}".format(
-            "def __exec_code__(plugin):",
-            exec_code__code,
-            "result = __exec_code__(plugin)"
-          )
-        # endif we have a return statement
+      return exec_code__result_var, exec_code__errors, exec_code__warnings
 
-        exec(exec_code__code)
-        if exec_code__debug:
-          self.__msg("DEBUG EXEC: locals(): \n{}".format(locals()))
-        for _var in exec_code__result_vars:
-          if _var in locals():
-            if exec_code__debug:
-              self.__msg("DEBUG EXEC: Extracting var '{}' from {}".format(_var, locals()))
-            exec_code__result_var = locals().get(_var)
-            has_result = True
-            break
-        if not has_result:
-          exec_code__warnings.append("No result variable is set. Possible options: {}".format(exec_code__result_vars))
-      except Exception as e:
-        exec_code__result_var = None
-        if hasattr(self, 'log'):
-          exec_code__errors = list(self.log.get_error_info())
-          exec_code__errors.append(traceback.format_exc())
-        else:
-          exec_code__errors = str(e)
-      # end try-except
-    # else execute as there are no errors from code checking
+    # code does not have any safety errors
+    if exec_code__modify:
+      exec_code__code = self._add_line_after_each_line(code=exec_code__code)
+    if exec_code__debug:
+      self.__msg("DEBUG EXEC: Executing: \n{}".format(exec_code__code))
+    if exec_code__self_var is not None and isinstance(exec_code__self_var, str) and len(exec_code__self_var) > 3:
+      locals()[exec_code__self_var] = self
+
+    try:
+      if self._can_encapsulate_code_in_method(exec_code__code):
+        # we have a return statement in the code,
+        # so we need to encapsulate the code in a function
+        exec_code__code = self._encapsulate_code_in_method(
+          exec_code__code=exec_code__code,
+          exec_code__arguments=[exec_code__self_var]
+        )
+        exec_code__code = "{}\n{}".format(
+          exec_code__code,
+          f"result = __exec_code__({exec_code__self_var})"
+        )
+      # endif can encapsulate code in method
+
+      exec(exec_code__code)
+      if exec_code__debug:
+        self.__msg("DEBUG EXEC: locals(): \n{}".format(locals()))
+      for _var in exec_code__result_vars:
+        if _var in locals():
+          if exec_code__debug:
+            self.__msg("DEBUG EXEC: Extracting var '{}' from {}".format(_var, locals()))
+          exec_code__result_var = locals().get(_var)
+          has_result = True
+          break
+      if not has_result:
+        exec_code__warnings.append("No result variable is set. Possible options: {}".format(exec_code__result_vars))
+    except Exception as e:
+      exec_code__result_var = None
+      if hasattr(self, 'log'):
+        exec_code__errors = list(self.log.get_error_info())
+        exec_code__errors.append(traceback.format_exc())
+      else:
+        exec_code__errors = str(e)
+    # end try-except
+    return exec_code__result_var, exec_code__errors, exec_code__warnings
+
+  def _get_method_from_custom_code(self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True, method_arguments=[]):
+    exec_code__result_vars = result_vars
+    exec_code__debug = debug
+    exec_code__self_var = self_var
+    exec_code__modify = modify
+    exec_code__warnings = []
+    exec_code__code, exec_code__errors = self.prepare_b64code(
+      str_b64code,
+      result_vars=exec_code__result_vars,
+    )
+    exec_code__result_var = None
+    has_result = False
+    if exec_code__errors is not None:
+      self.__msg("Cannot execute remote code: {}".format(exec_code__errors), color='r')
+      return exec_code__result_var, exec_code__errors, exec_code__warnings
+
+    # code does not have any safety errors
+    if exec_code__modify:
+      exec_code__code = self._add_line_after_each_line(code=exec_code__code)
+    if exec_code__debug:
+      self.__msg("DEBUG EXEC: Executing: \n{}".format(exec_code__code))
+    if exec_code__self_var is not None and isinstance(exec_code__self_var, str) and len(exec_code__self_var) > 3:
+      locals()[exec_code__self_var] = self
+
+    try:
+      if self._can_encapsulate_code_in_method(exec_code__code):
+        # we have a return statement in the code,
+        # so we need to encapsulate the code in a function
+        exec_code__code = self._encapsulate_code_in_method(
+          exec_code__code=exec_code__code,
+          exec_code__arguments=method_arguments
+        )
+        exec_code__code = "{}\n{}".format(
+          exec_code__code,
+          f"result = __exec_code__"
+        )
+      else:
+        # in this case we want to have our code in a method
+        # so we will break here
+        exec_code__errors = ["Cannot encapsulate code in method. No return statement found."]
+        return exec_code__result_var, exec_code__errors, exec_code__warnings
+      # endif can encapsulate code in method
+
+      exec(exec_code__code)
+      if exec_code__debug:
+        self.__msg("DEBUG EXEC: locals(): \n{}".format(locals()))
+      for _var in exec_code__result_vars:
+        if _var in locals():
+          if exec_code__debug:
+            self.__msg("DEBUG EXEC: Extracting var '{}' from {}".format(_var, locals()))
+          exec_code__result_var = locals().get(_var)
+          has_result = True
+          break
+      if not has_result:
+        exec_code__warnings.append("No result variable is set. Possible options: {}".format(exec_code__result_vars))
+    except Exception as e:
+      exec_code__result_var = None
+      if hasattr(self, 'log'):
+        exec_code__errors = list(self.log.get_error_info())
+        exec_code__errors.append(traceback.format_exc())
+      else:
+        exec_code__errors = str(e)
+    # end try-except
     return exec_code__result_var, exec_code__errors, exec_code__warnings
