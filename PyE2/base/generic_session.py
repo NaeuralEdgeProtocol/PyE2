@@ -17,6 +17,7 @@ from ..utils import load_dotenv
 from ..utils.code import CodeUtils
 from .payload import Payload
 from .pipeline import Pipeline
+from .transaction import Transaction
 
 # TODO: add support for remaining commands from EE
 
@@ -25,7 +26,7 @@ class GenericSession(BaseDecentrAIObject):
   """
   A Session is a connection to a communication server which provides the channel to interact with nodes from the DecentrAI network.
   A Session manages `Pipelines` and handles all messages received from the communication server.
-  The Session handles all callbacks that are user-defined and passed as arguments in the API calls.  
+  The Session handles all callbacks that are user-defined and passed as arguments in the API calls.
   """
   default_config = {
       "CONFIG_CHANNEL": {
@@ -73,7 +74,7 @@ class GenericSession(BaseDecentrAIObject):
     """
     A Session is a connection to a communication server which provides the channel to interact with nodes from the DecentrAI network.
     A Session manages `Pipelines` and handles all messages received from the communication server.
-    The Session handles all callbacks that are user-defined and passed as arguments in the API calls.  
+    The Session handles all callbacks that are user-defined and passed as arguments in the API calls.
 
     Parameters
     ----------
@@ -94,7 +95,7 @@ class GenericSession(BaseDecentrAIObject):
         Modify this if you are absolutely certain of what you are doing.
         By default {}
     filter_workers: list, optional
-        If set, process the messages that come only from the nodes from this list. 
+        If set, process the messages that come only from the nodes from this list.
         Defaults to None
     show_commands : bool
         If True, will print the commands that are being sent to the DecentrAI nodes.
@@ -102,19 +103,19 @@ class GenericSession(BaseDecentrAIObject):
     log : Logger, optional
         A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
         In the future, the documentation for the Logger base class will be available and developers will be able to use
-        custom-made Loggers. 
+        custom-made Loggers.
     on_payload : Callable[[Session, str, str, str, str, dict], None], optional
         Callback that handles all payloads received from this network.
-        As arguments, it has a reference to this Session object, the node name, the pipeline, signature and instance, and the payload. 
+        As arguments, it has a reference to this Session object, the node name, the pipeline, signature and instance, and the payload.
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
     on_notification : Callable[[Session, str, dict], None], optional
-        Callback that handles notifications received from this network. 
-        As arguments, it has a reference to this Session object, the node name and the notification payload. 
+        Callback that handles notifications received from this network.
+        As arguments, it has a reference to this Session object, the node name and the notification payload.
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
         This callback will be called when there are notifications related to the node itself, e.g. when the node runs
-        low on memory. 
+        low on memory.
         Defaults to None.
     on_heartbeat : Callable[[Session, str, dict], None], optional
         Callback that handles heartbeats received from this network.
@@ -135,7 +136,7 @@ class GenericSession(BaseDecentrAIObject):
     self._verbosity = verbosity
     self.encrypt_comms = encrypt_comms
 
-    self._online_boxes = {}
+    self._online_boxes: dict[str, Pipeline] = {}
     self._last_seen_boxes = {}
     self._box_addr = {}
     self.online_timeout = 60
@@ -157,13 +158,13 @@ class GenericSession(BaseDecentrAIObject):
     self.__running_main_loop_thread = False
     self.__closed_everything = False
 
-    self.__close_pipelines = False
-
     self.sdk_main_loop_thread = Thread(target=self.__main_loop, daemon=True)
     self.__formatter_plugins_locations = formatter_plugins_locations
 
     self.__bc_engine = bc_engine
     self.__blockchain_config = blockchain_config
+
+    self.__open_transactions: list[Transaction] = []
 
     self.__create_user_callback_threads()
     super(GenericSession, self).__init__(log=log, DEBUG=not silent, create_logger=True)
@@ -269,7 +270,7 @@ class GenericSession(BaseDecentrAIObject):
 
     def __handle_messages(self, message_queue, message_callback):
       """
-      Handle messages from the communication server. 
+      Handle messages from the communication server.
       This method is called in a separate thread.
 
       Parameters
@@ -352,7 +353,15 @@ class GenericSession(BaseDecentrAIObject):
         return
 
       # default action
-      self._online_boxes[msg_eeid] = {config[PAYLOAD_DATA.NAME]: config for config in msg_active_configs}
+      if msg_eeid not in self._online_boxes:
+        self._online_boxes[msg_eeid] = {}
+      for config in msg_active_configs:
+        pipeline_name = config[PAYLOAD_DATA.NAME]
+        pipeline: Pipeline = self._online_boxes[msg_eeid].get(pipeline_name, None)
+        if pipeline is not None:
+          pipeline.update_full_configuration(config)
+        else:
+          self._online_boxes[msg_eeid][pipeline_name] = self.__create_pipeline_from_config(msg_eeid, config)
 
       ee_address = dict_msg[HB.EE_ADDR]
       self.__track_online_node(msg_eeid, ee_address)
@@ -360,6 +369,11 @@ class GenericSession(BaseDecentrAIObject):
       # TODO: move this call in `__on_message_default_callback`
       if self.__maybe_ignore_message(msg_eeid):
         return
+
+      # pass the heartbeat message to open transactions
+      no_transactions = len(self.__open_transactions)
+      for idx in range(no_transactions):
+        self.__open_transactions[idx].handle_heartbeat(dict_msg)
 
       self.D("Received hb from: {}".format(msg_eeid), verbosity=2)
 
@@ -414,6 +428,11 @@ class GenericSession(BaseDecentrAIObject):
           # because the pipelines have unique names
           break
 
+      # pass the notification message to open transactions
+      no_transactions = len(self.__open_transactions)
+      for idx in range(no_transactions):
+        self.__open_transactions[idx].handle_notification(dict_msg)
+
       # call the custom callback, if defined
       if self.custom_on_notification is not None:
         self.custom_on_notification(self, msg_eeid, Payload(dict_msg))
@@ -454,6 +473,11 @@ class GenericSession(BaseDecentrAIObject):
           # because the pipelines have unique names
           break
 
+      # pass the payload message to open transactions
+      no_transactions = len(self.__open_transactions)
+      for idx in range(no_transactions):
+        self.__open_transactions[idx].handle_payload(dict_msg)
+
       if self.custom_on_payload is not None:
         self.custom_on_payload(self, msg_eeid, msg_pipeline, msg_signature, msg_instance, Payload(msg_data))
 
@@ -484,6 +508,16 @@ class GenericSession(BaseDecentrAIObject):
       self._main_loop_thread.start()
       return
 
+    def __handle_open_transactions(self):
+      no_transactions = len(self.__open_transactions)
+
+      solved_transactions = [i for i in range(no_transactions) if self.__open_transactions[i].is_solved()]
+      solved_transactions.reverse()
+      for idx in solved_transactions:
+        self.__open_transactions[idx].callback()
+        self.__open_transactions.pop(idx)
+      return
+
     @property
     def _connected(self):
       """
@@ -503,14 +537,26 @@ class GenericSession(BaseDecentrAIObject):
         self._connect()
       return
 
-    def __close_own_pipelines(self):
+    def __close_own_pipelines(self, wait=True):
       """
       Close all pipelines that were created by or attached to this session.
+
+      Parameters
+      ----------
+      wait : bool, optional
+          If `True`, will wait for the transactions to finish. Defaults to `True`
       """
-      self.P("Closing own pipelines...", verbosity=2)
       # iterate through all CREATED pipelines from this session and close them
+      transactions = []
+
       for pipeline in self.own_pipelines:
-        pipeline.close()
+        transactions.extend(pipeline._close())
+
+      self.P("Closing own pipelines: {}".format([p.name for p in self.own_pipelines]))
+
+      if wait:
+        self.wait_for_transactions(transactions)
+        self.P("Closed own pipelines.")
       return
 
     def _communication_close(self):
@@ -533,8 +579,10 @@ class GenericSession(BaseDecentrAIObject):
           If `True`, will wait for the main loop thread to exit. Defaults to `False`
       """
 
+      if close_pipelines:
+        self.__close_own_pipelines(wait=wait_close)
+
       self.__running_main_loop_thread = False
-      self.__close_pipelines = close_pipelines
 
       # wait for the main loop thread to exit
       while not self.__closed_everything and wait_close:
@@ -580,14 +628,12 @@ class GenericSession(BaseDecentrAIObject):
       """
       while self.__running_main_loop_thread:
         self.__maybe_reconnect()
+        self.__handle_open_transactions()
         sleep(0.1)
       # end while self.running
 
       self.P("Main loop thread exiting...", verbosity=2)
       self.__release_callback_threads()
-
-      if self.__close_pipelines:
-        self.__close_own_pipelines()
 
       self.P("Comms closing...", verbosity=2)
       self._communication_close()
@@ -616,7 +662,7 @@ class GenericSession(BaseDecentrAIObject):
       """
       _start_timer = tm()
       try:
-        while ((isinstance(wait, bool) and wait) or (wait == 0) or (tm() - _start_timer) < wait) and not self.__closed_everything:
+        while ((isinstance(wait, bool) and wait) or ((not isinstance(wait, bool) and wait == 0)) or (tm() - _start_timer) < wait) and not self.__closed_everything:
           sleep(0.1)
       except KeyboardInterrupt:
         self.P("CTRL+C detected. Stopping loop.", color='r', verbosity=1)
@@ -637,7 +683,7 @@ class GenericSession(BaseDecentrAIObject):
       ----------
       host : str
           The hostname of the server.
-          Can be retrieved from the environment variables AIXP_HOSTNAME, AIXP_HOST 
+          Can be retrieved from the environment variables AIXP_HOSTNAME, AIXP_HOST
       port : int
           The port.
           Can be retrieved from the environment variable AIXP_PORT
@@ -688,7 +734,7 @@ class GenericSession(BaseDecentrAIObject):
         self._config[comm_ct.PORT] = int(port)
       return
 
-    def _send_command_to_box(self, command, worker, payload, show_command=False, **kwargs):
+    def _send_command_to_box(self, command, worker, payload, show_command=False, session_id=None, **kwargs):
       """
       Send a command to a node.
 
@@ -734,6 +780,7 @@ class GenericSession(BaseDecentrAIObject):
       msg_to_send = {
           **critical_data,
           comm_ct.COMM_SEND_MESSAGE.K_EE_ID: worker,
+          comm_ct.COMM_SEND_MESSAGE.K_SESSION_ID: session_id or self.name,
           comm_ct.COMM_SEND_MESSAGE.K_INITIATOR_ID: self.name,
           comm_ct.COMM_SEND_MESSAGE.K_SENDER_ADDR: self.bc_engine.address,
           comm_ct.COMM_SEND_MESSAGE.K_TIME: dt.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
@@ -789,7 +836,7 @@ class GenericSession(BaseDecentrAIObject):
       payload = {
         PAYLOAD_DATA.NAME: pipeline_name,
         COMMANDS.PIPELINE_COMMAND: command,
-        # 'COMMAND_PARAMS': command_params, # TODO: check if this is oke
+        COMMANDS.COMMAND_PARAMS: command_params,
         **payload,
       }
       self._send_command_to_box(COMMANDS.PIPELINE_COMMAND, worker, payload, **kwargs)
@@ -801,7 +848,7 @@ class GenericSession(BaseDecentrAIObject):
         **payload,
         COMMANDS.COMMAND_PARAMS: command_params,
       }
-      self._send_command_update_instance_config(worker, pipeline_name, signature, instance_id, payload)
+      self._send_command_update_instance_config(worker, pipeline_name, signature, instance_id, payload, **kwargs)
       return
 
     def _send_command_stop_node(self, worker, **kwargs):
@@ -831,9 +878,59 @@ class GenericSession(BaseDecentrAIObject):
     def _get_worker_address(self, worker):
       return self._box_addr.get(worker)
 
+    def _register_transaction(self, session_id: str, lst_required_responses: list = None, timeout=0, on_success_callback: callable = None, on_failure_callback: callable = None) -> Transaction:
+      """
+      Register a new transaction.
+
+      Parameters
+      ----------
+      session_id : str
+          The session id.
+      lst_required_responses : list[Response], optional
+          The list of required responses, by default None
+      timeout : int, optional
+          The timeout, by default 0
+      on_success_callback : _type_, optional
+          The on success callback, by default None
+      on_failure_callback : _type_, optional
+          The on failure callback, by default None
+      Returns
+      -------
+      Transaction
+          The transaction object
+      """
+      transaction = Transaction(
+        log=self.log,
+        session_id=session_id,
+        lst_required_responses=lst_required_responses or [],
+        timeout=timeout,
+        on_success_callback=on_success_callback,
+        on_failure_callback=on_failure_callback,
+      )
+
+      self.__open_transactions.append(transaction)
+      return transaction
+
+    def __create_pipeline_from_config(self, node, config):
+      pipeline_config = {k.lower(): v for k, v in config.items()}
+      name = pipeline_config.pop('name', None)
+      plugins = pipeline_config.pop('plugins', None)
+
+      pipeline = Pipeline(
+        is_attached=True,
+        session=self,
+        log=self.log,
+        e2id=node,
+        name=name,
+        plugins=plugins,
+        existing_config=pipeline_config,
+      )
+
+      return pipeline
+
   # API
   if True:
-    @property
+    @ property
     def server(self):
       """
       The hostname of the server.
@@ -856,7 +953,7 @@ class GenericSession(BaseDecentrAIObject):
       A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
       A `Pipeline` contains one thread of data acquisition (which does not mean only one source of data), and many
-      processing units, usually named `Plugins`. 
+      processing units, usually named `Plugins`.
 
       An `Instance` is a running thread of a `Plugin` type, and one may want to have multiple `Instances`, because each can be configured independently.
 
@@ -882,18 +979,18 @@ class GenericSession(BaseDecentrAIObject):
       config : dict, optional
           This is the dictionary that contains the configuration of the acquisition source, by default {}
       plugins : list
-          List of dictionaries which contain the configurations of each plugin instance that is desired to run on the box. 
+          List of dictionaries which contain the configurations of each plugin instance that is desired to run on the box.
           Defaults to []. Should be left [], and instances should be created with the api.
       on_data : Callable[[Pipeline, str, str, dict], None], optional
-          Callback that handles messages received from any plugin instance. 
+          Callback that handles messages received from any plugin instance.
           As arguments, it has a reference to this Pipeline object, the signature and the instance of the plugin
           that sent the message and the payload itself.
           This callback acts as a default payload processor and will be called even if for a given instance
           the user has defined a specific callback.
           Defaults to None.
       on_notification : Callable[[Pipeline, dict], None], optional
-          Callback that handles notifications received from any plugin instance. 
-          As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+          Callback that handles notifications received from any plugin instance.
+          As arguments, it has a reference to this Pipeline object, along with the payload itself.
           This callback acts as a default payload processor and will be called even if for a given instance
           the user has defined a specific callback.
           Defaults to None.
@@ -926,11 +1023,12 @@ class GenericSession(BaseDecentrAIObject):
           self.log,
           e2id=e2id,
           name=name,
-          data_source=data_source,
+          type=data_source,
           config=config,
           plugins=plugins,
           on_data=on_data,
           on_notification=on_notification,
+          is_attached=False,
           **kwargs
       )
       self.own_pipelines.append(pipeline)
@@ -939,9 +1037,6 @@ class GenericSession(BaseDecentrAIObject):
     def get_active_nodes(self):
       """
       Get the list of all DecentrAI nodes that sent a message since this session was created, and that are considered online
-
-      Parameters
-      ----------
 
       Returns
       -------
@@ -973,8 +1068,7 @@ class GenericSession(BaseDecentrAIObject):
                            name,
                            on_data=None,
                            on_notification=None,
-                           max_wait_time=0,
-                           **kwargs) -> Pipeline:
+                           max_wait_time=0) -> Pipeline:
       """
       Create a Pipeline object and attach to an existing pipeline on an DecentrAI node.
       Useful when one wants to treat an existing pipeline as one of his own,
@@ -983,7 +1077,7 @@ class GenericSession(BaseDecentrAIObject):
       A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
       A `Pipeline` contains one thread of data acquisition (which does not mean only one source of data), and many
-      processing units, usually named `Plugins`. 
+      processing units, usually named `Plugins`.
 
       An `Instance` is a running thread of a `Plugin` type, and one may want to have multiple `Instances`, because each can be configured independently.
 
@@ -1002,27 +1096,25 @@ class GenericSession(BaseDecentrAIObject):
       Parameters
       ----------
       e2id : str
-          Name of the DecentrAI node that handles this pipeline.  
+          Name of the DecentrAI node that handles this pipeline.
       name : str
           Name of the existing pipeline.
       on_data : Callable[[Pipeline, str, str, dict], None], optional
-          Callback that handles messages received from any plugin instance. 
+          Callback that handles messages received from any plugin instance.
           As arguments, it has a reference to this Pipeline object, the signature and the instance of the plugin
           that sent the message and the payload itself.
           This callback acts as a default payload processor and will be called even if for a given instance
           the user has defined a specific callback.
           Defaults to None.
       on_notification : Callable[[Pipeline, dict], None], optional
-          Callback that handles notifications received from any plugin instance. 
-          As arguments, it has a reference to this Pipeline object, along with the payload itself. 
+          Callback that handles notifications received from any plugin instance.
+          As arguments, it has a reference to this Pipeline object, along with the payload itself.
           This callback acts as a default payload processor and will be called even if for a given instance
           the user has defined a specific callback.
           Defaults to None.
       max_wait_time : int, optional
           The maximum time to busy-wait, allowing the Session object to listen to node heartbeats
           and to check if the desired node is online in the network, by default 0.
-      **kwargs :
-          The user can provide the configuration of the acquisition source directly as kwargs.
 
       Returns
       -------
@@ -1034,7 +1126,7 @@ class GenericSession(BaseDecentrAIObject):
       Exception
           Node does not exist (it is considered offline because the session did not receive any heartbeat)
       Exception
-          Node does not host the desired pipeline 
+          Node does not host the desired pipeline
       """
 
       _start = tm()
@@ -1051,21 +1143,7 @@ class GenericSession(BaseDecentrAIObject):
       if name not in self._online_boxes[e2id]:
         raise Exception("Unable to attach to pipeline. Pipeline does not exist")
 
-      pipeline_config = {
-          k.lower(): v for k, v in self._online_boxes[e2id][name].items()}
-      data_source = pipeline_config['type']
-
-      pipeline = Pipeline(
-        session=self,
-        log=self.log,
-        e2id=e2id,
-        data_source=data_source,
-        create_pipeline=False,
-        on_data=on_data,
-        on_notification=on_notification,
-        **pipeline_config,
-        **kwargs
-      )
+      pipeline = self._online_boxes[e2id][name]
 
       self.own_pipelines.append(pipeline)
 
@@ -1132,6 +1210,17 @@ class GenericSession(BaseDecentrAIObject):
           max_wait_time=max_wait_time,
           **kwargs
         )
+
+        possible_new_configuration = {
+          **config,
+          **kwargs
+        }
+
+        if len(plugins) > 0:
+          possible_new_configuration['PLUGINS'] = plugins
+
+        if len(possible_new_configuration) > 0:
+          pipeline.update_full_configuration(config=possible_new_configuration)
       except Exception as e:
         self.D("Failed to attach to pipeline: {}".format(e))
         pipeline = self.create_pipeline(
@@ -1146,3 +1235,76 @@ class GenericSession(BaseDecentrAIObject):
         )
 
       return pipeline
+
+    def wait_for_transactions(self, transactions):
+      """
+      Wait for the transactions to be solved.
+
+      Parameters
+      ----------
+      transactions : list[Transaction]
+          The transactions to wait for.
+      """
+      while any([not transaction.is_finished() for transaction in transactions]):
+        sleep(0.1)
+      return
+
+    def wait_for_any_node(self, timeout=15):
+      """
+      Wait for any node to appear online.
+
+      Parameters
+      ----------
+      timeout : int, optional
+          The timeout, by default 15
+
+      Returns
+      -------
+      bool
+          True if any node is online, False otherwise.
+      """
+      self.P("Waiting for any node to appear online...")
+      _start = tm()
+      found = len(self.get_active_nodes()) > 0
+      while (tm() - _start) < timeout and not found:
+        sleep(0.1)
+        found = len(self.get_active_nodes()) > 0
+      # end while
+
+      if found:
+        self.P("Found nodes {} online.".format(self.get_active_nodes()))
+      else:
+        self.P("No nodes found online in {:.1f}s.".format(tm() - _start), color='r')
+      return found
+
+    def wait_for_node(self, e2id, timeout=15):
+      """
+      Wait for a node to appear online.
+
+      Parameters
+      ----------
+      e2id : str
+          The name of the DecentrAI node.
+      timeout : int, optional
+          The timeout, by default 15
+
+      Returns
+      -------
+      bool
+          True if the node is online, False otherwise.
+      """
+
+      self.P("Waiting for node '{}' to appear online...".format(e2id))
+      _start = tm()
+      found = e2id in self.get_active_nodes()
+      while (tm() - _start) < timeout and not found:
+        sleep(0.1)
+        avail_workers = self.get_active_nodes()
+        found = e2id in avail_workers
+      # end while
+
+      if found:
+        self.P("Node '{}' is online.".format(e2id))
+      else:
+        self.P("Node '{}' did not appear online in {:.1f}s.".format(e2id, tm() - _start), color='r')
+      return found

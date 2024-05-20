@@ -31,7 +31,7 @@ def real_time_code(plugin: CustomPluginTemplate):
 def custom_instance_on_data(pipeline: Pipeline, custom_code_data: dict, data: Payload):
   # the images can be extracted from the Payload object
   # PIL needs to be installed for this to work
-  data.get_image_as_PIL().save('frame.jpg')
+  data.get_images_as_PIL()[0].save('frame.jpg')
   pipeline.P("Persons in frame: {}".format(custom_code_data['PERSONS_COUNT']))
 
 
@@ -40,10 +40,10 @@ if __name__ == '__main__':
   # the network credentials are read from the .env file automatically
   session: Session = Session()
 
-  while session.get_active_nodes() == []:
-    session.P("Waiting for nodes to send heartbeats...")
-    sleep(1)
+  # wait for any node to be available
+  session.wait_for_any_node(timeout=10)
 
+  # get the first available node
   chosen_node = session.get_active_nodes()[0]
 
   # we have our node, let's deploy a plugin
@@ -60,7 +60,7 @@ if __name__ == '__main__':
   )
 
   # next, we deploy a custom code plugin instance
-  instance: Instance = pipeline.start_custom_plugin(
+  instance: Instance = pipeline.create_custom_plugin_instance(
     instance_id='inst01',
     custom_code=real_time_code,
     on_data=custom_instance_on_data,
@@ -73,6 +73,9 @@ if __name__ == '__main__':
     # if so, only the creator of this pipeline, in our case us, will be able to decrypt the payloads
     encrypt_payload=True,
   )
+
+  # we increase the timeout because the AI engine has to start and warm up, which can take a while
+  pipeline.deploy(timeout=60)
 
   # run the program for 120 seconds, then close the session
   session.run(wait=120, close_session=True, close_pipelines=True)

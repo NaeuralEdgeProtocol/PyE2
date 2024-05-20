@@ -38,7 +38,7 @@ pipeline = sess.attach_to_pipeline(
 )
 
 # now start a cyclic process
-inst = pipeline.attach_to_custom_instance('inst01', on_data=instance_on_data)
+inst = pipeline.attach_to_custom_plugin_instance('inst01', on_data=instance_on_data)
 
 
 def generate_net_map():

@@ -10,7 +10,8 @@ if __name__ == '__main__':
   # create a session
   # the network credentials are read from the .env file automatically
   sess = Session(
-      on_heartbeat=on_hb
+      on_heartbeat=on_hb,
+      encrypt_comms=True,
   )
 
   sess.run(wait=10, close_session=True)

@@ -2,10 +2,11 @@
 
 import os
 
+from ..const import PAYLOAD_DATA
 from ..utils.code import CodeUtils
 from .instance import Instance
-
-WAIT_FOR_WORKER = 15
+from .responses import PipelineArchiveResponse, PipelineOKResponse
+from .transaction import Transaction
 
 
 class Pipeline(object):
@@ -25,7 +26,7 @@ class Pipeline(object):
     `Plugin` == `Signature`
   """
 
-  def __init__(self, session, log, *, e2id, name, data_source, config={}, plugins=[], on_data=None, on_notification=None, create_pipeline=True, **kwargs) -> None:
+  def __init__(self, session, log, *, e2id, name, config={}, plugins=[], on_data=None, on_notification=None, is_attached=False, existing_config=None, **kwargs) -> None:
     """
     A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
@@ -73,7 +74,7 @@ class Pipeline(object):
         This callback acts as a default payload processor and will be called even if for a given instance
         the user has defined a specific callback.
         Defaults to None.
-    create_pipeline : bool
+    is_attached : bool
         This is used internally to allow the user to create or attach to a pipeline, and then use the same
         objects in the same way, by default True
     **kwargs : dict
@@ -83,10 +84,27 @@ class Pipeline(object):
     self.session = session
     self.e2id = e2id
     self.name = name
-    self.data_source = data_source
 
-    self.config = {**config, **kwargs}
-    self.config = {k.upper(): v for k, v in self.config.items()}
+    self.config = {}
+    plugins = config.pop('PLUGINS', plugins)
+
+    if is_attached:
+      assert existing_config is not None, "When attaching to a pipeline, the existing configuration should be found in the heartbeat of the DecentrAI node."
+      assert config == {}, "Cannot provide a configuration when attaching to a pipeline."
+      assert len(kwargs) == 0, "Cannot provide a configuration when attaching to a pipeline."
+      self.config = {k.upper(): v for k, v in existing_config.items()}
+      self.config = self.__pop_ignored_keys_from_config(self.config)
+      self.proposed_config = None
+    else:
+      self.proposed_config = {**config, **kwargs}
+      self.proposed_config = {k.upper(): v for k, v in self.proposed_config.items()}
+      self.proposed_config = self.__pop_ignored_keys_from_config(self.proposed_config)
+    self.__staged_config = None
+
+    self.__was_last_operation_successful = None
+
+    self.proposed_remove_instances = []
+    self.__staged_remove_instances = []
 
     self.on_data_callbacks = []
     self.on_notification_callbacks = []
@@ -96,21 +114,23 @@ class Pipeline(object):
     if on_notification is not None:
       self.on_notification_callbacks.append(on_notification)
 
-    self.lst_plugin_instances = []
+    self.lst_plugin_instances: list[Instance] = []
 
-    self.__init_plugins(plugins)
-    self.__maybe_create_new_pipeline_on_box(create_pipeline=create_pipeline)
+    self.__init_plugins(plugins, is_attached)
     return
 
   # Utils
   if True:
-    def __init_plugins(self, plugins):
+    def __init_plugins(self, plugins, is_attached):
       """
       Initialize the plugins list. This method is called at the creation of the pipeline and is used to create the instances of the plugins that are part of the pipeline.
 
       Parameters
       ----------
       plugins : List | None
+        The list of plugins, as they are found in the pipeline configuration dictionary in the heartbeat.
+      is_attached : bool
+        This is used internally to allow the user to create or attach to a pipeline, and then use the same objects in the same way.
 
       """
       if plugins is None:
@@ -120,48 +140,158 @@ class Pipeline(object):
         signature = dct_signature_instances['SIGNATURE']
         instances = dct_signature_instances['INSTANCES']
         for dct_instance in instances:
-          params = {k: v for k, v in dct_instance.items()}
-          instance_id = params.pop('INSTANCE_ID')
-          instance = Instance(self, instance_id, signature, params=params)
+          config = {k.upper(): v for k, v in dct_instance.items()}
+          instance_id = config.pop('INSTANCE_ID')
+          instance = Instance(self.log, self, instance_id, signature, config=config, is_attached=is_attached)
           self.lst_plugin_instances.append(instance)
         # end for dct_instance
       # end for dct_signature_instances
       return
 
-    def __maybe_create_new_pipeline_on_box(self, *, create_pipeline=True):
+    def __get_proposed_pipeline_config(self):
       """
-      Create a new pipeline on the DecentrAI node. 
-      This method is called at the creation of the pipeline and is used to create the pipeline on the DecentrAI node.
-
-      Parameters
-      ----------
-      create_pipeline : bool, optional
-          If True, will send a message to the DecentrAI node to create this pipeline, by default True
-      """
-      if create_pipeline:
-        self.session._send_command_create_pipeline(
-          worker=self.e2id,
-          pipeline_config=self.__get_pipeline_config(),
-        )
-      return
-
-    def __get_pipeline_config(self):
-      """
-      Construct the pipeline configuration dictionary.
+      Construct the proposed pipeline configuration dictionary.
 
       Returns
       -------
       dict
-          The pipeline configuration dictionary.
+          The proposed pipeline configuration dictionary.
       """
-      pipeline_config = {
+
+      pipeline_config = self.proposed_config if self.proposed_config else self.config
+
+      plugin_dict = self.__construct_plugins_dictionary(skip_instances=self.proposed_remove_instances)
+
+      plugins_list = []
+      for signature, instances in plugin_dict.items():
+        plugins_list.append({
+          'SIGNATURE': signature,
+          'INSTANCES': [instance._get_proposed_config_dictionary() for instance in instances]
+        })
+
+      proposed_pipeline_config = {
         'NAME': self.name,
         'DEFAULT_PLUGIN': False,
-        'PLUGINS': self.__construct_plugins_list(),
-        'TYPE': self.data_source,
-        **self.config,
+        'PLUGINS': plugins_list,
+        **pipeline_config,
       }
-      return pipeline_config
+      return proposed_pipeline_config
+
+    def __register_transactions_for_update(self, session_id: str = None, timeout: float = 0) -> list[Transaction]:
+      """
+      Register transactions for updating the pipeline and instances configuration. 
+      This method is called before sending an update pipeline configuration command to the DecentrAI node.
+
+      Parameters
+      ----------
+      session_id : str, optional
+          The session id. A unique id for the session. Defaults to None.
+
+      timeout : int, optional
+          The timeout for the transaction. Defaults to 0.
+
+      Returns
+      -------
+      transactions : list[Transaction]
+          The list of transactions generated.
+      """
+      transactions = []
+
+      # TODO: add different responses for different states of the plugin
+      # TODO: maybe this should be introduced as "pre-defined" business plugins, based on a schema
+      #       and the suer can specify them when creating the pipeline
+
+      for instance in self.lst_plugin_instances:
+        if instance._is_tainted():
+          transactions.append(self.session._register_transaction(
+            session_id=session_id,
+            lst_required_responses=instance._get_instance_update_required_responses(),
+            timeout=timeout,
+            on_success_callback=instance._apply_staged_config,
+            on_failure_callback=instance._discard_staged_config,
+          ))
+      # end for register to update instances
+
+      for instance in self.proposed_remove_instances:
+        transactions.append(self.session._register_transaction(
+          session_id=session_id,
+          lst_required_responses=instance._get_instance_remove_required_responses(),
+          timeout=timeout,
+          on_success_callback=lambda: self.__apply_staged_remove_instance(instance),
+          on_failure_callback=lambda fail_reason: self.__discard_staged_remove_instance(instance, fail_reason),
+        ))
+      # end for register to remove instances
+
+      if self.proposed_config is not None:
+        required_responses = [
+          PipelineOKResponse(self.e2id, self.name),
+        ]
+        transactions.append(self.session._register_transaction(
+          session_id=session_id,
+          lst_required_responses=required_responses,
+          timeout=timeout,
+          on_success_callback=self.__apply_staged_config,
+          on_failure_callback=self.__discard_staged_config,
+        ))
+
+      return transactions
+
+    def __register_transactions_for_delete(self, session_id: str = None, timeout: float = 0) -> list[Transaction]:
+      """
+      Register transactions for deleting the pipeline. 
+      This method is called before sending a delete pipeline command to the DecentrAI node.
+
+      Parameters
+      ----------
+      session_id : str, optional
+          The session id. A unique id for the session. Defaults to None.
+
+      timeout : int, optional
+          The timeout for the transaction. Defaults to 0.
+
+      Returns
+      -------
+      transactions : list[Transaction]
+          The list of transactions generated.
+      """
+      transactions = []
+
+      required_responses = [
+        PipelineArchiveResponse(self.e2id, self.name),
+      ]
+      transactions.append(self.session._register_transaction(
+        session_id=session_id,
+        lst_required_responses=required_responses,
+        timeout=timeout,
+        on_success_callback=None,
+        on_failure_callback=None,
+      ))
+
+      return transactions
+
+    def __register_transaction_for_pipeline_command(self, session_id: str = None, timeout: float = 0) -> list[Transaction]:
+      """
+      Register a transaction for a pipeline command. 
+      This method is called before sending a pipeline command to the DecentrAI node.
+
+      Parameters
+      ----------
+      session_id : str, optional
+          The session id. A unique id for the session. Defaults to None.
+
+      timeout : int, optional
+          The timeout for the transaction. Defaults to 0.
+
+      Returns
+      -------
+      transactions : list[Transaction]
+          The list of transactions generated.
+      """
+      transactions = []
+
+      # TODO: implement
+
+      return transactions
 
     def __construct_plugins_list(self):
       """
@@ -189,15 +319,102 @@ class Pipeline(object):
       # end for construct plugins list
       return plugins
 
-    def __send_update_config_to_box(self):
+    def __construct_plugins_dictionary(self, skip_instances=None):
+      """
+      Construct the plugins dictionary that will be in the pipeline configuration dictionary.
+
+      Returns
+      -------
+      dict
+          The plugins dictionary that will be in the pipeline configuration dictionary.
+      """
+      # plugins = []
+      skip_instances = skip_instances or []
+      dct_signature_instances = {}
+      for instance in self.lst_plugin_instances:
+        if instance in skip_instances:
+          continue
+        if instance.signature not in dct_signature_instances:
+          dct_signature_instances[instance.signature] = []
+        dct_signature_instances[instance.signature].append(instance)
+      # end for construct dct_signature_instances
+
+      return dct_signature_instances
+
+    def __send_update_config_to_box(self, session_id=None):
       """
       Send an update pipeline configuration command to the DecentrAI node.
       """
       self.session._send_command_update_pipeline_config(
           worker=self.e2id,
-          pipeline_config=self.__get_pipeline_config(),
+          pipeline_config=self.__get_proposed_pipeline_config(),
+          session_id=session_id
       )
       return
+
+    def __batch_update_instances(self, lst_instances, session_id=None):
+      """
+      Update the configuration of multiple instances at once.
+      ```
+
+      Parameters
+      ----------
+      lst_updates : List[Instance]
+          A list of instances.
+      """
+      lst_updates = []
+
+      for instance in lst_instances:
+        lst_updates.append({
+          PAYLOAD_DATA.NAME: self.name,
+          PAYLOAD_DATA.SIGNATURE: instance.signature,
+          PAYLOAD_DATA.INSTANCE_ID: instance.instance_id,
+          PAYLOAD_DATA.INSTANCE_CONFIG: instance._get_proposed_config_dictionary()
+        })
+
+      self.session._send_command_batch_update_instance_config(
+        worker=self.e2id,
+        lst_updates=lst_updates,
+        session_id=session_id
+      )
+
+    def __pop_ignored_keys_from_config(self, config):
+      """
+      Pop the ignored keys from the configuration.
+
+      Parameters
+      ----------
+      config : dict
+          The configuration dictionary.
+
+      Returns
+      -------
+      dict
+          The configuration dictionary without the ignored keys.
+      """
+      ignored_keys = ["INITIATOR_ADDR", "INITIATOR_ID", "LAST_UPDATE_TIME", "MODIFIED_BY_ADDR", "MODIFIED_BY_ID"]
+      return {k: v for k, v in config.items() if k not in ignored_keys}
+
+    def __get_instance_object(self, signature, instance_id):
+      """
+      Get the instance object by signature and instance id.
+
+      Parameters
+      ----------
+      signature : str
+          The signature of the plugin.
+      instance_id : str
+          The name of the instance.
+
+      Returns
+      -------
+      Instance
+          The instance object.
+      """
+      for instance in self.lst_plugin_instances:
+        if instance.signature == signature and instance.instance_id == instance_id:
+          return instance
+      return None
 
     @staticmethod
     def __custom_exec_on_data(self, instance_id, on_data_callback, data):
@@ -225,6 +442,137 @@ class Pipeline(object):
       if exec_data is not None:
         on_data_callback(self, exec_data, data)
       return
+
+    def __apply_staged_remove_instance(self, instance: Instance):
+      """
+      Remove an instance from the pipeline.
+
+      Parameters
+      ----------
+      instance : Instance
+          The instance to be removed.
+      """
+      instance.config = None
+      self.__staged_remove_instances.remove(instance)
+      return
+
+    def __discard_staged_remove_instance(self, instance: Instance, fail_reason: str):
+      """
+      Discard the removal of an instance from the pipeline.
+
+      Parameters
+      ----------
+      instance : Instance
+          The instance to be removed.
+      """
+
+      self.P(
+        f"Discarding staged removal of instance <{instance.signature}:{instance.instance_id}>. Reason: {fail_reason}", color="r")
+
+      self.__staged_remove_instances.remove(instance)
+      self.lst_plugin_instances.append(instance)
+      return
+
+    def __apply_staged_config(self):
+      """
+      Apply the staged configuration to the pipeline.
+      """
+      if self.__staged_config is None:
+        return
+
+      self.P("Deployed pipeline <{}> on <{}>".format(self.name, self.e2id), color="g")
+      self.__was_last_operation_successful = True
+
+      self.config = {**self.config, **self.__staged_config}
+      self.__staged_config = None
+
+      return
+
+    def __apply_staged_instances_config(self):
+      """
+      Apply the staged configuration to the instances.
+      """
+      for instance in self.lst_plugin_instances:
+        instance._apply_staged_config()
+
+      for instance in self.__staged_remove_instances:
+        instance.config = None
+        self.lst_plugin_instances.remove(instance)
+
+      self.__staged_remove_instances = []
+      return
+
+    def __discard_staged_config(self, fail_reason: str):
+      """
+      Discard the staged configuration for the pipeline.
+      """
+
+      self.P(f'Discarding staged configuration for pipeline <{self.name}>. Reason: {fail_reason}', color="r")
+      self.__was_last_operation_successful = False
+
+      self.__staged_config = None
+      self.__staged_remove_instances = []
+      return
+
+    def __stage_proposed_config(self):
+      """
+      Stage the proposed configuration.
+      """
+      if self.proposed_config is not None:
+        if self.__staged_config is not None:
+          raise ValueError(
+            "Pipeline configuration has already been staged, waiting for confirmation from Execution Engine")
+
+        self.__staged_config = self.proposed_config
+        self.proposed_config = None
+
+      for instance in self.lst_plugin_instances:
+        instance._stage_proposed_config()
+
+      self.__staged_remove_instances.extend(self.proposed_remove_instances)
+      self.proposed_remove_instances = []
+
+      self.__was_last_operation_successful = None
+      return
+
+    def __print_proposed_changes(self):
+      """
+      Print the proposed changes to the pipeline.
+      """
+
+      if self.proposed_config is not None:
+        self.P("Proposed changes to pipeline <{}>:".format(self.name), verbosity=1)
+        self.P("  - Current config: {}".format(self.config), verbosity=1)
+        self.P("  - New pipeline config: {}".format(self.proposed_config), verbosity=1)
+
+      if len(self.proposed_remove_instances) > 0:
+        self.P(
+          "  - Remove instances: {}".format([instance.instance_id for instance in self.proposed_remove_instances]), verbosity=1)
+
+      for instance in self.lst_plugin_instances:
+        if instance._is_tainted():
+          self.P("  - Plugin <{}:{}>:".format(instance.signature, instance.instance_id), verbosity=1)
+          self.P("    - Current config: {}".format(instance.config), verbosity=1)
+          self.P("    - Proposed config: {}".format(instance.proposed_config), verbosity=1)
+      return
+
+    def _close(self):
+      """
+      Close the pipeline.
+
+      Returns
+      -------
+      list[Transaction]
+          The list of transactions generated.
+      """
+      transactions = self.__register_transactions_for_delete(timeout=10)
+
+      self.session._send_command_archive_pipeline(
+        worker=self.e2id,
+        pipeline_name=self.name,
+      )
+
+      return transactions
 
   # Message handling
   if True:
@@ -309,10 +657,22 @@ class Pipeline(object):
 
   # API
   if True:
-    def start_plugin_instance(self, *, signature, instance_id, params={}, on_data=None, on_notification=None, **kwargs) -> Instance:
+    @property
+    def was_last_operation_successful(self):
+      """
+      Return whether the last operation was successful.
+
+      Returns
+      -------
+      bool
+          True if the last operation was successful, False if it failed, None if the ACK has not been received yet
+      """
+      return self.__was_last_operation_successful
+
+    def create_plugin_instance(self, *, signature, instance_id, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
       """
       Create a new instance of a desired plugin, with a given configuration. This instance is attached to this pipeline, 
-      meaning it processes data from this pipelines data source. Parameters can be passed either in the `params` dict, or as `kwargs`.
+      meaning it processes data from this pipelines data source. Parameters can be passed either in the `config` dict, or as `kwargs`.
 
       Parameters
       ----------
@@ -320,7 +680,7 @@ class Pipeline(object):
           The name of the plugin signature. This is the name of the desired overall functionality.
       instance_id : str
           The name of the instance. There can be multiple instances of the same plugin, mostly with different parameters
-      params : dict, optional
+      config : dict, optional
           parameters used to customize the functionality. One can change the AI engine used for object detection, 
           or finetune alerter parameters to better fit a camera located in a low light environment.
           Defaults to {}
@@ -344,24 +704,18 @@ class Pipeline(object):
           Plugin instance already exists. 
       """
 
-      # TODO: maybe wait for a confirmation?
       for instance in self.lst_plugin_instances:
         if instance.instance_id == instance_id and instance.signature == signature:
           raise Exception("plugin {} with instance {} already exists".format(signature, instance_id))
 
       # create the new instance and add it to the list
-      instance = Instance(self, instance_id, signature, on_data, on_notification, params, **kwargs)
+      config = {**config, **kwargs}
+      instance = Instance(self.log, self, instance_id, signature, on_data, on_notification, config, is_attached=False)
+
       self.lst_plugin_instances.append(instance)
-
-      # send an update config command to the box to create the instance there
-      self.__send_update_config_to_box()
-
-      self.P("Starting plugin {}:{} on {}:{}".format(signature, instance_id, self.e2id, self.name), verbosity=1)
-      self.D("with params {}".format(params), verbosity=2)
-
       return instance
 
-    def stop_plugin_instance(self, instance):
+    def remove_plugin_instance(self, instance):
       """
       Stop a plugin instance from this pipeline. 
 
@@ -374,24 +728,21 @@ class Pipeline(object):
       """
 
       if instance is None:
-        raise Exception("instance is None")
+        raise Exception("The provided instance is None. Please provide a valid instance")
 
       if instance not in self.lst_plugin_instances:
         raise Exception("plugin  <{}/{}> does not exist on this pipeline".format(instance.signature, instance.instance_id))
 
       # remove the instance from the list
       self.lst_plugin_instances.remove(instance)
-
-      # send an update config command to the box to remove the instance there
-      self.__send_update_config_to_box()
-
+      self.proposed_remove_instances.append(instance)
       return
 
-    def start_custom_plugin(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, custom_code: str = None, params={}, on_data=None, on_notification=None, **kwargs) -> Instance:
+    def create_custom_plugin_instance(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, custom_code: str = None, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
       """
       Create a new custom execution instance, with a given configuration. This instance is attached to this pipeline, 
       meaning it processes data from this pipelines data source. The code used for the custom instance must be provided
-      either as a string, or as a path to a file. Parameters can be passed either in the params dict, or as kwargs.
+      either as a string, or as a path to a file. Parameters can be passed either in the `config` dict, or as kwargs.
       The custom plugin instance will run periodically. If one desires to execute a custom code only once, use `wait_exec`.
 
       Parameters
@@ -405,7 +756,7 @@ class Pipeline(object):
       custom_code : str | Callable[[CustomPluginTemplate], Any], optional
           A string containing the entire code, a path to a file containing the code as a string or a function with the code.
           This code will be executed remotely on an DecentrAI node. Defaults to None.
-      params : dict, optional
+      config : dict, optional
           parameters used to customize the functionality. One can change the AI engine used for object detection, 
           or finetune alerter parameters to better fit a camera located in a low light environment.
           Defaults to {}
@@ -468,35 +819,70 @@ class Pipeline(object):
 
       def callback(pipeline, data): return self.__custom_exec_on_data(pipeline, instance_id, on_data, data)
 
-      return self.start_plugin_instance(
+      return self.create_plugin_instance(
           signature='CUSTOM_EXEC_01',
           instance_id=instance_id,
-          params={
+          config={
               'CODE': b64code,
-              **params
+              **config
           },
           on_data=callback,
           on_notification=on_notification,
           **kwargs
       )
 
-    def stop_custom_instance(self, instance):
+    def deploy(self, with_confirmation=True, wait_confirmation=True, timeout=10):
       """
-      Stop a custom execution instance from this pipeline.
-      This method is an alias for `stop_plugin_instance`.
-
-      Parameters
-      ----------
-      instance : Instance
-          The instance to be stopped.
-
+      This method is used to deploy the pipeline on the DecentrAI node. 
+      Here we collect all the proposed configurations and send them to the DecentrAI node.
+      All proposed configs become staged configs.
+      After all responses, apply the staged configs to finish the transaction. 
       """
-      self.stop_plugin_instance(instance)
+      # generate a unique session id for this deploy operation
+      # this session id will be used to track the transactions
 
-    def wait_exec(self, *, plain_code: str = None, plain_code_path: str = None, params={}):
+      # step 0: print the proposed changes
+      self.__print_proposed_changes()
+
+      # step 1: register transactions for updates
+      transactions = []
+
+      if with_confirmation:
+        transactions: list[Transaction] = self.__register_transactions_for_update(timeout=timeout)
+
+      # step 1: send the proposed config to the box
+      pipeline_config_changed = self.proposed_config is not None
+      have_to_remove_instances = len(self.proposed_remove_instances) > 0
+      have_new_instances = any([instance._is_tainted() and len(instance.config) == 0
+                                for instance in self.lst_plugin_instances])
+      if pipeline_config_changed or have_to_remove_instances or have_new_instances:
+        # updated pipeline config or deleted instances
+        self.__send_update_config_to_box()
+      elif any([instance._is_tainted() for instance in self.lst_plugin_instances]):
+        # updated instances only
+        tainted_instances = [instance for instance in self.lst_plugin_instances if instance._is_tainted()]
+        self.__batch_update_instances(tainted_instances)
+      else:
+        return
+
+      # step 3: stage the proposed config
+      self.__stage_proposed_config()
+
+      # step 3: wait for the box to respond
+      if with_confirmation and wait_confirmation:
+        self.session.wait_for_transactions(transactions)
+
+      # step 4: apply the staged config
+      if not with_confirmation:
+        self.__apply_staged_config()
+        self.__apply_staged_instances_config()
+
+      return
+
+    def wait_exec(self, *, plain_code: str = None, plain_code_path: str = None, config={}):
       """
       Create a new REST-like custom execution instance, with a given configuration. This instance is attached to this pipeline, 
-      meaning it processes data from this pipelines data source. The code used for the custom instance must be provided either as a string, or as a path to a file. Parameters can be passed either in the params dict, or as kwargs.
+      meaning it processes data from this pipelines data source. The code used for the custom instance must be provided either as a string, or as a path to a file. Parameters can be passed either in the config dict, or as kwargs.
       The REST-like custom plugin instance will execute only once. If one desires to execute a custom code periodically, use `start_custom_plugin`.
 
       Parameters
@@ -505,7 +891,7 @@ class Pipeline(object):
           A string containing the entire code that is to be executed remotely on an DecentrAI node, by default None
       plain_code_path : str, optional
           A string containing the path to the code that is to be executed remotely on an DecentrAI node, by default None
-      params : dict, optional
+      config : dict, optional
           parameters used to customize the functionality, by default {}
 
       Returns
@@ -547,7 +933,7 @@ class Pipeline(object):
 
       b64code = CodeUtils().code_to_base64(plain_code)
       instance_id = self.name + "_rest_custom_exec_synchronous_0"
-      params = {
+      config = {
           'REQUEST': {
               'DATA': {
                   'CODE': b64code,
@@ -556,13 +942,13 @@ class Pipeline(object):
           },
           'RESULT_KEY': 'REST_EXECUTION_RESULT',
           'ERROR_KEY': 'REST_EXECUTION_ERROR',
-          **params
+          **config
       }
 
-      instance = self.start_plugin_instance(
+      instance = self.create_plugin_instance(
           signature='REST_CUSTOM_EXEC_01',
           instance_id=instance_id,
-          params=params,
+          config=config,
           on_data=on_data
       )
       while not finished:
@@ -577,11 +963,10 @@ class Pipeline(object):
       """
       Close the pipeline, stopping all the instances associated with it.
       """
-      # remove callbacks
-      self.session._send_command_archive_pipeline(
-        worker=self.e2id,
-        pipeline_name=self.name,
-      )
+
+      transactions = self._close()
+
+      self.session.wait_for_transactions(transactions)
       return
 
     def P(self, *args, **kwargs):
@@ -597,9 +982,9 @@ class Pipeline(object):
       The logger object is passed from the Session object to the Pipeline object when creating
       it with `create_pipeline` or `attach_to_pipeline`.
       """
-      return self.log.D(*args, **kwargs)
+      return self.session.D(*args, **kwargs)
 
-    def attach_to_instance(self, signature, instance_id, on_data=None, on_notification=None) -> Instance:
+    def attach_to_plugin_instance(self, signature, instance_id, on_data=None, on_notification=None) -> Instance:
       """
       Attach to an existing instance on this pipeline. 
       This method is useful when one wishes to attach an 
@@ -650,7 +1035,7 @@ class Pipeline(object):
 
       return found_instance
 
-    def attach_to_custom_instance(self, instance_id, on_data=None, on_notification=None) -> Instance:
+    def attach_to_custom_plugin_instance(self, instance_id, on_data=None, on_notification=None) -> Instance:
       """
       Attach to an existing custom execution instance on this pipeline. 
       This method is useful when one wishes to attach an 
@@ -682,12 +1067,12 @@ class Pipeline(object):
 
       def callback(pipeline, data): return self.__custom_exec_on_data(pipeline, instance_id, on_data, data)
 
-      return self.attach_to_instance("CUSTOM_EXEC_01", instance_id, callback, on_notification)
+      return self.attach_to_plugin_instance("CUSTOM_EXEC_01", instance_id, callback, on_notification)
 
     def detach_from_instance(self, instance: Instance):
       # search for the instance in the list
       if instance is None:
-        raise Exception("instance is None")
+        raise Exception("The provided instance is None. Please provide a valid instance")
 
       instance._reset_on_data_callback()
       instance._reset_on_notification_callback()
@@ -703,50 +1088,41 @@ class Pipeline(object):
       config : dict, optional
           The new configuration of the acquisition source, by default {}
       """
-      self.config = {
-          **self.config,
-          **config,
-          **kwargs
-      }
-      self.__send_update_config_to_box()
+      if self.__staged_config is not None:
+        raise ValueError("Pipeline configuration has already been staged, waiting for confirmation from Execution Engine")
+
+      if self.proposed_config is None:
+        self.proposed_config = {}
+
+      self.proposed_config = {**self.proposed_config, **config, **{k.upper(): v for k, v in kwargs.items()}}
+      self.proposed_config = self.__pop_ignored_keys_from_config(self.proposed_config)
+
+      for k, v in self.config.items():
+        if k in self.proposed_config:
+          if self.proposed_config[k] == v:
+            del self.proposed_config[k]
+
+      if len(self.proposed_config) == 0:
+        self.proposed_config = None
 
       return
 
-    def batch_update_instances(self, lst_updates):
-      """
-      Update the configuration of multiple instances at once.
-      This method is useful when one wants to update the configuration of multiple instances at once, 
-        while only sending one message to the DecentrAI node.
-
-      Example:
-      ```
-      instance1 : Instance
-      instance2 : Instance
-
-      config1 : dict
-      config2 : dict
-
-      update1 = instance1.update_instance_config(config1)
-      update2 = instance2.update_instance_config(config2)
-
-      lst_updates = [update1, update2]
-      pipeline.batch_update_instances(lst_updates)
-      ```
-
-      Parameters
-      ----------
-      lst_updates : List[dict]
-          A list of dictionaries containing the updates for each instance.
-      """
-      self.session._send_command_batch_update_instance_config(
-        worker=self.e2id,
-        lst_updates=lst_updates,
-      )
-
-    def send_pipeline_command(self, command, payload={}, command_params={}):
-      # TODO: test if this is oke like this
+    def send_pipeline_command(self, command, payload={}, command_params={}, wait_for_confirmation=True, timeout=10) -> list[Transaction]:
+      # TODO: test if pipeline command works okay
       """
       Send a pipeline command to the DecentrAI node.
+      This command can block until the command is confirmed by the DecentrAI node.
+
+      Example:
+      --------
+      ```python
+      pipeline.send_pipeline_command('START', wait_for_confirmation=True)
+
+      transactions_p1 = pipeline1.send_pipeline_command('START', wait_for_confirmation=False)
+      transactions_p2 = pipeline2.send_pipeline_command('START', wait_for_confirmation=False)
+      # wait for both commands to be confirmed, but after both commands are sent
+      session.wait_for_transactions(transactions_p1 + transactions_p2)
+      ```
 
       Parameters
       ----------
@@ -756,7 +1132,18 @@ class Pipeline(object):
           The payload of the command, by default {}
       command_params : dict, optional
           The parameters of the command, by default {}
+      wait_for_confirmation : bool, optional
+          Whether to wait for the confirmation of the command, by default False
+      timeout : int, optional
+          The timeout for the transaction, by default 10    
+
+      Returns
+      -------
+      list[Transaction] | None
+          The list of transactions generated, or None if `wait_for_confirmation` is False.
       """
+      transactions = self.__register_transaction_for_pipeline_command(timeout=timeout)
+
       self.session._send_command_pipeline_command(
         worker=self.e2id,
         pipeline_name=self.name,
@@ -764,9 +1151,14 @@ class Pipeline(object):
         payload=payload,
         command_params=command_params,
       )
+
+      if wait_for_confirmation:
+        self.session.wait_for_transactions(transactions)
+      else:
+        return transactions
       return
 
-    def create_or_attach_to_instance(self, *, signature, instance_id, params={}, on_data=None, on_notification=None, **kwargs):
+    def create_or_attach_to_plugin_instance(self, *, signature, instance_id, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
       """
       Create a new instance of a desired plugin, with a given configuration, or attach to an existing instance.
 
@@ -776,7 +1168,7 @@ class Pipeline(object):
           The name of the plugin signature. This is the name of the desired overall functionality.
       instance_id : str
           The name of the instance. There can be multiple instances of the same plugin, mostly with different parameters
-      params : dict, optional
+      config : dict, optional
           parameters used to customize the functionality. One can change the AI engine used for object detection, 
           or finetune alerter parameters to better fit a camera located in a low light environment.
           Defaults to {}
@@ -795,20 +1187,20 @@ class Pipeline(object):
           An `Instance` object.
       """
       try:
-        instance = self.attach_to_instance(signature, instance_id, on_data, on_notification)
-        instance.update_instance_config(params, kwargs)
+        instance = self.attach_to_plugin_instance(signature, instance_id, on_data, on_notification)
+        instance.update_instance_config(config, kwargs)
       except Exception:
-        instance = self.start_plugin_instance(
+        instance = self.create_plugin_instance(
           signature=signature,
           instance_id=instance_id,
-          params=params,
+          config=config,
           on_data=on_data,
           on_notification=on_notification,
           **kwargs
         )
       return instance
 
-    def create_or_attach_to_custom_instance(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, custom_code: str = None, params={}, on_data=None, on_notification=None, **kwargs) -> Instance:
+    def create_or_attach_to_custom_plugin_instance(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, custom_code: str = None, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
       """
       Create a new instance of a desired plugin, with a given configuration, or attach to an existing instance. 
 
@@ -818,7 +1210,7 @@ class Pipeline(object):
           The name of the plugin signature. This is the name of the desired overall functionality.
       instance_id : str
           The name of the instance. There can be multiple instances of the same plugin, mostly with different parameters
-      params : dict, optional
+      config : dict, optional
           parameters used to customize the functionality. One can change the AI engine used for object detection, 
           or finetune alerter parameters to better fit a camera located in a low light environment.
           Defaults to {}
@@ -835,25 +1227,64 @@ class Pipeline(object):
       -------
       instance : Instance
           An `Instance` object.
-
-      Raises
-      ------
-      Exception
-          Plugin instance already exists. 
       """
 
       try:
-        instance = self.attach_to_custom_instance(instance_id, on_data, on_notification)
-        instance.update_instance_config(params, kwargs)
+        instance = self.attach_to_custom_plugin_instance(instance_id, on_data, on_notification)
+        instance.update_instance_config(config, **kwargs)
       except:
-        instance = self.start_custom_plugin(
+        instance = self.create_custom_plugin_instance(
           instance_id=instance_id,
           plain_code=plain_code,
           plain_code_path=plain_code_path,
           custom_code=custom_code,
-          params=params,
+          config=config,
           on_data=on_data,
           on_notification=on_notification,
           **kwargs
         )
       return instance
+
+    def update_full_configuration(self, config={}):
+      """
+      Update the full configuration of this pipeline.
+      Parameters are passed in the `config` dict.
+      We do not support kwargs yet because it makes it difficult to check priority of dictionary, merging values, etc.
+
+      Parameters
+      ----------
+      config : dict, optional
+          The new configuration of the pipeline, by default {}
+      """
+      if self.__staged_config is not None:
+        raise ValueError("Pipeline configuration has already been staged, waiting for confirmation from Execution Engine")
+
+      # pop the illegal to modify keys
+      config.pop('NAME', None)
+      config.pop('TYPE', None)
+      plugins = config.pop('PLUGINS', {})
+
+      self.update_acquisition_parameters(config)
+
+      new_plugins = []
+      for dct_signature_instances in plugins:
+        signature = dct_signature_instances['SIGNATURE']
+        instances = dct_signature_instances['INSTANCES']
+        for dct_instance in instances:
+          instance_id = dct_instance['INSTANCE_ID']
+          new_plugins.append((signature, instance_id))
+          instance_object = self.__get_instance_object(signature, instance_id)
+
+          if instance_object is None:
+            self.create_plugin_instance(signature=signature, instance_id=instance_id, config=dct_instance)
+          else:
+            instance_object.update_instance_config(dct_instance)
+        # end for dct_instance
+      # end for dct_signature_instances
+
+      # now check if we have to remove any instances
+      for instance in self.lst_plugin_instances:
+        if (instance.signature, instance.instance_id) not in new_plugins:
+          self.remove_plugin_instance(instance)
+      # end for instance
+      return

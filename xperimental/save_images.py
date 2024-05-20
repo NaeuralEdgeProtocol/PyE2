@@ -27,14 +27,16 @@ if __name__ == '__main__':
     },
   )
 
-  instance = pipeline.start_plugin_instance(
+  instance = pipeline.create_plugin_instance(
     signature="OBJECT_TRACKING_01",
     instance_id="Demo1",
-    params={
+    config={
       "OBJECT_TYPE": ["person"]
     },
     on_data=instance_on_data,
   )
+
+  pipeline.deploy()
 
   sess.run(wait=120, close_pipelines=True)
   sess.P("Main thread exiting...")

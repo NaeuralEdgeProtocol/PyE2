@@ -82,13 +82,15 @@ pipeline = sess.create_pipeline(
 )
 
 # now start a ciclic process
-pipeline.start_custom_plugin(
+pipeline.create_custom_plugin_instance(
     instance_id='inst01',
     # plain_code_path="./custom_exec_scripts/custom_exec_tutorial.txt", # you can provide it as a file
     plain_code=custom_worker_code,
     on_data=instance_on_data,
     process_delay=2
 )
+
+pipeline.deploy()
 
 
 def generate_net_map():

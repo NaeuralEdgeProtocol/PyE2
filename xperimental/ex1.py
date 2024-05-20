@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
   # now we start a perimeter intrusion functionality for low-res cameras with all
   # the other params default
-  perimeter_violation_instance: Instance = pipeline.start_plugin_instance(  # should return an id
+  perimeter_violation_instance: Instance = pipeline.create_plugin_instance(  # should return an id
       signature='PERIMETER_VIOLATION_01',
       instance_id='inst01',
       on_data=instance_on_data,
@@ -53,20 +53,26 @@ result="Data on node"
   """
 
   # now start a cyclic process
-  custom_instance: Instance = pipeline.start_custom_plugin(
+  custom_instance: Instance = pipeline.create_custom_plugin_instance(
       instance_id='inst01',
       plain_code=plain_code,
       on_data=another_instance_on_data
   )
 
+  # now deploy the pipeline
+  pipeline.deploy()
+
   # we wait for 30 seconds
   sess.run(30, close_session=False)
 
   # we can stop an instance like this
-  pipeline.stop_plugin_instance(perimeter_violation_instance)
+  pipeline.remove_plugin_instance(perimeter_violation_instance)
 
   # or like this
   custom_instance.stop()
+
+  # we still need to deploy the changes
+  pipeline.deploy()
 
   # we wait until the user presses `Ctrl+C`
   sess.run(0, close_session=False)

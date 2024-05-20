@@ -181,7 +181,7 @@ class MQTTWrapper(object):
       mqttc = mqtt.Client(
         callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
         client_id=client_id,
-        clean_session=True
+        clean_session=True,
       )
     else:
       mqttc = mqtt.Client(
@@ -231,11 +231,11 @@ class MQTTWrapper(object):
       # check https://eclipse.dev/paho/files/paho.mqtt.python/html/migrations.html for more info
       rc = args[0]
     if rc == 0:
-      self.P('Gracefull disconn (reason_code={})'.format(rc), color='m', verbosity=1)
-      str_error = "Gracefull disconn."
+      self.P('Graceful disconnect (reason_code={})'.format(rc), color='m', verbosity=1)
+      str_error = "Graceful disconnect."
     else:
       str_error = mqtt.error_string(rc) + ' (reason_code={})'.format(rc)
-      self.P("Unexpected disconn for client id '{}': {}".format(
+      self.P("Unexpected disconnect for client id '{}': {}".format(
         self.__get_client_id(), str_error), color='r', verbosity=1)
 
     if self._disconnected_counter > 0:
@@ -255,7 +255,7 @@ class MQTTWrapper(object):
     self.disconnected = True
     self._disconnected_log.append((self.log.time_to_str(), str_error))
     self._disconnected_counter += 1
-    self.last_disconnect_log = '\n'.join([f"* Comm error '{x2}' occured at {x1}" for x1, x2 in self._disconnected_log])
+    self.last_disconnect_log = '\n'.join([f"* Comm error '{x2}' occurred at {x1}" for x1, x2 in self._disconnected_log])
     # we need to stop the loop otherwise the client thread will keep working
     # so we call release->loop_stop
 
