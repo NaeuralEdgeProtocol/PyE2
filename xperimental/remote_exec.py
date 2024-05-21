@@ -48,10 +48,10 @@ def pipeline_on_notification(pipeline, notification: dict):
   return
 
 
-def sess_on_hb(sess, e2id, hb):
+def sess_on_hb(sess, node_id, hb):
   act_plug = hb['ACTIVE_PLUGINS']
   for plug in act_plug:
-    sess.P((e2id, plug['STREAM_ID'], plug['SIGNATURE'], plug['INSTANCE_ID']))
+    sess.P((node_id, plug['STREAM_ID'], plug['SIGNATURE'], plug['INSTANCE_ID']))
 
 
 load_dotenv()
@@ -64,13 +64,13 @@ listener_params = {
   'TOPIC': 'lummetry/ctrl',
 }
 
-e2id = 'e2id'
+node_id = 'node_id'
 sess = Session(
   on_heartbeat=sess_on_hb
 )
 
 pipeline = sess.create_pipeline(
-    e2id=e2id,
+    node_id=node_id,
     name='test_mqtt',
     data_source='IotQueueListener',
     config={

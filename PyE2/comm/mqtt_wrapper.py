@@ -115,7 +115,7 @@ class MQTTWrapper(object):
     return
 
   @property
-  def cfg_eeid(self):
+  def cfg_node_id(self):
     return self._config.get(COMMS.EE_ID, self._config.get(COMMS.SB_ID, None))
 
   @property
@@ -146,7 +146,7 @@ class MQTTWrapper(object):
     cfg = self._config[self.recv_channel_name].copy()
     topic = cfg[COMMS.TOPIC]
     if "{}" in topic:
-      topic = topic.format(self.cfg_eeid)
+      topic = topic.format(self.cfg_node_id)
 
     cfg[COMMS.TOPIC] = topic
     return cfg

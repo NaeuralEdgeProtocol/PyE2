@@ -57,7 +57,7 @@ if __name__ == "__main__":
   node = s.get_active_nodes()[0]
 
   p = s.create_or_attach_to_pipeline(
-    e2id=node,
+    node_id=node,
     name="run_threading_api",
     data_source="Void"
   )

@@ -8,8 +8,8 @@ In this example, we connect to the network, listen for heartbeats from
 from PyE2 import Session
 
 
-def on_hb(session: Session, e2id: str, data: dict):
-  session.P("{} has a {}".format(e2id, data['CPU']))
+def on_hb(session: Session, node_id: str, data: dict):
+  session.P("{} has a {}".format(node_id, data['CPU']))
   return
 
 

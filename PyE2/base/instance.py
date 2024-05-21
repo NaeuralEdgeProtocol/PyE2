@@ -132,12 +132,12 @@ class Instance():
   # Utils
   if True:
     def __repr__(self) -> str:
-      e2id = self.pipeline.e2id
+      node_id = self.pipeline.node_id
       pipeline_name = self.pipeline.name
       signature = self.signature
       instance_id = self.instance_id
 
-      return f"<Instance: {e2id}/{pipeline_name}/{signature}/{instance_id}>"
+      return f"<Instance: {node_id}/{pipeline_name}/{signature}/{instance_id}>"
 
     def _is_tainted(self):
       """
@@ -260,9 +260,9 @@ class Instance():
           The list of transactions generated
       """
       required_responses = [
-        PipelineOKResponse(self.pipeline.e2id, self.pipeline.name),
-        PluginInstanceCommandOKResponse(self.pipeline.e2id, self.pipeline.name, self.signature, self.instance_id),
-        # PluginConfigOKResponse(self.pipeline.e2id, self.pipeline.name, self.signature, self.instance_id),
+        PipelineOKResponse(self.pipeline.node_id, self.pipeline.name),
+        PluginInstanceCommandOKResponse(self.pipeline.node_id, self.pipeline.name, self.signature, self.instance_id),
+        # PluginConfigOKResponse(self.pipeline.node_id, self.pipeline.name, self.signature, self.instance_id),
       ]
 
       transactions = [self.pipeline.session._register_transaction(
@@ -285,8 +285,8 @@ class Instance():
           The list of responses required to update the instance
       """
       responses = [
-        PipelineOKResponse(self.pipeline.e2id, self.pipeline.name),
-        PluginConfigOKResponse(self.pipeline.e2id, self.pipeline.name, self.signature, self.instance_id),
+        PipelineOKResponse(self.pipeline.node_id, self.pipeline.name),
+        PluginConfigOKResponse(self.pipeline.node_id, self.pipeline.name, self.signature, self.instance_id),
       ]
 
       return responses
@@ -301,7 +301,7 @@ class Instance():
           The list of responses required to delete the instance
       """
       responses = [
-        PipelineOKResponse(self.pipeline.e2id, self.pipeline.name),
+        PipelineOKResponse(self.pipeline.node_id, self.pipeline.name),
       ]
 
       return responses
@@ -410,7 +410,7 @@ class Instance():
       transactions = self.__register_transaction_for_instance_command(timeout=timeout)
 
       self.pipeline.session._send_command_instance_command(
-        worker=self.pipeline.e2id,
+        worker=self.pipeline.node_id,
         pipeline_name=self.pipeline.name,
         signature=self.signature,
         instance_id=self.instance_id,

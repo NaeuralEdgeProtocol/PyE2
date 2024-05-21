@@ -73,9 +73,9 @@ class Aixp1Formatter(BaseFormatter):
     # Pop the unimportant stuff
     encoded_output.get('EE_FORMATTER', None)
 
-    ee_id, pipeline, signature, instance_id = encoded_output.get('EE_PAYLOAD_PATH', [None, None, None, None])
+    node_id, pipeline, signature, instance_id = encoded_output.get('EE_PAYLOAD_PATH', [None, None, None, None])
 
-    encoded_output['EE_ID'] = ee_id
+    encoded_output['EE_ID'] = node_id
 
     if encoded_output['EE_EVENT_TYPE'] != 'HEARTBEAT':
       encoded_output['STREAM_NAME'] = pipeline

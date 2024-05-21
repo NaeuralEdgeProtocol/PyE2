@@ -49,8 +49,8 @@ from PyE2 import Session
 #### Preparing callbacks
 
 ```python
-def on_hb(session : Session, e2id : str, data : dict):
-  print(e2id, " has a ", data['CPU'])
+def on_hb(session : Session, node_id : str, data : dict):
+  print(node_id, " has a ", data['CPU'])
   return
 ```
 
@@ -140,8 +140,8 @@ elif (plugin.datetime.now() - plugin.obj_cache["start_time"]).seconds > plugin.c
   # if the configured time has elapsed we stop all the worker pipelines
   # as well as stop this pipeline itself
 
-  for ee_id, pipeline_name in plugin.obj_cache['dct_workers'].items():
-    plugin.cmdapi_archive_pipeline(dest=ee_id, name=pipeline_name)
+  for node_id, pipeline_name in plugin.obj_cache['dct_workers'].items():
+    plugin.cmdapi_archive_pipeline(dest=node_id, name=pipeline_name)
   # now archive own pipeline
   plugin.cmdapi_archive_pipeline()
   result = {
@@ -153,15 +153,15 @@ else:
   payload = plugin.dataapi_struct_data() # we use the DataAPI to get upstream data
   if payload is not None:
 
-    ee_id = payload.get('EE_ID', payload.get('SB_ID'))
+    node_id = payload.get('EE_ID', payload.get('SB_ID'))
     pipeline_name = payload.get('STREAM_NAME')
 
-    if (ee_id, pipeline_name) in plugin.obj_cache['dct_workers'].items():
+    if (node_id, pipeline_name) in plugin.obj_cache['dct_workers'].items():
       # now we extract result from the result key of the payload JSON
       # this also can be configured to another name
       num = payload.get('EXEC_RESULT', payload.get('EXEC_INFO'))
       if num is not None:
-        plugin.obj_cache['dct_worker_progress'][ee_id].append(num)
+        plugin.obj_cache['dct_worker_progress'][node_id].append(num)
         result = {
           'STATUS'  : 'IN_PROGRESS',
           'RESULTS' : plugin.obj_cache['dct_worker_progress']
@@ -201,7 +201,7 @@ if __name__ == '__main__':
   with open(WORKER_CODE_PATH, 'rt') as fh:
     worker_code = fh.read()
 
-  e2id = 'e2id' # provide a known EE id
+  node_id = 'node_id' # provide a known EE id
   sess = Session(**SERVER_CONFIG, silent=True)
   sess.connect()
 
@@ -210,7 +210,7 @@ if __name__ == '__main__':
   listener_params["TOPIC"] = "lummetry/payloads"
 
   pipeline = sess.create_pipeline(
-      e2id=e2id,
+      node_id=node_id,
       name='test_dist_jobs',
       data_source='IotQueueListener', # this DCT allows data acquisition from MQTT brokers
       config={
@@ -310,7 +310,7 @@ if __name__ == '__main__':
   # Create a pipeline that will acquire data from a Video File located at the given URL
   # The URL can be a path to a local file or a link to a downloadable file
   pipeline = sess.create_pipeline(
-    e2id="e2id",
+    node_id="node_id",
     name="RealTimePersonTracking",
     data_source="VideoFile",
     config={
@@ -365,15 +365,15 @@ if __name__ == '__main__':
 
 BREAKING CHANGE:
 
-- Refactor(on_heartbeat): added `e2id` as parameter, now the signature of the method looks like this
+- Refactor(on_heartbeat): added `node_id` as parameter, now the signature of the method looks like this
 
   ```python
-  on_heartbeat(sess: Session, e2id: str, heartbeat: dict)
+  on_heartbeat(sess: Session, node_id: str, heartbeat: dict)
   ```
 
 ### v0.3.5
 
-- Hotfix(session): changed self.e2id to e2id
+- Hotfix(session): changed self.node_id to node_id
 
 ### v0.3.4
 

@@ -260,12 +260,12 @@ class GenericSession(BaseDecentrAIObject):
 
       try:
         msg_path = dict_msg.get(PAYLOAD_DATA.EE_PAYLOAD_PATH, [None] * 4)
-        msg_eeid, msg_pipeline, msg_signature, msg_instance = msg_path
+        msg_node_id, msg_pipeline, msg_signature, msg_instance = msg_path
       except:
         self.D("Message does not respect standard: {}".format(dict_msg), verbosity=2)
         return
 
-      message_callback(dict_msg_parsed, msg_eeid, msg_pipeline, msg_signature, msg_instance)
+      message_callback(dict_msg_parsed, msg_node_id, msg_pipeline, msg_signature, msg_instance)
       return
 
     def __handle_messages(self, message_queue, message_callback):
@@ -294,14 +294,14 @@ class GenericSession(BaseDecentrAIObject):
         self.__on_message_default_callback(current_msg, message_callback)
       return
 
-    def __maybe_ignore_message(self, e2id):
+    def __maybe_ignore_message(self, node_id):
       """
       Check if the message should be ignored.
       A message should be ignored if the `filter_workers` attribute is set and the message comes from a node that is not in the list.
 
       Parameters
       ----------
-      e2id : str
+      node_id : str
           The name of the DecentrAI node that sent the message.
 
       Returns
@@ -309,22 +309,22 @@ class GenericSession(BaseDecentrAIObject):
       bool
           True if the message should be ignored, False otherwise.
       """
-      return self.filter_workers is not None and e2id not in self.filter_workers
+      return self.filter_workers is not None and node_id not in self.filter_workers
 
-    def __track_online_node(self, e2id, ee_address):
+    def __track_online_node(self, node_id, ee_address):
       """
       Track the last time a node was seen online.
 
       Parameters
       ----------
-      e2id : str
+      node_id : str
           The name of the DecentrAI node that sent the message.
       """
-      self._last_seen_boxes[e2id] = tm()
-      self._box_addr[e2id] = ee_address
+      self._last_seen_boxes[node_id] = tm()
+      self._box_addr[node_id] = ee_address
       return
 
-    def __on_heartbeat(self, dict_msg: dict, msg_eeid, msg_pipeline, msg_signature, msg_instance):
+    def __on_heartbeat(self, dict_msg: dict, msg_node_id, msg_pipeline, msg_signature, msg_instance):
       """
       Handle a heartbeat message received from the communication server.
 
@@ -332,7 +332,7 @@ class GenericSession(BaseDecentrAIObject):
       ----------
       dict_msg : dict
           The message received from the communication server
-      msg_eeid : str
+      msg_node_id : str
           The name of the DecentrAI node that sent the message.
       msg_pipeline : str
           The name of the pipeline that sent the message.
@@ -353,21 +353,21 @@ class GenericSession(BaseDecentrAIObject):
         return
 
       # default action
-      if msg_eeid not in self._online_boxes:
-        self._online_boxes[msg_eeid] = {}
+      if msg_node_id not in self._online_boxes:
+        self._online_boxes[msg_node_id] = {}
       for config in msg_active_configs:
         pipeline_name = config[PAYLOAD_DATA.NAME]
-        pipeline: Pipeline = self._online_boxes[msg_eeid].get(pipeline_name, None)
+        pipeline: Pipeline = self._online_boxes[msg_node_id].get(pipeline_name, None)
         if pipeline is not None:
           pipeline.update_full_configuration(config)
         else:
-          self._online_boxes[msg_eeid][pipeline_name] = self.__create_pipeline_from_config(msg_eeid, config)
+          self._online_boxes[msg_node_id][pipeline_name] = self.__create_pipeline_from_config(msg_node_id, config)
 
       ee_address = dict_msg[HB.EE_ADDR]
-      self.__track_online_node(msg_eeid, ee_address)
+      self.__track_online_node(msg_node_id, ee_address)
 
       # TODO: move this call in `__on_message_default_callback`
-      if self.__maybe_ignore_message(msg_eeid):
+      if self.__maybe_ignore_message(msg_node_id):
         return
 
       # pass the heartbeat message to open transactions
@@ -375,15 +375,15 @@ class GenericSession(BaseDecentrAIObject):
       for idx in range(no_transactions):
         self.__open_transactions[idx].handle_heartbeat(dict_msg)
 
-      self.D("Received hb from: {}".format(msg_eeid), verbosity=2)
+      self.D("Received hb from: {}".format(msg_node_id), verbosity=2)
 
       # call the custom callback, if defined
       if self.custom_on_heartbeat is not None:
-        self.custom_on_heartbeat(self, msg_eeid, dict_msg)
+        self.custom_on_heartbeat(self, msg_node_id, dict_msg)
 
       return
 
-    def __on_notification(self, dict_msg: dict, msg_eeid, msg_pipeline, msg_signature, msg_instance):
+    def __on_notification(self, dict_msg: dict, msg_node_id, msg_pipeline, msg_signature, msg_instance):
       """
       Handle a notification message received from the communication server.
 
@@ -391,7 +391,7 @@ class GenericSession(BaseDecentrAIObject):
       ----------
       dict_msg : dict
           The message received from the communication server
-      msg_eeid : str
+      msg_node_id : str
           The name of the DecentrAI node that sent the message.
       msg_pipeline : str
           The name of the pipeline that sent the message.
@@ -404,7 +404,7 @@ class GenericSession(BaseDecentrAIObject):
       notification_type = dict_msg.get(STATUS_TYPE.NOTIFICATION_TYPE)
       notification = dict_msg.get(PAYLOAD_DATA.NOTIFICATION)
 
-      if self.__maybe_ignore_message(msg_eeid):
+      if self.__maybe_ignore_message(msg_node_id):
         return
 
       color = None
@@ -413,7 +413,7 @@ class GenericSession(BaseDecentrAIObject):
       self.D("Received notification {} from <{}/{}>: {}"
              .format(
                 notification_type,
-                msg_eeid,
+                msg_node_id,
                 msg_pipeline,
                 notification),
              color=color,
@@ -422,7 +422,7 @@ class GenericSession(BaseDecentrAIObject):
 
       # call the pipeline and instance defined callbacks
       for pipeline in self.own_pipelines:
-        if msg_eeid == pipeline.e2id and msg_pipeline == pipeline.name:
+        if msg_node_id == pipeline.node_id and msg_pipeline == pipeline.name:
           pipeline._on_notification(msg_signature, msg_instance, Payload(dict_msg))
           # since we found the pipeline, we can stop searching
           # because the pipelines have unique names
@@ -435,14 +435,14 @@ class GenericSession(BaseDecentrAIObject):
 
       # call the custom callback, if defined
       if self.custom_on_notification is not None:
-        self.custom_on_notification(self, msg_eeid, Payload(dict_msg))
+        self.custom_on_notification(self, msg_node_id, Payload(dict_msg))
 
       return
 
     # TODO: maybe convert dict_msg to Payload object
     #       also maybe strip the dict from useless info for the user of the sdk
     #       Add try-except + sleep
-    def __on_payload(self, dict_msg: dict, msg_eeid, msg_pipeline, msg_signature, msg_instance) -> None:
+    def __on_payload(self, dict_msg: dict, msg_node_id, msg_pipeline, msg_signature, msg_instance) -> None:
       """
       Handle a payload message received from the communication server.
 
@@ -450,7 +450,7 @@ class GenericSession(BaseDecentrAIObject):
       ----------
       dict_msg : dict
           The message received from the communication server
-      msg_eeid : str
+      msg_node_id : str
           The name of the DecentrAI node that sent the message.
       msg_pipeline : str
           The name of the pipeline that sent the message.
@@ -462,12 +462,12 @@ class GenericSession(BaseDecentrAIObject):
       # extract relevant data from the message
       msg_data = dict_msg
 
-      if self.__maybe_ignore_message(msg_eeid):
+      if self.__maybe_ignore_message(msg_node_id):
         return
 
       # call the pipeline and instance defined callbacks
       for pipeline in self.own_pipelines:
-        if msg_eeid == pipeline.e2id and msg_pipeline == pipeline.name:
+        if msg_node_id == pipeline.node_id and msg_pipeline == pipeline.name:
           pipeline._on_data(msg_signature, msg_instance, Payload(dict_msg))
           # since we found the pipeline, we can stop searching
           # because the pipelines have unique names
@@ -479,7 +479,7 @@ class GenericSession(BaseDecentrAIObject):
         self.__open_transactions[idx].handle_payload(dict_msg)
 
       if self.custom_on_payload is not None:
-        self.custom_on_payload(self, msg_eeid, msg_pipeline, msg_signature, msg_instance, Payload(msg_data))
+        self.custom_on_payload(self, msg_node_id, msg_pipeline, msg_signature, msg_instance, Payload(msg_data))
 
       return
 
@@ -920,7 +920,7 @@ class GenericSession(BaseDecentrAIObject):
         is_attached=True,
         session=self,
         log=self.log,
-        e2id=node,
+        node_id=node,
         name=name,
         plugins=plugins,
         existing_config=pipeline_config,
@@ -938,7 +938,7 @@ class GenericSession(BaseDecentrAIObject):
       return self._config[comm_ct.HOST]
 
     def create_pipeline(self, *,
-                        e2id,
+                        node_id,
                         name,
                         data_source,
                         config={},
@@ -970,7 +970,7 @@ class GenericSession(BaseDecentrAIObject):
 
       Parameters
       ----------
-      e2id : str
+      node_id : str
           Name of the DecentrAI node that will handle this pipeline.
       name : str
           Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
@@ -1007,21 +1007,21 @@ class GenericSession(BaseDecentrAIObject):
 
       """
       _start = tm()
-      found = e2id in self.get_active_nodes()
+      found = node_id in self.get_active_nodes()
       while (tm() - _start) < max_wait_time and not found:
         sleep(0.1)
         avail_workers = self.get_active_nodes()
-        found = e2id in avail_workers
+        found = node_id in avail_workers
       # end while
 
       if not found:
         self.P("WARNING: could not find worker '{}' in {:.1f}s. The job may not have a valid active worker.".format(
-            e2id, tm() - _start
+            node_id, tm() - _start
         ), color='r', verbosity=1)
       pipeline = Pipeline(
           self,
           self.log,
-          e2id=e2id,
+          node_id=node_id,
           name=name,
           type=data_source,
           config=config,
@@ -1046,13 +1046,13 @@ class GenericSession(BaseDecentrAIObject):
       """
       return [k for k, v in self._last_seen_boxes.items() if tm() - v < self.online_timeout]
 
-    def get_active_pipelines(self, e2id):
+    def get_active_pipelines(self, node_id):
       """
       Get a dictionary with all the pipelines that are active on this DecentrAI node
 
       Parameters
       ----------
-      e2id : str
+      node_id : str
           name of the DecentrAI node
 
       Returns
@@ -1061,10 +1061,10 @@ class GenericSession(BaseDecentrAIObject):
           The key is the name of the pipeline, and the value is the entire config dictionary of that pipeline.
 
       """
-      return self._online_boxes.get(e2id, None) if e2id in self.get_active_nodes() else None
+      return self._online_boxes.get(node_id, None) if node_id in self.get_active_nodes() else None
 
     def attach_to_pipeline(self, *,
-                           e2id,
+                           node_id,
                            name,
                            on_data=None,
                            on_notification=None,
@@ -1095,7 +1095,7 @@ class GenericSession(BaseDecentrAIObject):
 
       Parameters
       ----------
-      e2id : str
+      node_id : str
           Name of the DecentrAI node that handles this pipeline.
       name : str
           Name of the existing pipeline.
@@ -1130,27 +1130,27 @@ class GenericSession(BaseDecentrAIObject):
       """
 
       _start = tm()
-      found = e2id in self.get_active_nodes()
+      found = node_id in self.get_active_nodes()
       while (tm() - _start) < max_wait_time and not found:
         sleep(0.1)
         avail_workers = self.get_active_nodes()
-        found = e2id in avail_workers
+        found = node_id in avail_workers
       # end while
 
       if not found:
         raise Exception("Unable to attach to pipeline. Node does not exist")
 
-      if name not in self._online_boxes[e2id]:
+      if name not in self._online_boxes[node_id]:
         raise Exception("Unable to attach to pipeline. Pipeline does not exist")
 
-      pipeline = self._online_boxes[e2id][name]
+      pipeline = self._online_boxes[node_id][name]
 
       self.own_pipelines.append(pipeline)
 
       return pipeline
 
     def create_or_attach_to_pipeline(self, *,
-                                     e2id,
+                                     node_id,
                                      name,
                                      data_source,
                                      config={},
@@ -1164,7 +1164,7 @@ class GenericSession(BaseDecentrAIObject):
 
       Parameters
       ----------
-      e2id : str
+      node_id : str
           Name of the DecentrAI node that will handle this pipeline.
       name : str
           Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
@@ -1203,7 +1203,7 @@ class GenericSession(BaseDecentrAIObject):
       pipeline = None
       try:
         pipeline = self.attach_to_pipeline(
-          e2id=e2id,
+          node_id=node_id,
           name=name,
           on_data=on_data,
           on_notification=on_notification,
@@ -1224,7 +1224,7 @@ class GenericSession(BaseDecentrAIObject):
       except Exception as e:
         self.D("Failed to attach to pipeline: {}".format(e))
         pipeline = self.create_pipeline(
-          e2id=e2id,
+          node_id=node_id,
           name=name,
           data_source=data_source,
           config=config,
@@ -1277,13 +1277,13 @@ class GenericSession(BaseDecentrAIObject):
         self.P("No nodes found online in {:.1f}s.".format(tm() - _start), color='r')
       return found
 
-    def wait_for_node(self, e2id, timeout=15):
+    def wait_for_node(self, node_id, timeout=15):
       """
       Wait for a node to appear online.
 
       Parameters
       ----------
-      e2id : str
+      node_id : str
           The name of the DecentrAI node.
       timeout : int, optional
           The timeout, by default 15
@@ -1294,17 +1294,17 @@ class GenericSession(BaseDecentrAIObject):
           True if the node is online, False otherwise.
       """
 
-      self.P("Waiting for node '{}' to appear online...".format(e2id))
+      self.P("Waiting for node '{}' to appear online...".format(node_id))
       _start = tm()
-      found = e2id in self.get_active_nodes()
+      found = node_id in self.get_active_nodes()
       while (tm() - _start) < timeout and not found:
         sleep(0.1)
         avail_workers = self.get_active_nodes()
-        found = e2id in avail_workers
+        found = node_id in avail_workers
       # end while
 
       if found:
-        self.P("Node '{}' is online.".format(e2id))
+        self.P("Node '{}' is online.".format(node_id))
       else:
-        self.P("Node '{}' did not appear online in {:.1f}s.".format(e2id, tm() - _start), color='r')
+        self.P("Node '{}' did not appear online in {:.1f}s.".format(node_id, tm() - _start), color='r')
       return found

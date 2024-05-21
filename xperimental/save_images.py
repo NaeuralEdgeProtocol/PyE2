@@ -12,13 +12,13 @@ def instance_on_data(pipeline: Pipeline, payload: Payload):
 
 if __name__ == '__main__':
   sess = Session(
-      filter_workers=['e2id']
+      filter_workers=['node_id']
   )
 
   sess.connect()
 
   pipeline = sess.create_pipeline(
-    e2id="e2id",
+    node_id="node_id",
     name="test",
     data_source="VideoFile",
     config={

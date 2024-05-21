@@ -27,11 +27,11 @@ listener_params = {
   'TOPIC': 'lummetry/ctrl',
 }
 
-e2id = 'e2id'
+node_id = 'node_id'
 sess = Session()
 
 pipeline = sess.attach_to_pipeline(
-  e2id=e2id,
+  node_id=node_id,
   name='test_mqtt',
   on_notification=pipeline_on_notification,
   max_wait_time=60

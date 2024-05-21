@@ -17,8 +17,8 @@ if __name__ == '__main__':
   with open(WORKER_CODE_PATH, 'rt') as fh:
     worker_code = fh.read()
 
-  e2id = 'stefan-box'  # provide a known EE id
-  sess = Session(filter_workers=[e2id])
+  node_id = 'stefan-box'  # provide a known EE id
+  sess = Session(filter_workers=[node_id])
 
   listener_params = {
     'HOST': os.getenv('AIXP_HOSTNAME'),
@@ -29,7 +29,7 @@ if __name__ == '__main__':
   }
 
   pipeline = sess.create_pipeline(
-      e2id=e2id,
+      node_id=node_id,
       name='test_dist_jobs',
       data_source='IotQueueListener',  # this DCT allows data acquisition from MQTT brokers
       config={

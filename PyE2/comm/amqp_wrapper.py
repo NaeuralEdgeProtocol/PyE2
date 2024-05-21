@@ -11,14 +11,14 @@ from ..const import COLORS, COMMS, BASE_CT, PAYLOAD_CT
 
 class AMQPWrapper(object):
   def __init__(
-    self, 
-    log, 
-    config, 
-    recv_buff=None, 
-    send_channel_name=None, 
-    recv_channel_name=None, 
+    self,
+    log,
+    config,
+    recv_buff=None,
+    send_channel_name=None,
+    recv_channel_name=None,
     comm_type=None,
-    verbosity=1, 
+    verbosity=1,
     **kwargs
   ):
     self._config = config
@@ -96,7 +96,7 @@ class AMQPWrapper(object):
     return self._config.get(COMMS.ROUTING_KEY, "")
 
   @property
-  def cfg_eeid(self):
+  def cfg_node_id(self):
     return self._config.get(COMMS.EE_ID, self._config.get(COMMS.SB_ID, None))
 
   @property
@@ -124,7 +124,7 @@ class AMQPWrapper(object):
     cfg[COMMS.QUEUE] = queue
     _queue_device_specific = cfg.pop(COMMS.QUEUE_DEVICE_SPECIFIC, True)
     if _queue_device_specific:
-      cfg[COMMS.QUEUE] += '/{}'.format(self.cfg_eeid)
+      cfg[COMMS.QUEUE] += '/{}'.format(self.cfg_node_id)
     cfg[COMMS.QUEUE] += '/{}'.format(str(uuid.uuid4())[:8])
     return cfg
 

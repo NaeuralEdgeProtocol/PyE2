@@ -3,8 +3,8 @@ from PyE2 import Session
 
 
 class LLMChat():
-  def __init__(self, e2id, pipeline_name) -> None:
-    self.e2id = e2id
+  def __init__(self, node_id, pipeline_name) -> None:
+    self.node_id = node_id
     self.pipeline_name = pipeline_name
     self.default_context = {
       "STRUCT_DATA": [{
@@ -59,10 +59,10 @@ class LLMChat():
     self.sess = Session()
 
     self.sess.P("Please wait until the Execution Engine sends a heartbeat in order to attach to the desired plugin instance.")
-    self.sess.wait_for_node(self.e2id)
+    self.sess.wait_for_node(self.node_id)
 
     self.pipeline = self.sess.create_or_attach_to_pipeline(
-      e2id=self.e2id,
+      node_id=self.node_id,
       name=self.pipeline_name,
       data_source='OnDemandTextInput',
     )
