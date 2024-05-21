@@ -83,6 +83,10 @@ UNALLOWED_DICT = {
     'type': 'var',
   },
 
+  'getattr(': {
+    'error': 'Usage of `getattr()` is not allowed in plugin code ',
+    'type': 'var',
+  },
 
 }
 
