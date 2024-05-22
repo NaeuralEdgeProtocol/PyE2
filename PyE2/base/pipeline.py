@@ -1019,7 +1019,7 @@ class Pipeline(object):
       # search for the instance in the list
       found_instance = None
       for instance in self.lst_plugin_instances:
-        if instance.instance_id == instance_id and instance.signature == signature:
+        if instance.instance_id == instance_id and instance.signature == signature.upper():
           found_instance = instance
           break
 
