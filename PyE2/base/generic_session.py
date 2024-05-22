@@ -137,6 +137,7 @@ class GenericSession(BaseDecentrAIObject):
     self.encrypt_comms = encrypt_comms
 
     self._online_boxes: dict[str, Pipeline] = {}
+    self._dct_can_send_to_node: dict[str, bool] = {}
     self._last_seen_boxes = {}
     self._box_addr = {}
     self.online_timeout = 60
@@ -324,6 +325,23 @@ class GenericSession(BaseDecentrAIObject):
       self._box_addr[node_id] = ee_address
       return
 
+    def __track_allowed_node(self, node_id, dict_msg):
+      """
+      Track if this session is allowed to send messages to node.
+
+      Parameters
+      ----------
+      node_id : str
+          The name of the DecentrAI node that sent the message.
+      dict_msg : dict
+          The message received from the communication server.
+      """
+      node_whitelist = dict_msg.get(HB.EE_WHITELIST, [])
+      node_secured = dict_msg.get(HB.SECURED, False)
+
+      self._dct_can_send_to_node[node_id] = not node_secured or self.bc_engine.address in node_whitelist
+      return
+
     def __on_heartbeat(self, dict_msg: dict, msg_node_id, msg_pipeline, msg_signature, msg_instance):
       """
       Handle a heartbeat message received from the communication server.
@@ -376,6 +394,8 @@ class GenericSession(BaseDecentrAIObject):
         self.__open_transactions[idx].handle_heartbeat(dict_msg)
 
       self.D("Received hb from: {}".format(msg_node_id), verbosity=2)
+
+      self.__track_allowed_node(msg_node_id, dict_msg)
 
       # call the custom callback, if defined
       if self.custom_on_heartbeat is not None:
@@ -1045,6 +1065,18 @@ class GenericSession(BaseDecentrAIObject):
 
       """
       return [k for k, v in self._last_seen_boxes.items() if tm() - v < self.online_timeout]
+
+    def get_allowed_nodes(self):
+      """
+      Get the list of all active DecentrAI nodes to whom this session can send messages
+
+      Returns
+      -------
+      list[str]
+          List of names of all the active DecentrAI nodes to whom this session can send messages
+      """
+      active_nodes = self.get_active_nodes()
+      return [node for node in self._dct_can_send_to_node if self._dct_can_send_to_node[node] and node in active_nodes]
 
     def get_active_pipelines(self, node_id):
       """
