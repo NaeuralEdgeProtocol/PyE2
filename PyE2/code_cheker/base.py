@@ -4,6 +4,8 @@ import base64
 import traceback
 import re
 
+from .checker import ASTChecker, CheckerConstants
+
 __VER__ = '0.6.1'
 
 UNALLOWED_DICT = {
@@ -19,73 +21,72 @@ UNALLOWED_DICT = {
 
   'globals': {
     'error': 'Global vars access is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.var,
   },
 
   'locals': {
     'error': 'Local vars dict access is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.var,
   },
 
   'memoryview': {
     'error': 'Pointer handling is unsafe in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.var,
   },
 
-  'self.log.': {
+  'log': {
     'error': 'Logger object cannot be used directly in plugin code - please use API ',
-    'type': 'var',
+    'type': CheckerConstants.attr,
   },
 
-  'vars(': {
+  'vars': {
     'error': 'Usage of `vars(obj)` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.var,
   },
 
-  'dir(': {
+  'dir': {
     'error': 'Usage of `dir(obj)` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.var,
   },
 
-  '.global_shmem': {
+  'global_shmem': {
     'error': 'Usage of `global_shmem` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.attr,
   },
 
-  '.plugins_shmem': {
+  'plugins_shmem': {
     'error': 'Usage of `plugins_shmem` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.attr,
   },
 
-  '.config_data': {
+  'config_data': {
     'error': 'Usage of `config_data` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.attr,
   },
 
-
-  '._default_config': {
+  '_default_config': {
     'error': 'Usage of `_default_config` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.attr,
   },
 
-  '._upstream_config': {
+  '_upstream_config': {
     'error': 'Usage of `_upstream_config` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.attr,
   },
 
-  'exec(': {
+  'exec': {
     'error': 'Usage of `exec()` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.var,
   },
 
-  'eval(': {
+  'eval': {
     'error': 'Usage of `eval()` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.var,
   },
 
-  'getattr(': {
+  'getattr': {
     'error': 'Usage of `getattr()` is not allowed in plugin code ',
-    'type': 'var',
+    'type': CheckerConstants.var,
   },
 
 }
@@ -143,45 +144,11 @@ class BaseCodeChecker:
     return False
 
   def _check_unsafe_code(self, code, safe_imports=None):
-    errors = {}
-    lst_lines = code.splitlines()
-    for line, _line in enumerate(lst_lines):
-      # strip any lead and trail whitespace
-      str_line = _line.strip()
-      if len(str_line) == 0 or str_line[0] == '#':
-        # if line is comment then skip it
-        continue
-      for fault in UNALLOWED_DICT:
-        # lets check each possible fault for current line
-        fault_type = UNALLOWED_DICT[fault]['type']
-        found = False
-        if fault_type == 'import':
-          if (
-              str_line.startswith(fault)
-          ):
-            safe_import = self._is_safe_import(str_line, safe_imports=safe_imports)
-            found = True if not safe_import else False
-        elif fault_type == 'var':
-          if (
-              str_line.startswith(fault) or
-              (' ' + fault) in str_line or   # contains a fault with a space before
-              ('\t' + fault) in str_line or  # contains the fault with the tab before
-              (',' + fault) in str_line or   # contains the fault with a leading comma
-              (';' + fault) in str_line      # contains the fault with a leading ;
-          ):
-            found = True
-        else:
-          if fault in str_line:
-            found = True
-        if found:
-          msg = UNALLOWED_DICT[fault]['error']
-          if msg not in errors:
-            errors[msg] = []
-          errors[msg].append(line + 1)
+    checker = ASTChecker(UNALLOWED_DICT, safe_imports)
+    errors = checker.validate(code)
     if len(errors) == 0:
       return None
-    else:
-      return errors
+    return errors
 
   # PUB
 
