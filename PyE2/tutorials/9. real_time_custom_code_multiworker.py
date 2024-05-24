@@ -43,7 +43,7 @@ def custom_code_worker(plugin: CustomPluginTemplate):
 
   return prime_numbers
 
-def custom_code_process_current_results(plugin: CustomPluginTemplate, collected_data, data):
+def custom_code_filter_new_data_entries(plugin: CustomPluginTemplate, collected_data, data):
     """
     Process the real time data from the worker.
 
@@ -59,6 +59,7 @@ def custom_code_process_current_results(plugin: CustomPluginTemplate, collected_
     processed_data : Any | None
         The processed data. If None, the data is ignored.
     """
+    plugin.chain_dist_aggregate_unique_lists(collected_data, data)
     collected_primes_so_far = []
     for job_id, lst_data in collected_data.items():
       for numbers in lst_data:
@@ -94,8 +95,8 @@ def custom_code_merge_output(plugin: CustomPluginTemplate, worker_data):
 
     Parameters
     ----------
-    worker_data : list
-        List of data from the workers. The list elements are in the order expected order.
+    worker_data : list[list[Any]]
+        List of data from the workers. The list elements are in the expected order.
     """
     collected_primes_so_far = []
     for job_id, lst_data in worker_data.items():
@@ -122,6 +123,7 @@ if __name__ == "__main__":
   node = "stefan-ws-hyfy"
   s.wait_for_node(node)
 
+  # This should be in #132
   p = s.create_or_attach_to_pipeline(
     node_id=node,
     name="run_distributed",
@@ -130,7 +132,8 @@ if __name__ == "__main__":
 
   p.create_distributed_custom_plugin_instance(
     instance_id="run_distributed",
-    custom_code_process_current_results=custom_code_process_current_results,
+    chain_dist_template="UNIQUE_LISTS_AGGREGATOR",
+    custom_code_process_current_results=custom_code_filter_new_data_entries,
     custom_code_all_finished=custom_code_all_finished,
     custom_code_merge_output=custom_code_merge_output,
     custom_code_worker=custom_code_worker,
@@ -138,7 +141,7 @@ if __name__ == "__main__":
       'stream_type': "Void",
     },
     worker_plugin_config={
-      "PROCESS_DELAY":1,
+      "PROCESS_DELAY": 1,
     },
     no_workers=5,
     total_primes=300,
