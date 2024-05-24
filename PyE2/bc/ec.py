@@ -174,6 +174,7 @@ class BaseBCEllipticCurveEngine(BaseBlockEngine):
       format=serialization.PublicFormat.CompressedPoint,
     )
     txt = BCct.ADDR_PREFIX + self._binary_to_text(data)
+    txt = self._remove_prefix(txt)
     return txt
 
 

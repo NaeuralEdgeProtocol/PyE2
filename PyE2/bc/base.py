@@ -535,7 +535,6 @@ class BaseBlockEngine:
       format=serialization.PublicFormat.SubjectPublicKeyInfo, # used with DER
     )
     txt = BCct.ADDR_PREFIX + self._binary_to_text(data)
-    txt = self._remove_prefix(txt)
     return txt
 
 
