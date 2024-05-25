@@ -264,8 +264,8 @@ class Pipeline(object):
         session_id=session_id,
         lst_required_responses=required_responses,
         timeout=timeout,
-        on_success_callback=None,
-        on_failure_callback=None,
+        on_success_callback=self.__set_last_operation_successful,
+        on_failure_callback=self.__set_last_operation_failed,
       ))
 
       return transactions
@@ -291,6 +291,7 @@ class Pipeline(object):
       transactions = []
 
       # TODO: implement
+      self.__set_last_operation_successful()
 
       return transactions
 
@@ -416,6 +417,20 @@ class Pipeline(object):
         if instance.signature == signature and instance.instance_id == instance_id:
           return instance
       return None
+
+    def __set_last_operation_successful(self):
+      """
+      Set the last operation successful.
+      """
+      self.__was_last_operation_successful = True
+      return
+
+    def __set_last_operation_failed(self, fail_reason):
+      """
+      Set the last operation failed.
+      """
+      self.__was_last_operation_successful = False
+      return
 
     @staticmethod
     def __custom_exec_on_data(self, instance_id, on_data_callback, data):
@@ -567,6 +582,8 @@ class Pipeline(object):
           The list of transactions generated.
       """
       transactions = self.__register_transactions_for_delete(timeout=timeout)
+
+      self.__was_last_operation_successful = None
 
       self.session._send_command_archive_pipeline(
         worker=self.node_id,
@@ -1144,6 +1161,8 @@ class Pipeline(object):
           The list of transactions generated, or None if `wait_confirmation` is False.
       """
       transactions = self.__register_transaction_for_pipeline_command(timeout=timeout)
+
+      self.__was_last_operation_successful = None
 
       self.session._send_command_pipeline_command(
         worker=self.node_id,
