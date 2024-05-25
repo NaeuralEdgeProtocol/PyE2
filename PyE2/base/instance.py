@@ -316,7 +316,7 @@ class Instance():
       Example:
       --------
       ```python
-      instance.send_instance_command("RESTART", wait_for_confirmation=False)
+      instance.send_instance_command("RESTART", wait_confirmation=False)
 
       if instance.was_last_operation_successful is not None:
         if instance.was_last_operation_successful:
@@ -369,7 +369,7 @@ class Instance():
 
       return
 
-    def send_instance_command(self, command, payload={}, command_params={}, wait_for_confirmation=True, timeout=10):
+    def send_instance_command(self, command, payload={}, command_params={}, wait_confirmation=True, timeout=10):
       """
       Send a command to the instance.
       This command can block until the command is confirmed by the DecentrAI node.
@@ -377,10 +377,10 @@ class Instance():
       Example:
       --------
       ```python
-      instance.send_instance_command('START', wait_for_confirmation=True)
+      instance.send_instance_command('START', wait_confirmation=True)
 
-      transactions_p1 = instance1.send_instance_command('START', wait_for_confirmation=False)
-      transactions_p2 = instance2.send_instance_command('START', wait_for_confirmation=False)
+      transactions_p1 = instance1.send_instance_command('START', wait_confirmation=False)
+      transactions_p2 = instance2.send_instance_command('START', wait_confirmation=False)
       # wait for both commands to be confirmed, but after both commands are sent
       session.wait_for_transactions(transactions_p1 + transactions_p2)
       ```
@@ -392,7 +392,7 @@ class Instance():
           The payload of the command, by default {}
       command_params : dict, optional
           The parameters of the command, by default {}
-      wait_for_confirmation : bool, optional
+      wait_confirmation : bool, optional
           Whether to wait for the confirmation of the command, by default False
       timeout : int, optional
           The timeout for the transaction, by default 10    
@@ -400,7 +400,7 @@ class Instance():
       Returns
       -------
       list[Transaction] | None
-          The list of transactions generated, or None if `wait_for_confirmation` is False.
+          The list of transactions generated, or None if `wait_confirmation` is False.
 
       """
       self.P(f'Sending command <{command}> to instance <{self.__repr__()}>', color="b")
@@ -419,7 +419,7 @@ class Instance():
         command_params=command_params,
       )
 
-      if wait_for_confirmation:
+      if wait_confirmation:
         self.pipeline.session.wait_for_transactions(transactions)
       else:
         return transactions

@@ -208,6 +208,7 @@ class Pipeline(object):
             lst_required_responses=instance._get_instance_update_required_responses(),
             timeout=timeout,
             on_success_callback=instance._apply_staged_config,
+            # TODO: if the instance was newly added, remove it from the tracked list
             on_failure_callback=instance._discard_staged_config,
           ))
       # end for register to update instances
@@ -556,7 +557,7 @@ class Pipeline(object):
           self.P("    - Proposed config: {}".format(instance.proposed_config), verbosity=1)
       return
 
-    def _close(self):
+    def _close(self, timeout=10):
       """
       Close the pipeline.
 
@@ -565,7 +566,7 @@ class Pipeline(object):
       list[Transaction]
           The list of transactions generated.
       """
-      transactions = self.__register_transactions_for_delete(timeout=10)
+      transactions = self.__register_transactions_for_delete(timeout=timeout)
 
       self.session._send_command_archive_pipeline(
         worker=self.node_id,
@@ -959,14 +960,15 @@ class Pipeline(object):
 
       return result, error
 
-    def close(self):
+    def close(self, wait_confirmation=True, timeout=10):
       """
       Close the pipeline, stopping all the instances associated with it.
       """
 
-      transactions = self._close()
+      transactions = self._close(timeout=timeout)
 
-      self.session.wait_for_transactions(transactions)
+      if wait_confirmation:
+        self.session.wait_for_transactions(transactions)
       return
 
     def P(self, *args, **kwargs):
@@ -1107,8 +1109,7 @@ class Pipeline(object):
 
       return
 
-    def send_pipeline_command(self, command, payload={}, command_params={}, wait_for_confirmation=True, timeout=10) -> list[Transaction]:
-      # TODO: test if pipeline command works okay
+    def send_pipeline_command(self, command, payload={}, command_params={}, wait_confirmation=True, timeout=10) -> list[Transaction]:
       """
       Send a pipeline command to the DecentrAI node.
       This command can block until the command is confirmed by the DecentrAI node.
@@ -1116,10 +1117,10 @@ class Pipeline(object):
       Example:
       --------
       ```python
-      pipeline.send_pipeline_command('START', wait_for_confirmation=True)
+      pipeline.send_pipeline_command('START', wait_confirmation=True)
 
-      transactions_p1 = pipeline1.send_pipeline_command('START', wait_for_confirmation=False)
-      transactions_p2 = pipeline2.send_pipeline_command('START', wait_for_confirmation=False)
+      transactions_p1 = pipeline1.send_pipeline_command('START', wait_confirmation=False)
+      transactions_p2 = pipeline2.send_pipeline_command('START', wait_confirmation=False)
       # wait for both commands to be confirmed, but after both commands are sent
       session.wait_for_transactions(transactions_p1 + transactions_p2)
       ```
@@ -1132,7 +1133,7 @@ class Pipeline(object):
           The payload of the command, by default {}
       command_params : dict, optional
           The parameters of the command, by default {}
-      wait_for_confirmation : bool, optional
+      wait_confirmation : bool, optional
           Whether to wait for the confirmation of the command, by default False
       timeout : int, optional
           The timeout for the transaction, by default 10    
@@ -1140,7 +1141,7 @@ class Pipeline(object):
       Returns
       -------
       list[Transaction] | None
-          The list of transactions generated, or None if `wait_for_confirmation` is False.
+          The list of transactions generated, or None if `wait_confirmation` is False.
       """
       transactions = self.__register_transaction_for_pipeline_command(timeout=timeout)
 
@@ -1152,7 +1153,7 @@ class Pipeline(object):
         command_params=command_params,
       )
 
-      if wait_for_confirmation:
+      if wait_confirmation:
         self.session.wait_for_transactions(transactions)
       else:
         return transactions
