@@ -592,6 +592,38 @@ class Pipeline(object):
 
       return transactions
 
+    def __get_base64_code(self, custom_code):
+      """
+      Get the base64 code.
+
+      Parameters
+      ----------
+      custom_code : str | callable
+          The custom code.
+
+      Returns
+      -------
+      str
+          The base64 code.
+      """
+      if isinstance(custom_code, str):
+        # it is a path
+        if os.path.exists(custom_code):
+          with open(custom_code, "r") as fd:
+            plain_code = "".join(fd.readlines())
+        # it is a string
+        else:
+          plain_code = custom_code
+
+      elif callable(custom_code):
+        # we have a function
+        plain_code = CodeUtils().get_function_source_code(custom_code)
+      else:
+        raise Exception("custom_code is not a string or a callable")
+      # endif get plain code
+
+      return CodeUtils().code_to_base64(plain_code)
+
   # Message handling
   if True:
     def _on_data(self, signature, instance_id, data):
@@ -756,7 +788,7 @@ class Pipeline(object):
       self.proposed_remove_instances.append(instance)
       return
 
-    def create_custom_plugin_instance(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, custom_code: str = None, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
+    def create_custom_plugin_instance(self, *, instance_id, custom_code: callable, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
       """
       Create a new custom execution instance, with a given configuration. This instance is attached to this pipeline, 
       meaning it processes data from this pipelines data source. The code used for the custom instance must be provided
@@ -767,11 +799,7 @@ class Pipeline(object):
       ----------
       instance_id : str
           The name of the instance. There can be multiple instances of the same plugin, mostly with different parameters
-      plain_code : str, optional
-          A string containing the entire code that is to be executed remotely on an DecentrAI node. Defaults to None.
-      plain_code_path : str, optional
-          A string containing the path to the code that is to be executed remotely on an DecentrAI node. Defaults to None.
-      custom_code : str | Callable[[CustomPluginTemplate], Any], optional
+      custom_code : Callable[[CustomPluginTemplate], Any], optional
           A string containing the entire code, a path to a file containing the code as a string or a function with the code.
           This code will be executed remotely on an DecentrAI node. Defaults to None.
       config : dict, optional
@@ -800,40 +828,7 @@ class Pipeline(object):
           Plugin instance already exists. 
       """
 
-      if plain_code is None and plain_code_path is None and custom_code is None:
-        raise Exception(
-            "Need to specify at least one of the following: plain_code, plain_code_path, custom_code")
-
-      if plain_code is not None and plain_code_path is not None and custom_code is not None:
-        raise Exception(
-            "Need to specify at most one of the following: plain_code, plain_code_path, custom_code")
-
-      if custom_code is None:
-        self.P("Warning: custom_code is None. Using plain_code or plain_code_path. In the future support for " +
-               "plain_code and plain_code_path will be removed. Use custom_code instead.", color="y", verbosity=0)
-
-      if plain_code_path is not None:
-        with open(plain_code_path, "r") as fd:
-          plain_code = "".join(fd.readlines())
-
-      if custom_code is not None:
-        if isinstance(custom_code, str):
-          # it is a path
-          if os.path.exists(custom_code):
-            with open(custom_code, "r") as fd:
-              plain_code = "".join(fd.readlines())
-          # it is a string
-          else:
-            plain_code = custom_code
-
-        elif callable(custom_code):
-          # we have a function
-          plain_code = CodeUtils().get_function_source_code(custom_code)
-        else:
-          raise Exception("custom_code is not a string or a callable")
-        # endif get plain code
-
-      b64code = CodeUtils().code_to_base64(plain_code)
+      b64code = self.__get_base64_code(custom_code)
 
       def callback(pipeline, data): return self.__custom_exec_on_data(pipeline, instance_id, on_data, data)
 
@@ -845,6 +840,44 @@ class Pipeline(object):
               **config
           },
           on_data=callback,
+          on_notification=on_notification,
+          **kwargs
+      )
+
+    def create_distributed_custom_plugin_instance(self,
+                                                  *,
+                                                  instance_id,
+                                                  custom_code_process_current_results: callable,
+                                                  custom_code_all_finished: callable,
+                                                  custom_code_merge_output: callable,
+                                                  custom_code_worker: callable,
+                                                  worker_pipeline_config={},
+                                                  worker_plugin_signature='CUSTOM_EXEC_01',
+                                                  worker_plugin_config={},
+                                                  config={},
+                                                  on_data=None,
+                                                  on_notification=None,
+                                                  **kwargs) -> Instance:
+      b64code_process_current_results = self.__get_base64_code(custom_code_process_current_results)
+      b64code_all_finished = self.__get_base64_code(custom_code_all_finished)
+      b64code_merge_output = self.__get_base64_code(custom_code_merge_output)
+      b64code_worker = self.__get_base64_code(custom_code_worker)
+
+      return self.create_plugin_instance(
+          signature='CUSTOM_EXEC_CHAIN_DIST',
+          instance_id=instance_id,
+          config={
+              'CUSTOM_CODE_PROCESS_CURRENT_RESULTS': b64code_process_current_results,
+              'CUSTOM_CODE_ALL_WORKERS_FINISHED': b64code_all_finished,
+              'CUSTOM_CODE_MERGE_OUTPUT': b64code_merge_output,
+              'CUSTOM_CODE_WORKER': b64code_worker,
+
+              'WORKER_PIPELINE_CONFIG': worker_pipeline_config,
+              'WORKER_PLUGIN_SIGNATURE': worker_plugin_signature,
+              'WORKER_PLUGIN_CONFIG': worker_plugin_config,
+              **config
+          },
+          on_data=on_data,
           on_notification=on_notification,
           **kwargs
       )
@@ -1208,7 +1241,7 @@ class Pipeline(object):
       """
       try:
         instance = self.attach_to_plugin_instance(signature, instance_id, on_data, on_notification)
-        instance.update_instance_config(config, kwargs)
+        instance.update_instance_config(config, **kwargs)
       except Exception:
         instance = self.create_plugin_instance(
           signature=signature,
@@ -1220,7 +1253,7 @@ class Pipeline(object):
         )
       return instance
 
-    def create_or_attach_to_custom_plugin_instance(self, *, instance_id, plain_code: str = None, plain_code_path: str = None, custom_code: str = None, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
+    def create_or_attach_to_custom_plugin_instance(self, *, instance_id, custom_code, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
       """
       Create a new instance of a desired plugin, with a given configuration, or attach to an existing instance. 
 
@@ -1255,9 +1288,24 @@ class Pipeline(object):
       except:
         instance = self.create_custom_plugin_instance(
           instance_id=instance_id,
-          plain_code=plain_code,
-          plain_code_path=plain_code_path,
           custom_code=custom_code,
+          config=config,
+          on_data=on_data,
+          on_notification=on_notification,
+          **kwargs
+        )
+      return instance
+
+    def create_or_attach_to_distributed_custom_plugin_instance(self, *, instance_id, custom_code_split_input, custom_code_merge_output, custom_code_worker, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
+      try:
+        instance = self.attach_to_custom_plugin_instance(instance_id, on_data, on_notification)
+        instance.update_instance_config(config, **kwargs)
+      except:
+        instance = self.create_distributed_custom_plugin_instance(
+          instance_id=instance_id,
+          custom_code_split_input=custom_code_split_input,
+          custom_code_merge_output=custom_code_merge_output,
+          custom_code_worker=custom_code_worker,
           config=config,
           on_data=on_data,
           on_notification=on_notification,
