@@ -7,9 +7,10 @@ In this example, we connect to the network, choose a node and
 For this example, we search for prime numbers in parallel using more than one node.
 """
 from PyE2 import Session, CustomPluginTemplate
+from PyE2 import DistributedCustomCodePresets as Presets
 
 
-def custom_code_worker(plugin: CustomPluginTemplate):
+def custom_code_remote_node(plugin: CustomPluginTemplate):
   """
   The custom code that will be executed on the main thread.
 
@@ -71,21 +72,27 @@ if __name__ == "__main__":
 
   p.create_distributed_custom_plugin_instance(
     instance_id="run_distributed_2",
-    preset_process_current_results="keep_uniques_in_all_data",
-    preset_all_workers_finished="all_data_more_than_X",
-    preset_x=300,
-    preset_merge_output="merge_worker_data",
-    custom_code_worker=custom_code_worker,
-    worker_pipeline_config={
+    custom_code_process_real_time_collected_data=Presets.process_real_time_collected_data__keep_uniques_in_aggregated_collected_data,
+    custom_code_finish_condition=Presets.finish_condition___aggregated_data_more_than_X,
+    finish_condition_kwargs={
+      "X": 100
+    },
+    custom_code_aggregate_collected_data=Presets.aggregate_collected_data___aggregate_collected_data,
+
+    custom_code_remote_node=custom_code_remote_node,
+    node_pipeline_config={
       'stream_type': "Void",
     },
-    worker_plugin_config={
+    node_plugin_config={
       "PROCESS_DELAY": 1,
     },
-    no_workers=2,
+    nr_remote_nodes=2,
     on_data=on_data
   )
 
   p.deploy()
 
   s.run(wait=True, close_pipelines=True)
+
+  # TODO: print text when job is launched
+  # TODO: print workers found

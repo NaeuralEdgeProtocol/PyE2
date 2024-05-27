@@ -847,16 +847,14 @@ class Pipeline(object):
           **kwargs
       )
 
+    # TODO: rename this!!!
     def create_distributed_custom_plugin_instance(self,
                                                   *,
                                                   instance_id,
-                                                  custom_code_process_current_results: callable = None,
-                                                  preset_process_current_results: str = None,
-                                                  custom_code_all_finished: callable = None,
-                                                  preset_all_workers_finished: str = None,
-                                                  custom_code_merge_output: callable = None,
-                                                  preset_merge_output: str = None,
-                                                  custom_code_worker: callable,
+                                                  custom_code_process_real_time_collected_data: callable,
+                                                  custom_code_finish_condition: callable,
+                                                  custom_code_aggregate_collected_data: callable,
+                                                  custom_code_remote_node: callable,
                                                   worker_pipeline_config={},
                                                   worker_plugin_signature='CUSTOM_EXEC_01',
                                                   worker_plugin_config={},
@@ -864,22 +862,19 @@ class Pipeline(object):
                                                   on_data=None,
                                                   on_notification=None,
                                                   **kwargs) -> Instance:
-      b64code_process_current_results = self.__get_base64_code(custom_code_process_current_results)
-      b64code_all_finished = self.__get_base64_code(custom_code_all_finished)
-      b64code_merge_output = self.__get_base64_code(custom_code_merge_output)
-      b64code_worker = self.__get_base64_code(custom_code_worker)
+      b64code_process_real_time_collected_data = self.__get_base64_code(custom_code_process_real_time_collected_data)
+      b64code_finish_condition = self.__get_base64_code(custom_code_finish_condition)
+      b64code_aggregate_collected_data = self.__get_base64_code(custom_code_aggregate_collected_data)
+      b64code_remote_node = self.__get_base64_code(custom_code_remote_node)
 
       return self.create_plugin_instance(
-          signature='REAL_TIME_PARTIAL_RESULTS_CUSTOM_EXEC_CHAIN_DIST',
+          signature='PROCESS_REAL_TIME_COLLECTED_DATA_CUSTOM_EXEC_CHAIN_DIST',
           instance_id=instance_id,
           config={
-              'CUSTOM_CODE_PROCESS_CURRENT_RESULTS': b64code_process_current_results,
-              'PRESET_PROCESS_CURRENT_RESULTS': preset_process_current_results,
-              'CUSTOM_CODE_ALL_WORKERS_FINISHED': b64code_all_finished,
-              'PRESET_ALL_WORKERS_FINISHED': preset_all_workers_finished,
-              'CUSTOM_CODE_MERGE_OUTPUT': b64code_merge_output,
-              'PRESET_MERGE_OUTPUT': preset_merge_output,
-              'CUSTOM_CODE_WORKER': b64code_worker,
+              'CUSTOM_CODE_PROCESS_REAL_TIME_COLLECTED_DATA': b64code_process_real_time_collected_data,
+              'CUSTOM_CODE_FINISH_CONDITION': b64code_finish_condition,
+              'CUSTOM_CODE_AGGREGATE_COLLECTED_DATA': b64code_aggregate_collected_data,
+              'CUSTOM_CODE_REMOTE_NODE': b64code_remote_node,
 
               'WORKER_PIPELINE_CONFIG': worker_pipeline_config,
               'WORKER_PLUGIN_SIGNATURE': worker_plugin_signature,
@@ -1298,23 +1293,6 @@ class Pipeline(object):
         instance = self.create_custom_plugin_instance(
           instance_id=instance_id,
           custom_code=custom_code,
-          config=config,
-          on_data=on_data,
-          on_notification=on_notification,
-          **kwargs
-        )
-      return instance
-
-    def create_or_attach_to_distributed_custom_plugin_instance(self, *, instance_id, custom_code_split_input, custom_code_merge_output, custom_code_worker, config={}, on_data=None, on_notification=None, **kwargs) -> Instance:
-      try:
-        instance = self.attach_to_custom_plugin_instance(instance_id, on_data, on_notification)
-        instance.update_instance_config(config, **kwargs)
-      except:
-        instance = self.create_distributed_custom_plugin_instance(
-          instance_id=instance_id,
-          custom_code_split_input=custom_code_split_input,
-          custom_code_merge_output=custom_code_merge_output,
-          custom_code_worker=custom_code_worker,
           config=config,
           on_data=on_data,
           on_notification=on_notification,

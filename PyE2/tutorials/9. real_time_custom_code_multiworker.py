@@ -9,7 +9,7 @@ For this example, we search for prime numbers in parallel using more than one no
 from PyE2 import Session, CustomPluginTemplate
 
 
-def custom_code_worker(plugin: CustomPluginTemplate):
+def custom_code_remote_node(plugin: CustomPluginTemplate):
   """
   The custom code that will be executed on the main thread.
 
@@ -45,13 +45,15 @@ def custom_code_worker(plugin: CustomPluginTemplate):
   return prime_numbers
 
 
-def custom_code_filter_new_data_entries(plugin: CustomPluginTemplate, job_id, collected_data, data):
+def custom_code_keep_uniques_in_all_data(plugin: CustomPluginTemplate, job_id, collected_data, data):
   """
   Process the real time data from the worker.
 
   Parameters
   ----------
-  collected_data : dict
+  job_id : int
+      The id of the worker.
+  collected_data : dict[int, list[Any]]
       The data collected from all the workers up to this point.
   data : Any
       The data from the worker.
@@ -74,7 +76,7 @@ def custom_code_filter_new_data_entries(plugin: CustomPluginTemplate, job_id, co
   return new_primes
 
 
-def custom_code_all_finished(plugin: CustomPluginTemplate, collected_data):
+def custom_code_all_data_more_than_X(plugin: CustomPluginTemplate, collected_data):
   """
   This method must return True if all the workers finished their jobs.
 
@@ -82,7 +84,12 @@ def custom_code_all_finished(plugin: CustomPluginTemplate, collected_data):
   ----------
   collected_data : dict
       All the data collected from the workers. 
-      This is a list of data shards returned by `self.process_real_time_worker_data` method, in the format defined by the user. 
+      This is a list of data shards returned by `self.process_real_time_collected_data` method, in the format defined by the user. 
+
+  Returns
+  -------
+  bool
+      True if the condition is met, False otherwise.
   """
   collected_primes_so_far = []
   for _, lst_data in collected_data.items():
@@ -91,17 +98,22 @@ def custom_code_all_finished(plugin: CustomPluginTemplate, collected_data):
   return len(collected_primes_so_far) > plugin.cfg_total_primes
 
 
-def custom_code_merge_output(plugin: CustomPluginTemplate, worker_data):
+def custom_code_aggregate_collected_data_from_all_workers(plugin: CustomPluginTemplate, collected_data):
   """
   Merge the output of the workers. This method must call the `self.create_golden_payload` method.
 
   Parameters
   ----------
-  worker_data : list[list[Any]]
+  collected_data : list[list[Any]]
       List of data from the workers. The list elements are in the expected order.
+
+  Returns
+  -------
+  Any
+      The final data to be returned by the plugin.
   """
   collected_primes_so_far = []
-  for _, lst_data in worker_data.items():
+  for _, lst_data in collected_data.items():
     collected_primes_so_far.extend(lst_data)
 
   return collected_primes_so_far
@@ -133,19 +145,19 @@ if __name__ == "__main__":
 
   p.create_distributed_custom_plugin_instance(
     instance_id="run_distributed",
-    chain_dist_template="UNIQUE_LISTS_AGGREGATOR",
-    custom_code_process_current_results=custom_code_filter_new_data_entries,
-    custom_code_all_finished=custom_code_all_finished,
-    custom_code_merge_output=custom_code_merge_output,
-    custom_code_worker=custom_code_worker,
-    worker_pipeline_config={
+    custom_code_process_real_time_collected_data=custom_code_keep_uniques_in_all_data,
+    custom_code_finish_condition=custom_code_all_data_more_than_X,
+    custom_code_aggregate_collected_data=custom_code_aggregate_collected_data_from_all_workers,
+
+    custom_code_remote_node=custom_code_remote_node,
+    node_pipeline_config={
       'stream_type': "Void",
     },
-    worker_plugin_config={
+    node_plugin_config={
       "PROCESS_DELAY": 1,
     },
-    no_workers=2,
-    total_primes=300,
+    nr_remote_nodes=2,
+    total_primes=100,
     on_data=on_data
   )
 
