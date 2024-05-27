@@ -45,7 +45,7 @@ def custom_code_worker(plugin: CustomPluginTemplate):
   return prime_numbers
 
 
-def custom_code_filter_new_data_entries(plugin: CustomPluginTemplate, collected_data, data):
+def custom_code_filter_new_data_entries(plugin: CustomPluginTemplate, job_id, collected_data, data):
   """
   Process the real time data from the worker.
 
@@ -63,9 +63,8 @@ def custom_code_filter_new_data_entries(plugin: CustomPluginTemplate, collected_
   """
   # plugin.chain_dist_aggregate_unique_lists(collected_data, data)
   collected_primes_so_far = []
-  for job_id, lst_data in collected_data.items():
-    for numbers in lst_data:
-      collected_primes_so_far.extend(numbers)
+  for _, lst_data in collected_data.items():
+    collected_primes_so_far.extend(lst_data)
 
   new_primes = []
 
@@ -86,9 +85,8 @@ def custom_code_all_finished(plugin: CustomPluginTemplate, collected_data):
       This is a list of data shards returned by `self.process_real_time_worker_data` method, in the format defined by the user. 
   """
   collected_primes_so_far = []
-  for job_id, lst_data in collected_data.items():
-    for numbers in lst_data:
-      collected_primes_so_far.extend(numbers)
+  for _, lst_data in collected_data.items():
+    collected_primes_so_far.extend(lst_data)
 
   return len(collected_primes_so_far) > plugin.cfg_total_primes
 
@@ -103,9 +101,8 @@ def custom_code_merge_output(plugin: CustomPluginTemplate, worker_data):
       List of data from the workers. The list elements are in the expected order.
   """
   collected_primes_so_far = []
-  for job_id, lst_data in worker_data.items():
-    for numbers in lst_data:
-      collected_primes_so_far.extend(numbers)
+  for _, lst_data in worker_data.items():
+    collected_primes_so_far.extend(lst_data)
 
   return collected_primes_so_far
 
@@ -147,7 +144,7 @@ if __name__ == "__main__":
     worker_plugin_config={
       "PROCESS_DELAY": 1,
     },
-    no_workers=10,
+    no_workers=2,
     total_primes=300,
     on_data=on_data
   )

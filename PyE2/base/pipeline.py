@@ -606,6 +606,9 @@ class Pipeline(object):
       str
           The base64 code.
       """
+      if custom_code is None:
+        return None
+
       if isinstance(custom_code, str):
         # it is a path
         if os.path.exists(custom_code):
@@ -847,9 +850,12 @@ class Pipeline(object):
     def create_distributed_custom_plugin_instance(self,
                                                   *,
                                                   instance_id,
-                                                  custom_code_process_current_results: callable,
-                                                  custom_code_all_finished: callable,
-                                                  custom_code_merge_output: callable,
+                                                  custom_code_process_current_results: callable = None,
+                                                  preset_process_current_results: str = None,
+                                                  custom_code_all_finished: callable = None,
+                                                  preset_all_workers_finished: str = None,
+                                                  custom_code_merge_output: callable = None,
+                                                  preset_merge_output: str = None,
                                                   custom_code_worker: callable,
                                                   worker_pipeline_config={},
                                                   worker_plugin_signature='CUSTOM_EXEC_01',
@@ -864,12 +870,15 @@ class Pipeline(object):
       b64code_worker = self.__get_base64_code(custom_code_worker)
 
       return self.create_plugin_instance(
-          signature='CUSTOM_EXEC_CHAIN_DIST',
+          signature='REAL_TIME_PARTIAL_RESULTS_CUSTOM_EXEC_CHAIN_DIST',
           instance_id=instance_id,
           config={
               'CUSTOM_CODE_PROCESS_CURRENT_RESULTS': b64code_process_current_results,
+              'PRESET_PROCESS_CURRENT_RESULTS': preset_process_current_results,
               'CUSTOM_CODE_ALL_WORKERS_FINISHED': b64code_all_finished,
+              'PRESET_ALL_WORKERS_FINISHED': preset_all_workers_finished,
               'CUSTOM_CODE_MERGE_OUTPUT': b64code_merge_output,
+              'PRESET_MERGE_OUTPUT': preset_merge_output,
               'CUSTOM_CODE_WORKER': b64code_worker,
 
               'WORKER_PIPELINE_CONFIG': worker_pipeline_config,
