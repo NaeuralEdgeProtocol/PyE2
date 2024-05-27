@@ -730,7 +730,8 @@ class GenericSession(BaseDecentrAIObject):
 
       user = user or os.getenv(ENVIRONMENT.AIXP_USERNAME) or os.getenv(ENVIRONMENT.AIXP_USER)
       if user is None:
-        raise ValueError("Error: No user specified for DecentrAI network connection")
+        env_error = "Error: No user specified for DecentrAI network connection. Please make sure you have the correct credentials in the environment variables within the .env file or provide them as params in code (not recommended due to potential security issue)."
+        raise ValueError(env_error)
       if self._config.get(comm_ct.USER, None) is None:
         self._config[comm_ct.USER] = user
 
