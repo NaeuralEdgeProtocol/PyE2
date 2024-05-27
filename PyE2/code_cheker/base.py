@@ -24,6 +24,11 @@ UNALLOWED_DICT = {
     'type': CheckerConstants.var,
   },
 
+  '__builtins__': {
+    'error': '__builtins__ access is not allowed in plugin code ',
+    'type': CheckerConstants.var,
+  },
+
   'locals': {
     'error': 'Local vars dict access is not allowed in plugin code ',
     'type': CheckerConstants.var,
@@ -66,6 +71,11 @@ UNALLOWED_DICT = {
 
   '_default_config': {
     'error': 'Usage of `_default_config` is not allowed in plugin code ',
+    'type': CheckerConstants.attr,
+  },
+
+  '__traceback__': {
+    'error': 'Usage of `__traceback__` as an attribute is not allowed in plugin code ',
     'type': CheckerConstants.attr,
   },
 
