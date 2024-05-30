@@ -52,7 +52,7 @@ class LLMChat():
     to_send = {
       "STRUCT_DATA": [self.context["STRUCT_DATA"][0]]
     }
-    self.pipeline.send_pipeline_command(to_send)
+    self.pipeline.send_pipeline_command(to_send)  # , payload={"UUID": self.pipeline.log.get_unique_id()}
     return
 
   def main(self):

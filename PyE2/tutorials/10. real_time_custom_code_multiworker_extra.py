@@ -1,31 +1,33 @@
-"""
-This is a simple example of how to use the PyE2 library.
-
-In this example, we connect to the network, choose a node and
-    deploy a plugin with custom code that will run in real time.
-    
-For this example, we search for prime numbers in parallel using more than one node.
-"""
-from PyE2 import Session, CustomPluginTemplate
+from PyE2 import Session, CustomPluginTemplate, Pipeline
 from PyE2 import DistributedCustomCodePresets as Presets
 
 
-def custom_code_remote_node(plugin: CustomPluginTemplate):
-  """
-  The custom code that will be executed on the main thread.
+def local_brute_force_prime_number_generator():
+  from concurrent.futures import ThreadPoolExecutor
+  import numpy as np
 
-  Parameters
-  ----------
-  plugin : CustomPluginTemplate
-      The plugin instance. It will be replaced with the plugin instance object on the remote side.
+  def is_prime(n):
+    if n <= 1:
+      return False
+    for i in range(2, int(np.sqrt(n)) + 1):
+      if n % i == 0:
+        return False
+    return True
 
-  Returns
-  -------
-  list
-      The result of the custom code.
-      In our case, the list of prime numbers found in the random numbers generated.
-  """
+  thread_pool = ThreadPoolExecutor(max_workers=4)
 
+  random_numbers = np.random.randint(1, 5000, 20)
+  are_primes = list(thread_pool.map(is_prime, random_numbers))
+
+  prime_numbers = []
+  for i in range(len(random_numbers)):
+    if are_primes[i]:
+      prime_numbers.append(random_numbers[i])
+
+  return prime_numbers
+
+
+def worker_brute_force_prime_number_generator(plugin: CustomPluginTemplate):
   def is_prime(n):
     if n <= 1:
       return False
@@ -34,8 +36,7 @@ def custom_code_remote_node(plugin: CustomPluginTemplate):
         return False
     return True
 
-  random_numbers = plugin.np.random.randint(0, 5000, 20)
-
+  random_numbers = plugin.np.random.randint(1, 5000, 20)
   are_primes = plugin.threadapi_map(is_prime, random_numbers, n_threads=2)
 
   prime_numbers = []
@@ -46,7 +47,11 @@ def custom_code_remote_node(plugin: CustomPluginTemplate):
   return prime_numbers
 
 
-def on_data(pipeline, full_payload):
+final_result = []
+
+
+def locally_process_partial_results(pipeline: Pipeline, full_payload):
+  global final_result
   progress = full_payload.get('PROGRESS')
   data = full_payload.get('DATA')
   len_data = 0
@@ -54,45 +59,42 @@ def on_data(pipeline, full_payload):
     data.sort()
     len_data = len(data)
 
-  pipeline.P(f"Progress: {progress} -- Found: {len_data} -- Primes: {data}\n\n")
+  pipeline.P(f"Found: {len_data} -- Primes: {data}\n\n")
+
+  if progress == 100:
+    pipeline.P("FINISHED\n\n")
+    final_result = data
+  return
 
 
 if __name__ == "__main__":
   s = Session()
 
-  node = "stefan-box-ee"
+  node = "0xai_AgNxIxNN6RsDqBa0d5l2ZQpy7y-5bnbP55xej4OvcitO"
   s.wait_for_node(node)
 
-  # This should be in #132
-  p = s.create_or_attach_to_pipeline(
-    node_id=node,
-    name="run_distributed",
-    data_source="Void"
-  )
-
-  p.create_distributed_custom_plugin_instance(
-    instance_id="run_distributed_2",
-    custom_code_process_real_time_collected_data=Presets.process_real_time_collected_data__keep_uniques_in_aggregated_collected_data,
-    custom_code_finish_condition=Presets.finish_condition___aggregated_data_more_than_X,
-    finish_condition_kwargs={
+  # define the job
+  s.create_chain_dist_custom_job(
+    node_addr=node,
+    main_node_process_real_time_collected_data=Presets.PROCESS_REAL_TIME_COLLECTED_DATA__KEEP_UNIQUES_IN_AGGREGATED_COLLECTED_DATA,
+    main_node_finish_condition=Presets.FINISH_CONDITION___AGGREGATED_DATA_MORE_THAN_X,
+    main_node_finish_condition_kwargs={
       "X": 100
     },
-    custom_code_aggregate_collected_data=Presets.aggregate_collected_data___aggregate_collected_data,
+    main_node_aggregate_collected_data=Presets.AGGREGATE_COLLECTED_DATA___AGGREGATE_COLLECTED_DATA,
+    nr_remote_worker_nodes=2,
 
-    custom_code_remote_node=custom_code_remote_node,
-    node_pipeline_config={
-      'stream_type': "Void",
+    worker_node_code=worker_brute_force_prime_number_generator,
+    worker_node_plugin_config={
+      "MAX_INT": 5000,
     },
-    node_plugin_config={
-      "PROCESS_DELAY": 1,
-    },
-    nr_remote_nodes=2,
-    on_data=on_data
+
+    on_data=locally_process_partial_results,
+    # if True, we wait until our node confirms that it received the job
+    deploy=True
   )
 
-  p.deploy()
+  # process incoming messages until the finish condition is met
+  s.run(wait=lambda: len(final_result) == 0, close_pipelines=True, close_session=True)
 
-  s.run(wait=True, close_pipelines=True)
-
-  # TODO: print text when job is launched
-  # TODO: print workers found
+  s.P("Final result has {} observations".format(len(final_result)), color='g')

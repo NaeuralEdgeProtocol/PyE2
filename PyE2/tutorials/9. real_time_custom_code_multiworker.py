@@ -143,20 +143,20 @@ if __name__ == "__main__":
     data_source="Void"
   )
 
-  p.create_distributed_custom_plugin_instance(
+  p.create_chain_dist_custom_plugin_instance(
     instance_id="run_distributed",
-    custom_code_process_real_time_collected_data=custom_code_keep_uniques_in_all_data,
-    custom_code_finish_condition=custom_code_all_data_more_than_X,
-    custom_code_aggregate_collected_data=custom_code_aggregate_collected_data_from_all_workers,
+    main_node_process_real_time_collected_data=custom_code_keep_uniques_in_all_data,
+    main_node_finish_condition=custom_code_all_data_more_than_X,
+    main_node_aggregate_collected_data=custom_code_aggregate_collected_data_from_all_workers,
 
-    custom_code_remote_node=custom_code_remote_node,
+    worker_node_code=custom_code_remote_node,
     node_pipeline_config={
       'stream_type': "Void",
     },
     node_plugin_config={
       "PROCESS_DELAY": 1,
     },
-    nr_remote_nodes=2,
+    nr_remote_worker_nodes=2,
     total_primes=100,
     on_data=on_data
   )

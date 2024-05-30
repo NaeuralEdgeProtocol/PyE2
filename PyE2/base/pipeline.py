@@ -7,6 +7,7 @@ from ..utils.code import CodeUtils
 from .instance import Instance
 from .responses import PipelineArchiveResponse, PipelineOKResponse
 from .transaction import Transaction
+from .distributed_custom_code_presets import DistributedCustomCodePresets
 
 
 class Pipeline(object):
@@ -489,14 +490,15 @@ class Pipeline(object):
       self.lst_plugin_instances.append(instance)
       return
 
-    def __apply_staged_config(self):
+    def __apply_staged_config(self, verbose=False):
       """
       Apply the staged configuration to the pipeline.
       """
       if self.__staged_config is None:
         return
 
-      self.P("Deployed pipeline <{}> on <{}>".format(self.name, self.node_id), color="g")
+      if verbose:
+        self.P("Deployed pipeline <{}> on <{}>".format(self.name, self.node_id), color="g")
       self.__was_last_operation_successful = True
 
       self.config = {**self.config, **self.__staged_config}
@@ -504,12 +506,12 @@ class Pipeline(object):
 
       return
 
-    def __apply_staged_instances_config(self):
+    def __apply_staged_instances_config(self, verbose=False):
       """
       Apply the staged configuration to the instances.
       """
       for instance in self.lst_plugin_instances:
-        instance._apply_staged_config()
+        instance._apply_staged_config(verbose=verbose)
 
       for instance in self.__staged_remove_instances:
         instance.config = None
@@ -616,8 +618,12 @@ class Pipeline(object):
             plain_code = "".join(fd.readlines())
         # it is a string
         else:
-          plain_code = custom_code
-
+          try:
+            method_name = "_DistributedCustomCodePresets__{}".format(custom_code.lower())
+            preset_code = getattr(DistributedCustomCodePresets, method_name)
+            plain_code = CodeUtils().get_function_source_code(preset_code)
+          except:
+            plain_code = custom_code
       elif callable(custom_code):
         # we have a function
         plain_code = CodeUtils().get_function_source_code(custom_code)
@@ -625,7 +631,7 @@ class Pipeline(object):
         raise Exception("custom_code is not a string or a callable")
       # endif get plain code
 
-      return CodeUtils().code_to_base64(plain_code)
+      return CodeUtils().code_to_base64(plain_code, verbose=False)
 
   # Message handling
   if True:
@@ -848,24 +854,28 @@ class Pipeline(object):
       )
 
     # TODO: rename this!!!
-    def create_distributed_custom_plugin_instance(self,
-                                                  *,
-                                                  instance_id,
-                                                  custom_code_process_real_time_collected_data: callable,
-                                                  custom_code_finish_condition: callable,
-                                                  custom_code_aggregate_collected_data: callable,
-                                                  custom_code_remote_node: callable,
-                                                  worker_pipeline_config={},
-                                                  worker_plugin_signature='CUSTOM_EXEC_01',
-                                                  worker_plugin_config={},
-                                                  config={},
-                                                  on_data=None,
-                                                  on_notification=None,
-                                                  **kwargs) -> Instance:
-      b64code_process_real_time_collected_data = self.__get_base64_code(custom_code_process_real_time_collected_data)
-      b64code_finish_condition = self.__get_base64_code(custom_code_finish_condition)
-      b64code_aggregate_collected_data = self.__get_base64_code(custom_code_aggregate_collected_data)
-      b64code_remote_node = self.__get_base64_code(custom_code_remote_node)
+    def create_chain_dist_custom_plugin_instance(self,
+                                                 *,
+                                                 main_node_process_real_time_collected_data: any,
+                                                 main_node_finish_condition: any,
+                                                 main_node_aggregate_collected_data: any,
+                                                 worker_node_code: any,
+                                                 nr_remote_worker_nodes: int,
+                                                 instance_id=None,
+                                                 worker_pipeline_config={},
+                                                 worker_plugin_signature='CUSTOM_EXEC_01',
+                                                 worker_plugin_config={},
+                                                 config={},
+                                                 on_data=None,
+                                                 on_notification=None,
+                                                 **kwargs) -> Instance:
+      b64code_process_real_time_collected_data = self.__get_base64_code(main_node_process_real_time_collected_data)
+      b64code_finish_condition = self.__get_base64_code(main_node_finish_condition)
+      b64code_aggregate_collected_data = self.__get_base64_code(main_node_aggregate_collected_data)
+      b64code_remote_node = self.__get_base64_code(worker_node_code)
+
+      if instance_id is None:
+        instance_id = self.name + "_chain_dist_custom_exec_{}".format(self.log.get_unique_id())
 
       return self.create_plugin_instance(
           signature='PROCESS_REAL_TIME_COLLECTED_DATA_CUSTOM_EXEC_CHAIN_DIST',
@@ -876,9 +886,17 @@ class Pipeline(object):
               'CUSTOM_CODE_AGGREGATE_COLLECTED_DATA': b64code_aggregate_collected_data,
               'CUSTOM_CODE_REMOTE_NODE': b64code_remote_node,
 
-              'WORKER_PIPELINE_CONFIG': worker_pipeline_config,
+              'NR_REMOTE_NODES': nr_remote_worker_nodes,
+
+              'WORKER_PIPELINE_CONFIG': {
+                'stream_type': "Void",
+                **worker_pipeline_config
+              },
               'WORKER_PLUGIN_SIGNATURE': worker_plugin_signature,
-              'WORKER_PLUGIN_CONFIG': worker_plugin_config,
+              'WORKER_PLUGIN_CONFIG': {
+                "PROCESS_DELAY": 1,
+                **worker_plugin_config
+              },
               **config
           },
           on_data=on_data,
@@ -886,7 +904,7 @@ class Pipeline(object):
           **kwargs
       )
 
-    def deploy(self, with_confirmation=True, wait_confirmation=True, timeout=10):
+    def deploy(self, with_confirmation=True, wait_confirmation=True, timeout=10, verbose=False):
       """
       This method is used to deploy the pipeline on the DecentrAI node. 
       Here we collect all the proposed configurations and send them to the DecentrAI node.
@@ -897,7 +915,8 @@ class Pipeline(object):
       # this session id will be used to track the transactions
 
       # step 0: print the proposed changes
-      self.__print_proposed_changes()
+      if verbose:
+        self.__print_proposed_changes()
 
       # step 1: register transactions for updates
       transactions = []
@@ -929,8 +948,10 @@ class Pipeline(object):
 
       # step 4: apply the staged config
       if not with_confirmation:
-        self.__apply_staged_config()
-        self.__apply_staged_instances_config()
+        self.__apply_staged_config(verbose=verbose)
+        self.__apply_staged_instances_config(verbose=verbose)
+
+      self.P("Pipeline <{}> deployed".format(self.name), color="g")
 
       return
 

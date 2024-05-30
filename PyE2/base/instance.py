@@ -185,14 +185,15 @@ class Instance():
 
       return proposed_config_dict
 
-    def _apply_staged_config(self):
+    def _apply_staged_config(self, verbose=False):
       """
       Apply the staged configuration to the instance.
       """
       if self.__staged_config is None:
         return
 
-      self.P(f'Applying staged configuration to instance <{self.instance_id}>', color="g")
+      if verbose:
+        self.P(f'Applying staged configuration to instance <{self.instance_id}>', color="g")
       self.__was_last_operation_successful = True
 
       self.config = {**self.config, **self.__staged_config}

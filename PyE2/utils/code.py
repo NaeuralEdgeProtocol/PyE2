@@ -42,9 +42,10 @@ class CodeUtils:
     b_encoded = base64.b64encode(b_code)
     str_encoded = b_encoded.decode('utf-8')
     l_b64 = len(str_encoded)
-    self.__msg("Code checking and serialization suceeded. Initial/Compress/B64: {}/{}/{}".format(
-        l_i, l_c, l_b64), color='g'
-    )
+    if verbose:
+      self.__msg("Code checking and serialization suceeded. Initial/Compress/B64: {}/{}/{}".format(
+          l_i, l_c, l_b64), color='g'
+      )
     return str_encoded
 
   def method_to_base64(self, func):

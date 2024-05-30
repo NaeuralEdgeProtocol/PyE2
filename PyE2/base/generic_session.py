@@ -204,9 +204,9 @@ class GenericSession(BaseDecentrAIObject):
       )
 
       self.__running_callback_threads = True
-      self._payload_thread.start()
-      self._notif_thread.start()
       self._hb_thread.start()
+      self._notif_thread.start()
+      self._payload_thread.start()
       return
 
     def __parse_message(self, dict_msg: dict):
@@ -666,11 +666,12 @@ class GenericSession(BaseDecentrAIObject):
 
       Parameters
       ----------
-      wait : bool, float
+      wait : bool, float, callable
           If `True`, will wait forever.
           If `False`, will not wait at all
           If type `float` and > 0, will wait said amount of seconds
           If type `float` and == 0, will wait forever
+          If type `callable`, will call the function until it returns `False`
           Defaults to `True`
       close_session : bool, optional
           If `True` will close the session when the loop is exited.
@@ -682,8 +683,14 @@ class GenericSession(BaseDecentrAIObject):
       """
       _start_timer = tm()
       try:
-        while ((isinstance(wait, bool) and wait) or ((not isinstance(wait, bool) and wait == 0)) or (tm() - _start_timer) < wait) and not self.__closed_everything:
+        bool_loop_condition = isinstance(wait, bool) and wait
+        number_loop_condition = isinstance(wait, (int, float)) and (wait == 0 or (tm() - _start_timer) < wait)
+        callable_loop_condition = callable(wait) and wait()
+        while (bool_loop_condition or number_loop_condition or callable_loop_condition) and not self.__closed_everything:
           sleep(0.1)
+          bool_loop_condition = isinstance(wait, bool) and wait
+          number_loop_condition = isinstance(wait, (int, float)) and (wait == 0 or (tm() - _start_timer) < wait)
+          callable_loop_condition = callable(wait) and wait()
       except KeyboardInterrupt:
         self.P("CTRL+C detected. Stopping loop.", color='r', verbosity=1)
 
@@ -1310,7 +1317,7 @@ class GenericSession(BaseDecentrAIObject):
         self.P("No nodes found online in {:.1f}s.".format(tm() - _start), color='r')
       return found
 
-    def wait_for_node(self, node_id, timeout=15):
+    def wait_for_node(self, node_id, /, timeout=15):
       """
       Wait for a node to appear online.
 
@@ -1329,11 +1336,10 @@ class GenericSession(BaseDecentrAIObject):
 
       self.P("Waiting for node '{}' to appear online...".format(node_id))
       _start = tm()
-      found = node_id in self.get_active_nodes()
+      found = node_id in self.get_active_nodes() or node_id in self._box_addr.values()
       while (tm() - _start) < timeout and not found:
         sleep(0.1)
-        avail_workers = self.get_active_nodes()
-        found = node_id in avail_workers
+        found = node_id in self.get_active_nodes() or node_id in self._box_addr.values()
       # end while
 
       if found:
@@ -1341,3 +1347,53 @@ class GenericSession(BaseDecentrAIObject):
       else:
         self.P("Node '{}' did not appear online in {:.1f}s.".format(node_id, tm() - _start), color='r')
       return found
+
+    def create_chain_dist_custom_job(
+      self,
+      main_node_process_real_time_collected_data,
+      main_node_finish_condition,
+      main_node_finish_condition_kwargs,
+      main_node_aggregate_collected_data,
+      worker_node_code,
+      nr_remote_worker_nodes,
+      node_id=None,
+      node_addr=None,
+      worker_node_plugin_config={},
+      worker_node_pipeline_config={},
+      on_data=None,
+      on_notification=None,
+      deploy=False,
+    ):
+
+      if node_id is None and node_addr is None:
+        raise ValueError("Either node_id or node_addr must be provided.")
+
+      if node_id is None:
+        node_id = {n_a: n_id for n_id, n_a in self._box_addr.items()}.get(node_addr, None)
+
+      if node_id is None:
+        raise ValueError("Node address not found.")
+
+      pipeline: Pipeline = self.create_pipeline(
+        node_id=node_id,
+        name=self.log.get_unique_id(),
+        data_source="Void"
+      )
+
+      instance = pipeline.create_chain_dist_custom_plugin_instance(
+        main_node_process_real_time_collected_data=main_node_process_real_time_collected_data,
+        main_node_finish_condition=main_node_finish_condition,
+        finish_condition_kwargs=main_node_finish_condition_kwargs,
+        main_node_aggregate_collected_data=main_node_aggregate_collected_data,
+        worker_node_code=worker_node_code,
+        nr_remote_worker_nodes=nr_remote_worker_nodes,
+        worker_node_plugin_config=worker_node_plugin_config,
+        worker_node_pipeline_config=worker_node_pipeline_config,
+        on_data=on_data,
+        on_notification=on_notification,
+      )
+
+      if deploy:
+        pipeline.deploy()
+
+      return pipeline, instance
