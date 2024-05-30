@@ -729,6 +729,11 @@ class BaseBlockEngine:
     return self.__address
   
   @property
+  def address_no_prefix(self):
+    """Returns the public address without the prefix"""
+    return self._remove_prefix(self.address)
+  
+  @property
   def allowed_list(self):
     """Returns the allowed senders"""
     return self._load_and_maybe_create_allowed()

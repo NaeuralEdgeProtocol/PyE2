@@ -339,7 +339,7 @@ class GenericSession(BaseDecentrAIObject):
       node_whitelist = dict_msg.get(HB.EE_WHITELIST, [])
       node_secured = dict_msg.get(HB.SECURED, False)
 
-      self._dct_can_send_to_node[node_id] = not node_secured or self.bc_engine.address in node_whitelist
+      self._dct_can_send_to_node[node_id] = not node_secured or self.bc_engine.address_no_prefix in node_whitelist
       return
 
     def __on_heartbeat(self, dict_msg: dict, msg_node_id, msg_pipeline, msg_signature, msg_instance):
