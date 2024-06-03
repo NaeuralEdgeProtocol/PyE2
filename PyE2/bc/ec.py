@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import os
 import binascii
 
@@ -14,7 +15,7 @@ from .base import BaseBlockEngine, VerifyMessage, BCct
 
 
 class BaseBCEllipticCurveEngine(BaseBlockEngine):
-  
+  MAX_ADDRESS_VALUE = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
   
   def _get_pk(self, private_key : ec.EllipticCurvePrivateKey) -> ec.EllipticCurvePublicKey:
     """
@@ -79,6 +80,36 @@ class BaseBCEllipticCurveEngine(BaseBlockEngine):
     private_key = ec.generate_private_key(curve=ec.SECP256K1())
     return private_key
 
+  def _create_new_sk_from_words(self, words: list[str]) -> ec.EllipticCurvePrivateKey:
+      """
+      Simple wrapper to generate pk using a seed
+
+      Parameters
+      ----------
+      words : list[str]
+          The words to be used as seed.
+
+      Returns
+      -------
+      private_key : EllipticCurvePrivateKey
+      """
+      
+      seedString = ';'.join(words)
+      
+      encodedString = seedString.encode()
+      
+      # Hash the seed to ensure it has enough entropy
+      digest = hashlib.sha256(encodedString).digest()
+      
+      # Convert the hash to an integer
+      private_value = int.from_bytes(digest, 'big')
+      
+      # Ensure the integer is within the valid range for the curve
+      private_value = private_value % self.MAX_ADDRESS_VALUE
+
+      # Create the private key from the integer
+      private_key = ec.derive_private_key(private_value, ec.SECP256K1(), default_backend())
+      return private_key
   
   def _sign(
       self, 
