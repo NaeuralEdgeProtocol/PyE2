@@ -37,18 +37,21 @@ jobs:
           --wheel
           --outdir dist/
 
-      - name: Set environment variable for PyPI token
+      - name: Set environment variable for PyPI token - export TOKEN_VAR to GITHUB_ENV
         id: set_pypi_token
         run: |
           ACTOR_UPPER=$(echo "${{ github.actor }}" | tr '[:lower:]' '[:upper:]')
           TOKEN_VAR="PYPI_${ACTOR_UPPER}"
           echo "TOKEN_VAR=$TOKEN_VAR" >> $GITHUB_ENV
+
+      - name: Set environment variable for PyPI token - export PYPI_TOKEN to GITHUB_ENV
+        run: |
+          echo "Token var: ${{ env.TOKEN_VAR }}"
           echo "PYPI_TOKEN=${{ secrets[env.TOKEN_VAR] }}" >> $GITHUB_ENV
 
       - name: Print environment variables (for debugging)
         run: |
           echo "Token var: ${{ env.TOKEN_VAR }}"
-          echo "Secret: ${{ secrets[env.TOKEN_VAR] }}"
           echo "Actor: ${{ github.actor }}"
           echo "PYPI_VAR: ${{ env.TOKEN_VAR }}"
           echo "PYPI_TOKEN: ${{ env.PYPI_TOKEN }}"
