@@ -740,6 +740,7 @@ class GenericSession(BaseDecentrAIObject):
         os.getenv(ENVIRONMENT.AIXP_USERNAME),
         os.getenv(ENVIRONMENT.AIXP_USER),
         os.getenv(ENVIRONMENT.EE_USERNAME),
+        os.getenv(ENVIRONMENT.EE_USER),
       ]
 
       user = next((x for x in possible_user_values if x is not None), None)
@@ -756,6 +757,8 @@ class GenericSession(BaseDecentrAIObject):
         os.getenv(ENVIRONMENT.AIXP_PASS),
         os.getenv(ENVIRONMENT.AIXP_PWD),
         os.getenv(ENVIRONMENT.EE_PASSWORD),
+        os.getenv(ENVIRONMENT.EE_PASS),
+        os.getenv(ENVIRONMENT.EE_PWD),
       ]
 
       pwd = next((x for x in possible_password_values if x is not None), None)
@@ -770,7 +773,8 @@ class GenericSession(BaseDecentrAIObject):
         os.getenv(ENVIRONMENT.AIXP_HOSTNAME),
         os.getenv(ENVIRONMENT.AIXP_HOST),
         os.getenv(ENVIRONMENT.EE_HOSTNAME),
-        ""  # TODO: Add default value for host
+        os.getenv(ENVIRONMENT.EE_HOST),
+        "r9092118.ala.eu-central-1.emqxsl.com"
       ]
 
       host = next((x for x in possible_host_values if x is not None), None)
@@ -784,7 +788,7 @@ class GenericSession(BaseDecentrAIObject):
         port,
         os.getenv(ENVIRONMENT.AIXP_PORT),
         os.getenv(ENVIRONMENT.EE_PORT),
-        8883,  # TODO: Add default value for port
+        8883,
       ]
 
       port = next((x for x in possible_port_values if x is not None), None)
