@@ -7,6 +7,7 @@
 # and use it to send messages. However, if the mqttc has loop started but did not connect, the lock will
 # prevent the client from ever connecting.
 
+import os
 import traceback
 from collections import deque
 from threading import Lock
@@ -17,6 +18,9 @@ from paho.mqtt import __version__ as mqtt_version
 
 from ..const import BASE_CT, COLORS, COMMS, PAYLOAD_CT
 from ..utils import resolve_domain_or_ip
+
+from importlib import resources as impresources
+from .. import certs
 
 
 class MQTTWrapper(object):
@@ -139,6 +143,10 @@ class MQTTWrapper(object):
     return self._config[COMMS.QOS]
 
   @property
+  def cfg_cert_path(self):
+    return self._config.get(COMMS.CERT_PATH)
+
+  @property
   def recv_channel_def(self):
     if self.recv_channel_name is None:
       return
@@ -193,6 +201,15 @@ class MQTTWrapper(object):
       username=self.cfg_user,
       password=self.cfg_pass
     )
+
+    if self.cfg_cert_path is not None:
+      mqttc.tls_set(self.cfg_cert_path)
+    else:
+      cert_file_name = self.cfg_host + ".crt"
+      cert_file = impresources.files(certs).joinpath(cert_file_name)
+
+      if cert_file.exists():
+        mqttc.tls_set(cert_file)
 
     mqttc.on_connect = self._callback_on_connect
     mqttc.on_disconnect = self._callback_on_disconnect

@@ -41,7 +41,8 @@ class GenericSession(BaseDecentrAIObject):
       "PAYLOADS_CHANNEL": {
           "TOPIC": "lummetry/payloads"
       },
-      "QOS": 0
+      "QOS": 0,
+      "CERT_PATH": None,
   }
 
   BLOCKCHAIN_CONFIG = {
