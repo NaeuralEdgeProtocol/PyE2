@@ -735,27 +735,60 @@ class GenericSession(BaseDecentrAIObject):
       #  2-N. directories of the files from the call stack
       load_dotenv(dotenv_path=dotenv_path, verbose=False)
 
-      user = user or os.getenv(ENVIRONMENT.AIXP_USERNAME) or os.getenv(ENVIRONMENT.AIXP_USER)
+      possible_user_values = [
+        user,
+        os.getenv(ENVIRONMENT.AIXP_USERNAME),
+        os.getenv(ENVIRONMENT.AIXP_USER),
+        os.getenv(ENVIRONMENT.EE_USERNAME),
+      ]
+
+      user = next((x for x in possible_user_values if x is not None), None)
+
       if user is None:
         env_error = "Error: No user specified for DecentrAI network connection. Please make sure you have the correct credentials in the environment variables within the .env file or provide them as params in code (not recommended due to potential security issue)."
         raise ValueError(env_error)
       if self._config.get(comm_ct.USER, None) is None:
         self._config[comm_ct.USER] = user
 
-      pwd = pwd or os.getenv(ENVIRONMENT.AIXP_PASSWORD) or os.getenv(
-        ENVIRONMENT.AIXP_PASS) or os.getenv(ENVIRONMENT.AIXP_PWD)
+      possible_password_values = [
+        pwd,
+        os.getenv(ENVIRONMENT.AIXP_PASSWORD),
+        os.getenv(ENVIRONMENT.AIXP_PASS),
+        os.getenv(ENVIRONMENT.AIXP_PWD),
+        os.getenv(ENVIRONMENT.EE_PASSWORD),
+      ]
+
+      pwd = next((x for x in possible_password_values if x is not None), None)
+
       if pwd is None:
         raise ValueError("Error: No password specified for DecentrAI network connection")
       if self._config.get(comm_ct.PASS, None) is None:
         self._config[comm_ct.PASS] = pwd
 
-      host = host or os.getenv(ENVIRONMENT.AIXP_HOSTNAME) or os.getenv(ENVIRONMENT.AIXP_HOST)
+      possible_host_values = [
+        host,
+        os.getenv(ENVIRONMENT.AIXP_HOSTNAME),
+        os.getenv(ENVIRONMENT.AIXP_HOST),
+        os.getenv(ENVIRONMENT.EE_HOSTNAME),
+        ""  # TODO: Add default value for host
+      ]
+
+      host = next((x for x in possible_host_values if x is not None), None)
+
       if host is None:
         raise ValueError("Error: No host specified for DecentrAI network connection")
       if self._config.get(comm_ct.HOST, None) is None:
         self._config[comm_ct.HOST] = host
 
-      port = port or os.getenv(ENVIRONMENT.AIXP_PORT)
+      possible_port_values = [
+        port,
+        os.getenv(ENVIRONMENT.AIXP_PORT),
+        os.getenv(ENVIRONMENT.EE_PORT),
+        8883,  # TODO: Add default value for port
+      ]
+
+      port = next((x for x in possible_port_values if x is not None), None)
+
       if port is None:
         raise ValueError("Error: No port specified for DecentrAI network connection")
       if self._config.get(comm_ct.PORT, None) is None:

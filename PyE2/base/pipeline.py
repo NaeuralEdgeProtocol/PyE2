@@ -894,7 +894,6 @@ class Pipeline(object):
               },
               'WORKER_PLUGIN_SIGNATURE': worker_plugin_signature,
               'WORKER_PLUGIN_CONFIG': {
-                "PROCESS_DELAY": 1,
                 **worker_plugin_config
               },
               **config
