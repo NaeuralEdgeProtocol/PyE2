@@ -37,13 +37,17 @@ jobs:
           --wheel
           --outdir dist/
 
-
       - name: Set environment variable for PyPI token
-        # first we generate the environment variable name
+        id: set_pypi_token
         run: |
-          echo "PYPI_VAR=PYPI_${{ github.actor | upper }}" >> $GITHUB_ENV          
-          echo $PYPI_VAR
-          echo "PYPI_TOKEN=${{ secrets[env.PYPI_VAR] }}" >> $GITHUB_ENV
+          ACTOR_UPPER=$(echo "${{ github.actor }}" | tr '[:lower:]' '[:upper:]')
+          echo "PYPI_VAR=PYPI_${ACTOR_UPPER}" >> $GITHUB_ENV
+          echo "PYPI_TOKEN=${{ secrets['PYPI_'${ACTOR_UPPER}] }}" >> $GITHUB_ENV
+
+      - name: Print environment variables (for debugging)
+        run: |
+          echo "Actor: ${{ github.actor }}"
+          echo "PYPI_VAR: $PYPI_VAR"
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
