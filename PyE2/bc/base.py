@@ -779,18 +779,22 @@ class BaseBlockEngine:
     return fn
   
   
-  def _generate_data_for_hash(self, dct_data, replace_nan=True, inplace=True):
+  def _generate_data_for_hash(self, dct_data, replace_nan=True):
     """
     Will convert the dict to json (removing the non-data fields) and return the json string. 
     The dict will be modified inplace to replace NaN and Inf with None.
     """
     assert isinstance(dct_data, dict), "Cannot compute hash on non-dict data"
     dct_only_data = {k:dct_data[k] for k in dct_data if k not in NON_DATA_FIELDS}
-    str_data = self._dict_to_json(dct_only_data, replace_nan=replace_nan, inplace=inplace)
+    str_data = self._dict_to_json(
+      dct_only_data, 
+      replace_nan=replace_nan, 
+      inplace=True # will replace inplace the np.nan and np.inf with None
+    )
     return str_data
     
   
-  def compute_hash(self, dct_data, return_all=False, replace_nan=True, inplace=True):
+  def compute_hash(self, dct_data, return_all=False, replace_nan=True):
     """
     Computes the hash of a dict object
 
@@ -798,13 +802,19 @@ class BaseBlockEngine:
     ----------
     dct_data : dict
       the input message as a dict.
+      
+    return_all: bool, optional
+      if `True` will return the binary hash as well. Default `False`
+      
+    replace_nan: bool, optional
+      will replace inplace `np.nan` and `np.inf` with `None` before hashing. Default `True`
 
     Returns
     -------
     result : str or tuple(bytes, bytes, str) if `return_all` is `True`
       
     """
-    str_data = self._generate_data_for_hash(dct_data, replace_nan=replace_nan, inplace=inplace)
+    str_data = self._generate_data_for_hash(dct_data, replace_nan=replace_nan)
     bdata = bytes(str_data, 'utf-8')
     bin_hexdigest, hexdigest = self._compute_hash(bdata)
     if return_all:

@@ -21,12 +21,14 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.x"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install --upgrade build twine
       - name: Bump version
         run: python PyE2/_ver.py
+
       - name: Build package
         run: >-
           python -m
@@ -34,7 +36,16 @@ jobs:
           --sdist
           --wheel
           --outdir dist/
+
+
+      - name: Set environment variable for PyPI token
+        # first we generate the environment variable name
+        run: |
+          echo "PYPI_VAR=PYPI_${{ github.actor | upper }}" >> $GITHUB_ENV          
+          echo $PYPI_VAR
+          echo "PYPI_TOKEN=${{ secrets[env.PYPI_VAR] }}" >> $GITHUB_ENV
+
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          password: ${{ env.PYPI_TOKEN  }}
