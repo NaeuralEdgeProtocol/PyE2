@@ -798,6 +798,15 @@ class GenericSession(BaseDecentrAIObject):
         raise ValueError("Error: No port specified for DecentrAI network connection")
       if self._config.get(comm_ct.PORT, None) is None:
         self._config[comm_ct.PORT] = int(port)
+
+      possible_cert_path_values = [
+        os.getenv(ENVIRONMENT.AIXP_CERT_PATH),
+        os.getenv(ENVIRONMENT.EE_CERT_PATH),
+      ]
+
+      cert_path = next((x for x in possible_cert_path_values if x is not None), None)
+      if cert_path is not None and self._config.get(comm_ct.CERT_PATH, None) is None:
+        self._config[comm_ct.CERT_PATH] = cert_path
       return
 
     def _send_command_to_box(self, command, worker, payload, show_command=False, session_id=None, **kwargs):
