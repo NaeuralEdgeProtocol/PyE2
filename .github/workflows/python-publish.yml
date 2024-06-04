@@ -49,6 +49,7 @@ jobs:
         run: |
           echo "Actor: ${{ github.actor }}"
           echo "PYPI_VAR: ${{ env.TOKEN_VAR }}"
+          echo "PYPI_TOKEN: ${{ env.PYPI_TOKEN }}"
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
