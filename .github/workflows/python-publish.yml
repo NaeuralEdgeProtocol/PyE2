@@ -41,8 +41,9 @@ jobs:
         id: set_pypi_token
         run: |
           ACTOR_UPPER=$(echo "${{ github.actor }}" | tr '[:lower:]' '[:upper:]')
-          echo "PYPI_VAR=PYPI_${ACTOR_UPPER}" >> $GITHUB_ENV
-          echo "PYPI_TOKEN=${{ secrets['PYPI_'${ACTOR_UPPER}] }}" >> $GITHUB_ENV
+          TOKEN_VAR="PYPI_${ACTOR_UPPER}"
+          echo "TOKEN_VAR=$TOKEN_VAR" >> $GITHUB_ENV
+          echo "PYPI_TOKEN=${{ secrets[env.TOKEN_VAR] }}" >> $GITHUB_ENV
 
       - name: Print environment variables (for debugging)
         run: |
