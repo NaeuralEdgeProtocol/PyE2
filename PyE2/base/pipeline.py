@@ -888,12 +888,12 @@ class Pipeline(object):
 
               'NR_REMOTE_NODES': nr_remote_worker_nodes,
 
-              'WORKER_PIPELINE_CONFIG': {
+              'NODE_PIPELINE_CONFIG': {
                 'stream_type': "Void",
                 **worker_pipeline_config
               },
-              'WORKER_PLUGIN_SIGNATURE': worker_plugin_signature,
-              'WORKER_PLUGIN_CONFIG': {
+              'NODE_PLUGIN_SIGNATURE': worker_plugin_signature,
+              'NODE_PLUGIN_CONFIG': {
                 **worker_plugin_config
               },
               **config
