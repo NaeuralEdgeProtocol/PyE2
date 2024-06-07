@@ -35,36 +35,36 @@ The following are the same:
 - `Plugin ~ Instance` (Only in the context of talking about a running plugin (instance); people tend to omit the word `instance`)
 - `Node == Worker` (Unless it is in the context of a distributed job, the 2 words refer to the same thing)
 
-### Hello world tutorial 
+## Hello world tutorial 
 
 Below is a simple "Hello world!" style application that aims to show how simple and straightforward it is to distribute existing Python code to multiple edge node workers.
 
 To execute this code, you can check [tutorials/video_presentation/1. hello_world.ipynv](./tutorials/video_presentation/1.%20hello_world.ipynb)
 
 
-#### 1. Create `.env` file
+### 1. Create `.env` file
 
 Copy the `tutorials/.example_env` file to your project directory and rename it to `.env`.
 
 Fill in the empty variables with appropriate values.
 
-#### 2. Create new / Use test private key
+### 2. Create new / Use test private key
 
 **Disclaimer: You should never publish sensitive information such as private keys.**
 
 To experiment on our test net, you can use the provided private key to communicate with the 3 nodes in the test network.
 
-##### Create new private key
+#### Create new private key
 
 When first connecting to our network, the sdk will search in the current working directory for an existing private key. If not found, the SDK will create one at `$(cwd)/_local_cache/_data/_pk_sdk.pem`.
 
-##### Using an existing private key
+#### Using an existing private key
 
 To use an existing private key, create in the working directory the directory tree `_local_cache/_data/` and add the `_pk_sdk.pem` file there.
 
 To use our provided key. copy it from `tutorials/_example_pk_sdk.pem` to `local_cache/_data/` and change its name to `_pk_sdk.pem`.
 
-#### 3. Local Execution
+### 3. Local Execution
 
 We want to find all $168$ prime numbers in the interval $1$-$1000$. For this we can run the following code on our local machine.
 
@@ -131,7 +131,7 @@ Because we want to find $168$ unique numbers, we append to the list of found pri
 
 At the end, we want to show a list of all the numbers found.
 
-#### 4. Remote Execution 
+### 4. Remote Execution 
 
 For this example we would like to use multiple edge nodes to find the prime numbers faster.
 
