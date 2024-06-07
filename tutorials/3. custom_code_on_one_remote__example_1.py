@@ -1,5 +1,5 @@
 """
-This is a simple example of how to use the PyE2 library.
+This is a simple example of how to use the PyE2 SDK.
 
 In this example, we connect to the network, choose a node and
     deploy a plugin with custom code that will run in real time.

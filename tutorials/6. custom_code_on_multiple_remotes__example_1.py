@@ -37,7 +37,7 @@ def worker_brute_force_prime_number_generator(plugin: CustomPluginTemplate):
     return True
 
   random_numbers = plugin.np.random.randint(1, 5000, 20)
-  are_primes = plugin.threadapi_map(is_prime, random_numbers, n_threads=2)
+  are_primes = plugin.threadapi_map(is_prime, random_numbers, n_threads=4)
 
   prime_numbers = []
   for i in range(len(random_numbers)):
@@ -70,7 +70,7 @@ def locally_process_partial_results(pipeline: Pipeline, full_payload):
 if __name__ == "__main__":
   s = Session()
 
-  node = "0xai_AgNxIxNN6RsDqBa0d5l2ZQpy7y-5bnbP55xej4OvcitO"
+  node = "0xai_A8SY7lEqBtf5XaGyB6ipdk5C30vSf3HK4xELp3iplwLe"
   s.wait_for_node(node)
 
   # define the job

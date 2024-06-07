@@ -10,7 +10,7 @@ authors = [
   { name="Andrei Ionut Damian", email="andrei.damian@me.com" },
   { name="Cristan Bleotiu", email="cristibleotiu@gmail.com" },
 ]
-description = "PyE2 is the Python SDK required for client app development in the DecentrAI network"
+description = "PyE2 is the Python SDK required for client app development in the Naeural network"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -29,5 +29,5 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/DecentrAI/PyE2"
-"Bug Tracker" = "https://github.com/DecentrAI/PyE2/issues"
+"Homepage" = "https://github.com/NaeuralEdgeProtocol/PyE2"
+"Bug Tracker" = "https://github.com/NaeuralEdgeProtocol/PyE2/issues"

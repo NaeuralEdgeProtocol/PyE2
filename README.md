@@ -1,10 +1,10 @@
 # PyE2 SDK
 
-This is the Python SDK package that allows interactions, development and deployment of jobs in DecentrAI network. The SDK enables low-code development and deployment of end-to-end AI (and not only) cooperative application pipelines within the DecentrAI Execution Engine processing nodes ecosystem. For further information please see "DecentrAI - Decentralized ubiquitous computing MLOps execution engine".
+This is the Python SDK package that allows interactions, development and deployment of jobs in Naeural network. The SDK enables low-code development and deployment of end-to-end AI (and not only) cooperative application pipelines within the Naeural Execution Engine processing nodes ecosystem. For further information please see [Naeural AI OS - Decentralized ubiquitous computing MLOps execution engine](https://arxiv.org/pdf/2306.08708).
 
 ## Dependencies
 
-This packet depends on the following packets: [`pika`, `paho-mqtt`, `numpy`, `cryptography`].
+This packet depends on the following packets: `pika`,  `paho-mqtt`, `numpy`, `pyopenssl>=23.0.0`, `cryptography>=39.0.0`, `python-dateutil`, `pyaml`.
 
 ## Installation
 
@@ -17,7 +17,7 @@ python -m pip install PyE2
 Minimal documentation will be presented here. The complete documentation is
 Work in Progress.
 
-Code examples are located in the `xperimental` folder in the project's repository.
+Code examples are located in the `tutorials` folder in the project's repository.
 
 ## Quick start guides
 
@@ -31,304 +31,280 @@ and the documentation.
 
 The following are the same:
 
-- `Pipeline == Stream` (The latter was used internally by the Hyperfy team, but now it is considered legacy)
 - `Signature == Plugin's name`
 - `Plugin ~ Instance` (Only in the context of talking about a running plugin (instance); people tend to omit the word `instance`)
-- `Node == Worker` (The latter was used internally by the Hyperfy team. Unless it is in the context of a distributed job, the 2 words refer to the same thing)
+- `Node == Worker` (Unless it is in the context of a distributed job, the 2 words refer to the same thing)
 
-### "Hello world!"
+### Hello world tutorial 
 
-Below is a simple "Hello world!" style application that creates a session by connecting to a known communication broker, listens for processing nodes heartbeats and displays the basic compute capabilities of the discovered nodes such as CPU & RAM.
+Below is a simple "Hello world!" style application that aims to show how simple and straightforward it is to distribute existing Python code to multiple edge node workers.
 
-#### Importing and configuration
+To execute this code, you can check [tutorials/video_presentation/1. hello_world.ipynv](./tutorials/video_presentation/1.%20hello_world.ipynb)
+
+
+#### 1. Create `.env` file
+
+Copy the `tutorials/.example_env` file to your project directory and rename it to `.env`.
+
+Fill in the empty variables with appropriate values.
+
+#### 2. Create new / Use test private key
+
+**Disclaimer: You should never publish sensitive information such as private keys.**
+
+To experiment on our test net, you can use the provided private key to communicate with the 3 nodes in the test network.
+
+##### Create new private key
+
+When first connecting to our network, the sdk will search in the current working directory for an existing private key. If not found, the SDK will create one at `$(cwd)/_local_cache/_data/_pk_sdk.pem`.
+
+##### Using an existing private key
+
+To use an existing private key, create in the working directory the directory tree `_local_cache/_data/` and add the `_pk_sdk.pem` file there.
+
+To use our provided key. copy it from `tutorials/_example_pk_sdk.pem` to `local_cache/_data/` and change its name to `_pk_sdk.pem`.
+
+#### 3. Local Execution
+
+We want to find all $168$ prime numbers in the interval $1$-$1000$. For this we can run the following code on our local machine.
+
+This code has segments running on multiple threads using a ThreadPool.
+
+
+```python
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+
+
+def local_brute_force_prime_number_generator():
+  def is_prime(n):
+    if n <= 1:
+      return False
+    for i in range(2, int(np.sqrt(n)) + 1):
+      if n % i == 0:
+        return False
+    return True
+
+  random_numbers = np.random.randint(1, 1000, 20)
+
+  thread_pool = ThreadPoolExecutor(max_workers=4)
+  are_primes = list(thread_pool.map(is_prime, random_numbers))
+
+  prime_numbers = []
+  for i in range(len(random_numbers)):
+    if are_primes[i]:
+      prime_numbers.append(random_numbers[i])
+
+  return prime_numbers
+
+
+if __name__ == "__main__":
+  found_so_far = []
+
+  print_step = 0
+
+  while len(found_so_far) < 168:
+    # compute a batch of prime numbers
+    prime_numbers = local_brute_force_prime_number_generator()
+
+    # keep only the new prime numbers
+    for prime_number in prime_numbers:
+      if prime_number not in found_so_far:
+        found_so_far.append(prime_number)
+    # end for
+
+    # show progress
+    if print_step % 50 == 0:
+      print("Found so far: {}:  {}\n".format(len(found_so_far), sorted(found_so_far)))
+
+    print_step += 1
+  # end while
+
+  # show final result
+  print("Found so far: {}:  {}\n".format(len(found_so_far), sorted(found_so_far)))
+```
+
+We can see that we have a `local_brute_force_prime_number_generator` method which will generate a random sample of $20$ numbers that will be checked if they are prime or not.
+
+The rest of the code handles how the numbers generated with this method are kept.
+Because we want to find $168$ unique numbers, we append to the list of found primes only the numbers that are not present yet.
+
+At the end, we want to show a list of all the numbers found.
+
+#### 4. Remote Execution 
+
+For this example we would like to use multiple edge nodes to find the prime numbers faster.
+
+To execute this code on our network, a series of changes must be made to the `local_brute_force_prime_number_generator` method.
+These changes are the only ones a developer has to do to deploy his own custom code on the network.
+
+For this, we will create a new method, `remote_brute_force_prime_number_generator`, which will use the exposed edge node API methods.
+
+
+```python
+from PyE2 import CustomPluginTemplate
+
+# through the `plugin` object we get access to the edge node API
+# the CustomPluginTemplate class acts as a documentation for all the available methods and attributes
+# since we do not allow imports in the custom code due to security reasons, the `plugin` object 
+#   exposes common modules to the user
+def remote_brute_force_prime_number_generator(plugin: CustomPluginTemplate):
+  def is_prime(n):
+    if n <= 1:
+      return False
+    # we use the `plugin.np` instead of the `np` module
+    for i in range(2, int(plugin.np.sqrt(n)) + 1):
+      if n % i == 0:
+        return False
+    return True
+  
+  # we use the `plugin.np` instead of the `np` module
+  random_numbers = plugin.np.random.randint(1, 1000, 20)
+
+  # we use the `plugin.threadapi_map` instead of the `ThreadPoolExecutor.map`
+  are_primes = plugin.threadapi_map(is_prime, random_numbers, n_threads=4)
+
+  prime_numbers = []
+  for i in range(len(random_numbers)):
+    if are_primes[i]:
+      prime_numbers.append(random_numbers[i])
+
+  return prime_numbers
+```
+
+This are all the changes we have to do to deploy this code in the network.
+
+Now lets connect to the network and see what nodes are online.
+We will use the `on_heartbeat` callback to print the nodes.
+
 
 ```python
 from PyE2 import Session
-```
+from time import sleep
 
-#### Preparing callbacks
-
-```python
-def on_hb(session : Session, node_id : str, data : dict):
-  print(node_id, " has a ", data['CPU'])
-  return
-```
-
-#### Running a simple main loop
-
-```python
-if __name__ == '__main__':
-  sess = Session(
-    host="hostname",
-    port=88888,
-    user="username",
-    pwd="password",
-    on_heartbeat=on_hb
-  )
-  sess.run(wait=10)
-```
-
-### Advanced quick-start with decentralized distributed jobs
-
-For a more advanced quick-start we are going to create a execution pipeline on a target processing node that will request a specific number of workers in the network (including itself) to run a brute prime number search job.
-The initiator job itself will create the request for the required number of discovered worker peers then will listen for results. Finally after a given configurable amount of time will close its own execution pipeline as well as each worker pipeline.
-
-<details>
-  <summary>Expand this tutorial</summary>
-
-#### Worker code
-
-The worker will randomly generate numbers and will check if they are prime. If it finds a prime number, it sets the `_result`
-variable.
-
-```python
-_result=None
-skip = False
-for _ in range(plugin.cfg_max_tries):
-  # generate up to `max_tries` numbers in this call
-  num = plugin.np.random.randint(1, 10_000)
-  for n in range(2,int(num**0.5)+1):
-    if num % n == 0:
-      # the generated number is not a prime
-      skip=True
-      break
-    # endif
-  # endfor
-  if not skip:
-    _result=num
-    break
-  # endif
-# endfor
-```
-
-#### Initiator node code
-
-The initiator will search for available workers in the network and will send them the custom job, then will collect data for a time,
-after which will close the worker nodes and itself
-
-```python
-result=None
-if plugin.int_cache['run_first_time'] == 0:
-  # this is the first run, consider this the setup
-
-  plugin.int_cache['run_first_time'] = 1
-
-  worker_code = plugin.cfg_worker_code
-  n_workers = plugin.cfg_n_workers
-  # we use DeAPI `plugin.deapi_get_wokers` call to get the needed workers
-  plugin.obj_cache['lst_workers'] = plugin.deapi_get_wokers(n_workers)
-  plugin.obj_cache['dct_workers'] = {}
-  plugin.obj_cache['dct_worker_progress'] = {}
-  plugin.P(plugin.obj_cache['lst_workers'])
-
-  # for each worker we symetrically launch the same job
-  for worker in plugin.obj_cache['lst_workers']:
-    plugin.obj_cache['dct_worker_progress'][worker] = []
-    pipeline_name = plugin.cmdapi_start_simple_custom_pipeline(
-      base64code=worker_code,
-      dest=worker,
-      instance_config={
-        'MAX_TRIES': plugin.cfg_max_tries,
-      }
-    )
-    plugin.obj_cache['dct_workers'][worker] = pipeline_name
-  # endfor
-
-  plugin.obj_cache["start_time"] = plugin.datetime.now()
-  # endfor
-elif (plugin.datetime.now() - plugin.obj_cache["start_time"]).seconds > plugin.cfg_max_run_time:
-  # if the configured time has elapsed we stop all the worker pipelines
-  # as well as stop this pipeline itself
-
-  for node_id, pipeline_name in plugin.obj_cache['dct_workers'].items():
-    plugin.cmdapi_archive_pipeline(dest=node_id, name=pipeline_name)
-  # now archive own pipeline
-  plugin.cmdapi_archive_pipeline()
-  result = {
-    'STATUS'  : 'DONE',
-    'RESULTS' : plugin.obj_cache['dct_worker_progress']
-  }
-else:
-  # here are the operations we are running periodically
-  payload = plugin.dataapi_struct_data() # we use the DataAPI to get upstream data
-  if payload is not None:
-
-    node_id = payload.get('EE_ID', payload.get('SB_ID'))
-    pipeline_name = payload.get('STREAM_NAME')
-
-    if (node_id, pipeline_name) in plugin.obj_cache['dct_workers'].items():
-      # now we extract result from the result key of the payload JSON
-      # this also can be configured to another name
-      num = payload.get('EXEC_RESULT', payload.get('EXEC_INFO'))
-      if num is not None:
-        plugin.obj_cache['dct_worker_progress'][node_id].append(num)
-        result = {
-          'STATUS'  : 'IN_PROGRESS',
-          'RESULTS' : plugin.obj_cache['dct_worker_progress']
-        }
-  # endif
-# endif
-```
-
-#### The local code
-
-```python
-
-from PyE2 import Session, Pipeline, code_to_base64
-
-SERVER_CONFIG = {
-    'host': "****************",
-    'port': 8888,
-    'user': "****************",
-    'pwd': "****************"
-}
-
-
-def instance_on_data(pipeline : Pipeline, custom_code_result: dict, data: dict):
-  """
-  in `custom_code_result` we have the output of our custom code
-  in `data` we have the entire payload
-  """
-  pipeline.P(custom_code_result)
+def on_heartbeat(session: Session, node_id: str, heartbeat: dict):
+  # the `.P` method is used to print messages in the console and store them in the log file
+  session.P("{} is online".format(node_id))
   return
 
 
 if __name__ == '__main__':
-
-  WORKER_CODE_PATH = 'chain_dist_example_worker.py'
-  INITIATOR_CODE_PATH = 'chain_dist_example_initiator.py'
-
-  with open(WORKER_CODE_PATH, 'rt') as fh:
-    worker_code = fh.read()
-
-  node_id = 'node_id' # provide a known EE id
-  sess = Session(**SERVER_CONFIG, silent=True)
-  sess.connect()
-
-  listener_params = {k.upper(): v for k, v in SERVER_CONFIG.items()}
-  listener_params["PASS"] = listener_params["PWD"]
-  listener_params["TOPIC"] = "lummetry/payloads"
-
-  pipeline = sess.create_pipeline(
-      node_id=node_id,
-      name='test_dist_jobs',
-      data_source='IotQueueListener', # this DCT allows data acquisition from MQTT brokers
-      config={
-          'STREAM_CONFIG_METADATA': listener_params,
-          "RECONNECTABLE": True,
-      },
+  # create a session
+  # the network credentials are read from the .env file automatically
+  session = Session(
+      on_heartbeat=on_heartbeat
   )
 
-
-  pipeline.start_custom_plugin(
-      instance_id='inst02',
-      plain_code_path=INITIATOR_CODE_PATH,
-      params={
-        'MAX_TRIES': 10, # this will be used within plugin as `plugin.cfg_max_tries`
-        'MAX_RUN_TIME': 60, # this will be used within plugin as `plugin.cfg_max_run_time`
-        'N_WORKERS': 2, # this will be used within plugin as `plugin.cfg_n_workers`
-
-        # this will be used within plugin as `plugin.cfg_worker_code`
-        'WORKER_CODE': code_to_base64(worker_code)
-        },
-      on_data=instance_on_data,
-      process_delay=0.2
-  )
-
-  sess.run(wait=True, close_session=True, close_pipelines=True)
+  # run the program for 15 seconds to show all the nodes that are online
+  sleep(15)
 
 ```
 
-</details>
+Next we will select an online node. This node will be our entrypoint in the network.
 
-### Real-time person tracking in a video file
+The available nodes in our test net are:
 
-In this tutorial we will focus on creating a pipeline that consumes data
-from a video file and starts a plugin that draws bounding boxes on all
-the persons that are visible, and returns the images back to us.
-
-<details>
-  <summary>Expand this tutorial</summary>
-
-#### Pre-requisites
-
-For this application, we need to install the PIL (`pillow`) library to use some advanced functionalities involving image manipulation.
-
-```shell
-python -m pip install pillow
+```
+0xai_A8SY7lEqBtf5XaGyB6ipdk5C30vSf3HK4xELp3iplwLe naeural-1
+0xai_Amfnbt3N-qg2-qGtywZIPQBTVlAnoADVRmSAsdDhlQ-6 naeural-2
+0xai_ApltAljEgWk3g8x2QcSa0sS3hT1P4dyCchd04zFSMy5e naeural-3
 ```
 
-#### Importing and configuration
+We will send a task to this node. Since we want to distribute the task of finding prime numbers to multiple nodes, this selected node will handle distribution of tasks and collection of the results.
+
 
 ```python
-from PyE2 import Session, Pipeline, Payload
+node = "0xai_A8SY7lEqBtf5XaGyB6ipdk5C30vSf3HK4xELp3iplwLe" # naeural-1
+
+# we usually wait for the node to be online before sending the task
+# but in this case we are sure that the node is online because we 
+# have received heartbeats from it during the sleep period
+
+# session.wait_for_node(node)
 ```
 
-Here we will use the `Payload` class, which is an extension of the
-`dict` class in Python. What this means is that the `Payload` object can be
-thought of as a `dict` object with some extra functionality.
+Our selected node will periodically output partial results with the prime numbers found so far by the worker nodes. We want to consume these results.
 
-One of such functionality is the method `get_image_as_PIL(key='IMG')`, which
-searches in the dictionary for a given key (the default key being 'IMG'), extracts
-the image stored at that key, and converts it from base64 to a PIL format.
+Thus, we need to implement a callback method that will handle this. 
 
-#### Preparing callbacks
 
 ```python
-val = 0
+from PyE2 import Pipeline
 
-def on_instance_data(pipeline : Pipeline, payload: Payload):
-  global val
-  image = payload.get_image_as_PIL()
-  if image is not None:
-    # if we received an image, save it with at `./img_#.jpeg`
-    image.save("img_{}.jpeg".format(val))
-    val += 1
+# a flag used to close the session when the task is finished
+finished = False
+
+def locally_process_partial_results(pipeline: Pipeline, full_payload):
+  global finished
+  found_so_far = full_payload.get("DATA")
+
+  if found_so_far:
+    pipeline.P("Found so far: {}:  {}\n\n".format(len(found_so_far), sorted(found_so_far)))
+
+  progress = full_payload.get("PROGRESS")
+  if progress == 100:
+    pipeline.P("FINISHED\n\n")
+    finished = True
+
+  return
 ```
 
-Here we can observe that unlike in the previous examples, the data/payload received is now
-typed as `Payload`, and not as `dict`. This will allow us to use the functionalities
-introduced by the `Payload` class, which greatly reduce the amount of code required to parse
-the messages.
+Now we are ready to deploy our job to the network.
 
-#### Running a the main loop
 
 ```python
-if __name__ == '__main__':
-  sess = Session(
-    host="hostname",
-    port=88888,
-    user="username",
-    pwd="password",
-    on_heartbeat=on_hb
-  )
+from PyE2 import DistributedCustomCodePresets as Presets
 
-  # Notice that we call `sess.connect()` before `sess.run()`. That is because in order
-  # to create pipelines and to start plugin instances, we need to be connected to the session
-  sess.connect()
-
-  # Create a pipeline that will acquire data from a Video File located at the given URL
-  # The URL can be a path to a local file or a link to a downloadable file
-  pipeline = sess.create_pipeline(
-    node_id="node_id",
-    name="RealTimePersonTracking",
-    data_source="VideoFile",
-    config={
-      "URL": "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+_, _ = session.create_chain_dist_custom_job(
+    # this is the main node, our entrypoint
+    node_addr=node,
+    
+    # this function is executed on the main node
+    # this handles what we want to do with primes found by a worker node after an iteration
+    # we want to store only the unique prime numbers
+    # we cam either write a custom code to pass here or we can use a preset
+    main_node_process_real_time_collected_data=Presets.PROCESS_REAL_TIME_COLLECTED_DATA__KEEP_UNIQUES_IN_AGGREGATED_COLLECTED_DATA,
+    
+    # this function is executed on the main node
+    # this handles the finish condition of our distributed job
+    # we want to finish when we have found 168 prime numbers
+    # so more than 167 prime numbers
+    # we cam either write a custom code to pass here or we can use a preset
+    main_node_finish_condition=Presets.FINISH_CONDITION___AGGREGATED_DATA_MORE_THAN_X,
+    main_node_finish_condition_kwargs={
+        "X": 167
     },
-  )
+    
+    # this function is executed on the main node
+    # this handles the final processing of the results
+    # this function prepares data for the final result of the distributed job
+    # we want to aggregate all the prime numbers found by the worker nodes in a single list
+    # we cam either write a custom code to pass here or we can use a preset
+    main_node_aggregate_collected_data=Presets.AGGREGATE_COLLECTED_DATA___AGGREGATE_COLLECTED_DATA,
 
-  # Create an object_tracking plugin instance that will track only the persons in the video
-  instance = pipeline.start_plugin_instance(
-    signature="OBJECT_TRACKING_01",
-    instance_id="EXAMPLE_OBJECT_TRACKING",
-    params={
-      "OBJECT_TYPE": ["person"]
-    },
-    on_data=instance_on_data,
-  )
+    # how many worker nodes we want to use for this task
+    nr_remote_worker_nodes=2,
+    
+    # this is the function that will be executed on the worker nodes
+    # this function generates prime numbers using brute force
+    # we simply pass the function reference
+    worker_node_code=remote_brute_force_prime_number_generator,
 
-  sess.run(wait=60)
+    # this is the function that will be executed on the client
+    # this is the callback function that processes the partial results
+    # in our case we want to print the partial results
+    on_data=locally_process_partial_results,
+    
+    # we want to deploy the job immediately
+    deploy=True
+)
 ```
 
-</details>
+Last but not least, we want to close the session when the distributed job finished.
+
+
+```python
+# we wait until the finished flag is set to True
+# we want to release the resources allocated on the selected node when the job is finished
+session.run(wait=lambda: not finished, close_pipelines=True)
+```

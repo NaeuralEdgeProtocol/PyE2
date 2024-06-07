@@ -1,5 +1,5 @@
 """
-This is a simple example of how to use the PyE2 library.
+This is a simple example of how to use the PyE2 SDK.
 
 In this example, we connect to the network, choose a node and
     deploy a plugin with custom code that will run in real time.
@@ -133,7 +133,7 @@ def on_data(pipeline, full_payload):
 if __name__ == "__main__":
   s = Session()
 
-  node = "stefan-box-ee"
+  node = "naeural-1"
   s.wait_for_node(node)
 
   # This should be in #132

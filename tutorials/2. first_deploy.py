@@ -1,5 +1,5 @@
 """
-This is a simple example of how to use the PyE2 library.
+This is a simple example of how to use the PyE2 SDK.
 
 In this example, we connect to the network, choose a node and
     deploy a plugin that will extract frames from a video stream.
@@ -23,9 +23,7 @@ if __name__ == '__main__':
   # the network credentials are read from the .env file automatically
   session: Session = Session(encrypt_comms=True)
 
-  while session.get_active_nodes() == []:
-    session.P("Waiting for nodes to send heartbeats...")
-    sleep(1)
+  session.wait_for_any_node()
 
   chosen_node = session.get_active_nodes()[0]
 

@@ -35,7 +35,7 @@ def resolve_domain_or_ip(url):
 
 if __name__ == '__main__':
   # Usage:
-  url = "mqtt.staging2.hyperfy.tech"
+  url = "r9092118.ala.eu-central-1.emqxsl.com"
   success, ip, original_url = resolve_domain_or_ip(url)
   if not success:
     print(f"Cannot connect to {original_url} (IP: {ip})")

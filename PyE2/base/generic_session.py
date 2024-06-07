@@ -24,7 +24,7 @@ from .transaction import Transaction
 
 class GenericSession(BaseDecentrAIObject):
   """
-  A Session is a connection to a communication server which provides the channel to interact with nodes from the DecentrAI network.
+  A Session is a connection to a communication server which provides the channel to interact with nodes from the Naeural network.
   A Session manages `Pipelines` and handles all messages received from the communication server.
   The Session handles all callbacks that are user-defined and passed as arguments in the API calls.
   """
@@ -73,7 +73,7 @@ class GenericSession(BaseDecentrAIObject):
                formatter_plugins_locations=['plugins.io_formatters'],
                **kwargs) -> None:
     """
-    A Session is a connection to a communication server which provides the channel to interact with nodes from the DecentrAI network.
+    A Session is a connection to a communication server which provides the channel to interact with nodes from the Naeural network.
     A Session manages `Pipelines` and handles all messages received from the communication server.
     The Session handles all callbacks that are user-defined and passed as arguments in the API calls.
 
@@ -88,8 +88,8 @@ class GenericSession(BaseDecentrAIObject):
     pwd : str, optional
         The password. If None, it will be retrieved from the environment variable AIXP_PASSWORD
     name : str, optional
-        The name of this connection, used to identify owned pipelines on a specific DecentrAI node.
-        The name will be used as `INITIATOR_ID` and `SESSION_ID` when communicating with DecentrAI nodes, by default 'pySDK'
+        The name of this connection, used to identify owned pipelines on a specific Naeural edge node.
+        The name will be used as `INITIATOR_ID` and `SESSION_ID` when communicating with Naeural edge nodes, by default 'pySDK'
     config : dict, optional
         Configures the names of the channels this session will connect to.
         If using a Mqtt server, these channels are in fact topics.
@@ -99,7 +99,7 @@ class GenericSession(BaseDecentrAIObject):
         If set, process the messages that come only from the nodes from this list.
         Defaults to None
     show_commands : bool
-        If True, will print the commands that are being sent to the DecentrAI nodes.
+        If True, will print the commands that are being sent to the Naeural edge nodes.
         Defaults to False
     log : Logger, optional
         A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
@@ -304,7 +304,7 @@ class GenericSession(BaseDecentrAIObject):
       Parameters
       ----------
       node_id : str
-          The name of the DecentrAI node that sent the message.
+          The name of the Naeural edge node that sent the message.
 
       Returns
       -------
@@ -320,7 +320,7 @@ class GenericSession(BaseDecentrAIObject):
       Parameters
       ----------
       node_id : str
-          The name of the DecentrAI node that sent the message.
+          The name of the Naeural edge node that sent the message.
       """
       self._last_seen_boxes[node_id] = tm()
       self._box_addr[node_id] = ee_address
@@ -333,7 +333,7 @@ class GenericSession(BaseDecentrAIObject):
       Parameters
       ----------
       node_id : str
-          The name of the DecentrAI node that sent the message.
+          The name of the Naeural edge node that sent the message.
       dict_msg : dict
           The message received from the communication server.
       """
@@ -352,7 +352,7 @@ class GenericSession(BaseDecentrAIObject):
       dict_msg : dict
           The message received from the communication server
       msg_node_id : str
-          The name of the DecentrAI node that sent the message.
+          The name of the Naeural edge node that sent the message.
       msg_pipeline : str
           The name of the pipeline that sent the message.
       msg_signature : str
@@ -413,7 +413,7 @@ class GenericSession(BaseDecentrAIObject):
       dict_msg : dict
           The message received from the communication server
       msg_node_id : str
-          The name of the DecentrAI node that sent the message.
+          The name of the Naeural edge node that sent the message.
       msg_pipeline : str
           The name of the pipeline that sent the message.
       msg_signature : str
@@ -472,7 +472,7 @@ class GenericSession(BaseDecentrAIObject):
       dict_msg : dict
           The message received from the communication server
       msg_node_id : str
-          The name of the DecentrAI node that sent the message.
+          The name of the Naeural edge node that sent the message.
       msg_pipeline : str
           The name of the pipeline that sent the message.
       msg_signature : str
@@ -624,7 +624,7 @@ class GenericSession(BaseDecentrAIObject):
       Parameters
       ----------
       to : str
-          The name of the DecentrAI node that will receive the payload.
+          The name of the Naeural edge node that will receive the payload.
       payload : dict
           The payload to send.
       """
@@ -747,7 +747,7 @@ class GenericSession(BaseDecentrAIObject):
       user = next((x for x in possible_user_values if x is not None), None)
 
       if user is None:
-        env_error = "Error: No user specified for DecentrAI network connection. Please make sure you have the correct credentials in the environment variables within the .env file or provide them as params in code (not recommended due to potential security issue)."
+        env_error = "Error: No user specified for Naeural network connection. Please make sure you have the correct credentials in the environment variables within the .env file or provide them as params in code (not recommended due to potential security issue)."
         raise ValueError(env_error)
       if self._config.get(comm_ct.USER, None) is None:
         self._config[comm_ct.USER] = user
@@ -765,7 +765,7 @@ class GenericSession(BaseDecentrAIObject):
       pwd = next((x for x in possible_password_values if x is not None), None)
 
       if pwd is None:
-        raise ValueError("Error: No password specified for DecentrAI network connection")
+        raise ValueError("Error: No password specified for Naeural network connection")
       if self._config.get(comm_ct.PASS, None) is None:
         self._config[comm_ct.PASS] = pwd
 
@@ -781,7 +781,7 @@ class GenericSession(BaseDecentrAIObject):
       host = next((x for x in possible_host_values if x is not None), None)
 
       if host is None:
-        raise ValueError("Error: No host specified for DecentrAI network connection")
+        raise ValueError("Error: No host specified for Naeural network connection")
       if self._config.get(comm_ct.HOST, None) is None:
         self._config[comm_ct.HOST] = host
 
@@ -795,7 +795,7 @@ class GenericSession(BaseDecentrAIObject):
       port = next((x for x in possible_port_values if x is not None), None)
 
       if port is None:
-        raise ValueError("Error: No port specified for DecentrAI network connection")
+        raise ValueError("Error: No port specified for Naeural network connection")
       if self._config.get(comm_ct.PORT, None) is None:
         self._config[comm_ct.PORT] = int(port)
 
@@ -818,7 +818,7 @@ class GenericSession(BaseDecentrAIObject):
       command : str
           The command to send.
       worker : str
-          The name of the DecentrAI node that will receive the command.
+          The name of the Naeural edge node that will receive the command.
       payload : dict
           The payload to send.
       show_command : bool, optional
@@ -1023,7 +1023,7 @@ class GenericSession(BaseDecentrAIObject):
                         max_wait_time=0,
                         **kwargs) -> Pipeline:
       """
-      Create a new pipeline on a node. A pipeline is the equivalent of the "config file" used by the Hyperfy dev team internally.
+      Create a new pipeline on a node. A pipeline is the equivalent of the "config file" used by the Naeural edge node team internally.
 
       A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
@@ -1039,14 +1039,14 @@ class GenericSession(BaseDecentrAIObject):
 
         `Plugin` == `Signature`
 
-      This call can busy-wait for a number of seconds to listen to heartbeats, in order to check if an DecentrAI node is online or not.
+      This call can busy-wait for a number of seconds to listen to heartbeats, in order to check if an Naeural edge node is online or not.
       If the node does not appear online, a warning will be displayed at the stdout, telling the user that the message that handles the
       creation of the pipeline will be sent, but it is not guaranteed that the specific node will receive it.
 
       Parameters
       ----------
       node_id : str
-          Name of the DecentrAI node that will handle this pipeline.
+          Name of the Naeural edge node that will handle this pipeline.
       name : str
           Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
       data_source : str
@@ -1111,36 +1111,36 @@ class GenericSession(BaseDecentrAIObject):
 
     def get_active_nodes(self):
       """
-      Get the list of all DecentrAI nodes that sent a message since this session was created, and that are considered online
+      Get the list of all Naeural edge nodes that sent a message since this session was created, and that are considered online
 
       Returns
       -------
       list
-          List of names of all the DecentrAI nodes that are considered online
+          List of names of all the Naeural edge nodes that are considered online
 
       """
       return [k for k, v in self._last_seen_boxes.items() if tm() - v < self.online_timeout]
 
     def get_allowed_nodes(self):
       """
-      Get the list of all active DecentrAI nodes to whom this session can send messages
+      Get the list of all active Naeural edge nodes to whom this session can send messages
 
       Returns
       -------
       list[str]
-          List of names of all the active DecentrAI nodes to whom this session can send messages
+          List of names of all the active Naeural edge nodes to whom this session can send messages
       """
       active_nodes = self.get_active_nodes()
       return [node for node in self._dct_can_send_to_node if self._dct_can_send_to_node[node] and node in active_nodes]
 
     def get_active_pipelines(self, node_id):
       """
-      Get a dictionary with all the pipelines that are active on this DecentrAI node
+      Get a dictionary with all the pipelines that are active on this Naeural edge node
 
       Parameters
       ----------
       node_id : str
-          name of the DecentrAI node
+          name of the Naeural edge node
 
       Returns
       -------
@@ -1157,7 +1157,7 @@ class GenericSession(BaseDecentrAIObject):
                            on_notification=None,
                            max_wait_time=0) -> Pipeline:
       """
-      Create a Pipeline object and attach to an existing pipeline on an DecentrAI node.
+      Create a Pipeline object and attach to an existing pipeline on an Naeural edge node.
       Useful when one wants to treat an existing pipeline as one of his own,
       or when one wants to attach callbacks to various events (on_data, on_notification).
 
@@ -1175,7 +1175,7 @@ class GenericSession(BaseDecentrAIObject):
 
         `Plugin` == `Signature`
 
-      This call can busy-wait for a number of seconds to listen to heartbeats, in order to check if an DecentrAI node is online or not.
+      This call can busy-wait for a number of seconds to listen to heartbeats, in order to check if an Naeural edge node is online or not.
       If the node does not appear online, a warning will be displayed at the stdout, telling the user that the message that handles the
       creation of the pipeline will be sent, but it is not guaranteed that the specific node will receive it.
 
@@ -1183,7 +1183,7 @@ class GenericSession(BaseDecentrAIObject):
       Parameters
       ----------
       node_id : str
-          Name of the DecentrAI node that handles this pipeline.
+          Name of the Naeural edge node that handles this pipeline.
       name : str
           Name of the existing pipeline.
       on_data : Callable[[Pipeline, str, str, dict], None], optional
@@ -1247,12 +1247,12 @@ class GenericSession(BaseDecentrAIObject):
                                      max_wait_time=0,
                                      **kwargs) -> Pipeline:
       """
-      Create a new pipeline on a node, or attach to an existing pipeline on an DecentrAI node.
+      Create a new pipeline on a node, or attach to an existing pipeline on an Naeural edge node.
 
       Parameters
       ----------
       node_id : str
-          Name of the DecentrAI node that will handle this pipeline.
+          Name of the Naeural edge node that will handle this pipeline.
       name : str
           Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
       data_source : str
@@ -1371,7 +1371,7 @@ class GenericSession(BaseDecentrAIObject):
       Parameters
       ----------
       node_id : str
-          The name of the DecentrAI node.
+          The name of the Naeural edge node.
       timeout : int, optional
           The timeout, by default 15
 
