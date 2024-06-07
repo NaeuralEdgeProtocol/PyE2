@@ -66,7 +66,7 @@ To use our provided key. copy it from `tutorials/_example_pk_sdk.pem` to `local_
 
 ### 3. Local Execution
 
-We want to find all $168$ prime numbers in the interval $1$-$1000$. For this we can run the following code on our local machine.
+We want to find all $168$ prime numbers in the interval $1$ - $1000$. For this we can run the following code on our local machine.
 
 This code has segments running on multiple threads using a ThreadPool.
 
