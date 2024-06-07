@@ -39,7 +39,7 @@ The following are the same:
 
 Below is a simple "Hello world!" style application that aims to show how simple and straightforward it is to distribute existing Python code to multiple edge node workers.
 
-To execute this code, you can check [tutorials/video_presentation/1. hello_world.ipynv](./tutorials/video_presentation/1.%20hello_world.ipynb)
+To execute this code, you can check [tutorials/video_presentation/1. hello_world.ipynb](./tutorials/video_presentation/1.%20hello_world.ipynb)
 
 
 ### 1. Create `.env` file
