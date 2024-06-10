@@ -378,7 +378,7 @@ class GenericSession(BaseDecentrAIObject):
         pipeline_name = config[PAYLOAD_DATA.NAME]
         pipeline: Pipeline = self._online_boxes[msg_node_id].get(pipeline_name, None)
         if pipeline is not None:
-          pipeline.update_full_configuration(config)
+          pipeline.update_full_configuration({k.upper(): v for k, v in config.items()})
         else:
           self._online_boxes[msg_node_id][pipeline_name] = self.__create_pipeline_from_config(msg_node_id, config)
 
