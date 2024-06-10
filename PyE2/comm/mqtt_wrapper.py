@@ -147,6 +147,10 @@ class MQTTWrapper(object):
     return self._config.get(COMMS.CERT_PATH)
 
   @property
+  def cfg_secure(self):
+    return self._config.get(COMMS.SECURE, 1)  # 0 or 1
+
+  @property
   def recv_channel_def(self):
     if self.recv_channel_name is None:
       return
@@ -183,6 +187,34 @@ class MQTTWrapper(object):
     client_id = str(mqttc._client_id) if mqttc is not None else 'None'
     return client_id
 
+  def __maybe_set_mqtt_tls(self, mqttc: mqtt.Client):
+    if self.cfg_secure != 1:
+      return
+    cert_path = str(self.cfg_cert_path)
+
+    if cert_path.upper() in ["", "NONE", "NULL"]:
+      cert_file_name = self.cfg_host + ".crt"
+      cert_file = impresources.files(certs).joinpath(cert_file_name)
+
+      if cert_file.exists():
+        self.P("Using certificate file: {}".format(cert_file_name))
+        mqttc.tls_set(cert_file)
+      else:
+        self.P("No certificate provided, using default TLS")
+        mqttc.tls_set()
+    # end if certificate not provided
+    else:
+      if os.path.exists(cert_path):
+        self.P("Using certificate file: {}".format(cert_path))
+        mqttc.tls_set(cert_path)
+      else:
+        self.P("Certificate file not found: {}".format(cert_path), color='r', verbosity=1)
+        self.P("Using default TLS", verbosity=1)
+        mqttc.tls_set()
+    # end if certificate provided
+
+    return
+
   def __create_mqttc_object(self, comtype, client_uid):
     client_id = self._connection_name + '_' + comtype + '_' + client_uid
     if mqtt_version.startswith('2'):
@@ -202,14 +234,7 @@ class MQTTWrapper(object):
       password=self.cfg_pass
     )
 
-    if self.cfg_cert_path is not None:
-      mqttc.tls_set(self.cfg_cert_path)
-    else:
-      cert_file_name = self.cfg_host + ".crt"
-      cert_file = impresources.files(certs).joinpath(cert_file_name)
-
-      if cert_file.exists():
-        mqttc.tls_set(cert_file)
+    self.__maybe_set_mqtt_tls(mqttc)
 
     mqttc.on_connect = self._callback_on_connect
     mqttc.on_disconnect = self._callback_on_disconnect
