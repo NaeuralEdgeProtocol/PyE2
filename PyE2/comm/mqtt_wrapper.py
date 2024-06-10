@@ -96,6 +96,14 @@ class MQTTWrapper(object):
       _r = self.log.P(msg, show_time=t, color='yellow')
     # endif
     return _r
+  
+  
+  @property
+  def is_secured(self):
+    val = self._config.get(COMMS.SECURED, 1)
+    if isinstance(val, str):
+      val = int(eval(val) not in [0, False, None])
+    return val
 
   @property
   def send_channel_name(self):
@@ -146,9 +154,6 @@ class MQTTWrapper(object):
   def cfg_cert_path(self):
     return self._config.get(COMMS.CERT_PATH)
 
-  @property
-  def cfg_secure(self):
-    return self._config.get(COMMS.SECURE, 1)  # 0 or 1
 
   @property
   def recv_channel_def(self):
@@ -188,31 +193,35 @@ class MQTTWrapper(object):
     return client_id
 
   def __maybe_set_mqtt_tls(self, mqttc: mqtt.Client):
-    if self.cfg_secure != 1:
-      return
-    cert_path = str(self.cfg_cert_path)
+    if self.is_secured: # no need to set TLS if not configured with "SECURED" : 1
+      self.P("Setting up secured comms on PORT: {}".format(self.cfg_port))
+      cert_path = str(self.cfg_cert_path)
 
-    if cert_path.upper() in ["", "NONE", "NULL"]:
-      cert_file_name = self.cfg_host + ".crt"
-      cert_file = impresources.files(certs).joinpath(cert_file_name)
+      if cert_path.upper() in ["", "NONE", "NULL"]:
+        cert_file_name = self.cfg_host + ".crt"
+        cert_file = impresources.files(certs).joinpath(cert_file_name)
 
-      if cert_file.exists():
-        self.P("Using certificate file: {}".format(cert_file_name))
-        mqttc.tls_set(cert_file)
+        if cert_file.exists():
+          self.P("Using certificate file: {}".format(cert_file_name))
+          mqttc.tls_set(cert_file)
+        else:
+          self.P("No certificate provided, using default TLS")
+          mqttc.tls_set()
+      # end if certificate not provided
       else:
-        self.P("No certificate provided, using default TLS")
-        mqttc.tls_set()
-    # end if certificate not provided
+        if os.path.exists(cert_path):
+          self.P("Using certificate file: {}".format(cert_path))
+          mqttc.tls_set(cert_path)
+        else:
+          self.P("Certificate file not found: {}".format(cert_path), color='r', verbosity=1)
+          self.P("Using default TLS", verbosity=1)
+          mqttc.tls_set()
+      # end if certificate provided
     else:
-      if os.path.exists(cert_path):
-        self.P("Using certificate file: {}".format(cert_path))
-        mqttc.tls_set(cert_path)
-      else:
-        self.P("Certificate file not found: {}".format(cert_path), color='r', verbosity=1)
-        self.P("Using default TLS", verbosity=1)
-        mqttc.tls_set()
-    # end if certificate provided
-
+      self.P("Communication is not secured. SECURED: {}, PORT: {}".format(
+      self.cfg_secured, self.cfg_port), color='r'
+      )
+    # end if secured
     return
 
   def __create_mqttc_object(self, comtype, client_uid):
