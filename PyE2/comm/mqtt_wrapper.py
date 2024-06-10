@@ -99,7 +99,7 @@ class MQTTWrapper(object):
 
   @property
   def is_secured(self):
-    val = self._config.get(COMMS.SECURED, 0)  # TODO: make 1 later on
+    val = self.cfg_secured or 0  # TODO: make 1 later on
     if isinstance(val, str):
       val = int(eval(val) not in [0, False, None])
     return val
@@ -152,6 +152,10 @@ class MQTTWrapper(object):
   @property
   def cfg_cert_path(self):
     return self._config.get(COMMS.CERT_PATH)
+
+  @property
+  def cfg_secured(self):
+    return self._config.get(COMMS.SECURED)
 
   @property
   def recv_channel_def(self):
