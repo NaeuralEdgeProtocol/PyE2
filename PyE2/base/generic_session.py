@@ -742,6 +742,7 @@ class GenericSession(BaseDecentrAIObject):
         os.getenv(ENVIRONMENT.AIXP_USER),
         os.getenv(ENVIRONMENT.EE_USERNAME),
         os.getenv(ENVIRONMENT.EE_USER),
+        self._config.get(comm_ct.USER),
       ]
 
       user = next((x for x in possible_user_values if x is not None), None)
@@ -760,6 +761,7 @@ class GenericSession(BaseDecentrAIObject):
         os.getenv(ENVIRONMENT.EE_PASSWORD),
         os.getenv(ENVIRONMENT.EE_PASS),
         os.getenv(ENVIRONMENT.EE_PWD),
+        self._config.get(comm_ct.PASS),
       ]
 
       pwd = next((x for x in possible_password_values if x is not None), None)
@@ -775,7 +777,8 @@ class GenericSession(BaseDecentrAIObject):
         os.getenv(ENVIRONMENT.AIXP_HOST),
         os.getenv(ENVIRONMENT.EE_HOSTNAME),
         os.getenv(ENVIRONMENT.EE_HOST),
-        "r9092118.ala.eu-central-1.emqxsl.com"
+        self._config.get(comm_ct.HOST),
+        "r9092118.ala.eu-central-1.emqxsl.com",
       ]
 
       host = next((x for x in possible_host_values if x is not None), None)
@@ -789,6 +792,7 @@ class GenericSession(BaseDecentrAIObject):
         port,
         os.getenv(ENVIRONMENT.AIXP_PORT),
         os.getenv(ENVIRONMENT.EE_PORT),
+        self._config.get(comm_ct.PORT),
         8883,
       ]
 
@@ -802,6 +806,7 @@ class GenericSession(BaseDecentrAIObject):
       possible_cert_path_values = [
         os.getenv(ENVIRONMENT.AIXP_CERT_PATH),
         os.getenv(ENVIRONMENT.EE_CERT_PATH),
+        self._config.get(comm_ct.CERT_PATH),
       ]
 
       cert_path = next((x for x in possible_cert_path_values if x is not None), None)
