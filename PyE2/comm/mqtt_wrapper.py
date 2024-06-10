@@ -96,11 +96,10 @@ class MQTTWrapper(object):
       _r = self.log.P(msg, show_time=t, color='yellow')
     # endif
     return _r
-  
-  
+
   @property
   def is_secured(self):
-    val = self._config.get(COMMS.SECURED, 1)
+    val = self._config.get(COMMS.SECURED, 0)  # TODO: make 1 later on
     if isinstance(val, str):
       val = int(eval(val) not in [0, False, None])
     return val
@@ -154,7 +153,6 @@ class MQTTWrapper(object):
   def cfg_cert_path(self):
     return self._config.get(COMMS.CERT_PATH)
 
-
   @property
   def recv_channel_def(self):
     if self.recv_channel_name is None:
@@ -193,7 +191,7 @@ class MQTTWrapper(object):
     return client_id
 
   def __maybe_set_mqtt_tls(self, mqttc: mqtt.Client):
-    if self.is_secured: # no need to set TLS if not configured with "SECURED" : 1
+    if self.is_secured:  # no need to set TLS if not configured with "SECURED" : 1
       self.P("Setting up secured comms on PORT: {}".format(self.cfg_port))
       cert_path = str(self.cfg_cert_path)
 
@@ -219,7 +217,7 @@ class MQTTWrapper(object):
       # end if certificate provided
     else:
       self.P("Communication is not secured. SECURED: {}, PORT: {}".format(
-      self.cfg_secured, self.cfg_port), color='r'
+          self.cfg_secured, self.cfg_port), color='r'
       )
     # end if secured
     return
