@@ -18,7 +18,8 @@ class _PluginsManagerMixin:
   
   @property
   def is_secured(self):
-    return self.log.config_data.get("SECURED", False)
+    val = self.log.config_data.get("SECURED", False)
+    return val in [True, 'True', 'true', '1', 1]
 
   def __get_avail_plugins(self, locations, debug=True):
     """
