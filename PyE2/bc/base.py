@@ -489,7 +489,8 @@ class BaseBlockEngine:
       self.P("WARNING: no `{}` file found. Creating empty one.".format(full_path), verbosity=1)
       with open(fn, 'wt') as fh:
         fh.write('\n')
-    lst_allowed = [x.strip().split()[0] for x in lst_allowed]
+    lst_allowed = [x.strip() for x in lst_allowed]
+    lst_allowed = [x.split()[0] for x in lst_allowed if x != '']
     lst_allowed = [self._remove_prefix(x) for x in lst_allowed if x != '']
     return lst_allowed
       
