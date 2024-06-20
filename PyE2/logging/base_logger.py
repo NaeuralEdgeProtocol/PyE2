@@ -1885,3 +1885,100 @@ class BaseLogger(object):
       s = s.replace('__', '_')
       result = s
     return result
+
+  @staticmethod
+  def match_template(json_data: dict, template: dict) -> bool:
+    """
+    Check if all keys (including subkeys) within the template can be found with the same values in the given JSON.
+
+    Parameters
+    ----------
+    json_data : dict
+      The JSON (dict) to check against the template.
+    template : dict
+      The template JSON (dict) containing the keys and values to match.
+
+    Returns
+    -------
+    bool
+      True if the JSON matches the template, False otherwise.
+    """
+    # Initialize the stack with the top-level dictionaries from json_data and template
+    stack = [(json_data, template)]
+
+    # Process each pair of current data and template dictionaries/lists from the stack
+    while stack:
+      current_data, current_tmpl = stack.pop()
+
+      # Check if current_tmpl is a dictionary
+      if isinstance(current_tmpl, dict):
+        for key, value in current_tmpl.items():
+          # If the key is not in current_data, return False
+          if key not in current_data:
+            return False
+
+          # If the value in the template is a dictionary, add the corresponding pair to the stack
+          if isinstance(value, dict):
+            if not isinstance(current_data[key], dict):
+              return False
+            stack.append((current_data[key], value))
+
+          # If the value in the template is a list, process each item in the list
+          elif isinstance(value, list):
+            if not isinstance(current_data[key], list):
+              return False
+
+            tmpl_list = value
+            data_list = current_data[key]
+
+            # For each item in the template list, ensure there is a matching item in the data list
+            for tmpl_item in tmpl_list:
+              matched = False
+              for data_item in data_list:
+                # If both are dictionaries, add them to the stack for further processing
+                if isinstance(tmpl_item, dict) and isinstance(data_item, dict):
+                  stack.append((data_item, tmpl_item))
+                  matched = True
+                  break
+                # If both are lists, add them to the stack for further processing
+                elif isinstance(tmpl_item, list) and isinstance(data_item, list):
+                  stack.append((data_item, tmpl_item))
+                  matched = True
+                  break
+                # If they are of the same type and equal, mark as matched
+                elif tmpl_item == data_item:
+                  matched = True
+                  break
+              # If no matching item is found, return False
+              if not matched:
+                return False
+
+          # If the value is not a dictionary or list, directly compare the values
+          elif current_data[key] != value:
+            return False
+
+      # Check if current_tmpl is a list
+      elif isinstance(current_tmpl, list):
+        for tmpl_item in current_tmpl:
+          matched = False
+          for data_item in current_data:
+            # If both are dictionaries, add them to the stack for further processing
+            if isinstance(tmpl_item, dict) and isinstance(data_item, dict):
+              stack.append((data_item, tmpl_item))
+              matched = True
+              break
+            # If both are lists, add them to the stack for further processing
+            elif isinstance(tmpl_item, list) and isinstance(data_item, list):
+              stack.append((data_item, tmpl_item))
+              matched = True
+              break
+            # If they are of the same type and equal, mark as matched
+            elif tmpl_item == data_item:
+              matched = True
+              break
+          # If no matching item is found, return False
+          if not matched:
+            return False
+
+    # If all checks passed, return True
+    return True
