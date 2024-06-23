@@ -28,8 +28,7 @@ class Payload(UserDict):
         The image if it was found or None otherwise.
     """
     images = self.get_images_as_PIL(key)
-    if images is not None:
-      images = [np.array(image) for image in images]
+    images = [np.array(image) if image is not None else None for image in images]
     return images
 
   def get_images_as_PIL(self, key='IMG') -> list:
@@ -50,9 +49,9 @@ class Payload(UserDict):
     """
     base64_img = self.data.get(key, None)
     if base64_img is None:
-      return None
+      return [None]
     if isinstance(base64_img, list):
-      return [self._image_from_b64(b64) for b64 in base64_img]
+      return [self._image_from_b64(b64) if b64 is not None else None for b64 in base64_img]
     return [self._image_from_b64(base64_img)]
 
   def _image_from_b64(self, base64_img):
