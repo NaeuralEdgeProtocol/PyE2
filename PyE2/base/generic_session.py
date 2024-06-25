@@ -1273,7 +1273,12 @@ class GenericSession(BaseDecentrAIObject):
       if name not in self._dct_online_nodes_pipelines[node_id]:
         raise Exception("Unable to attach to pipeline. Pipeline does not exist")
 
-      pipeline = self._dct_online_nodes_pipelines[node_id][name]
+      pipeline: Pipeline = self._dct_online_nodes_pipelines[node_id][name]
+
+      if on_data is not None:
+        pipeline._add_on_data_callback(on_data)
+      if on_notification is not None:
+        pipeline._add_on_notification_callback(on_notification)
 
       self.own_pipelines.append(pipeline)
 

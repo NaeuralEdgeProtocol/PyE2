@@ -678,6 +678,44 @@ class Pipeline(object):
       self.__call_instance_on_notification_callbacks(signature, instance_id, data)
       return
 
+    def _add_on_data_callback(self, callback):
+      """
+      Add a new callback to the list of callbacks that handle the data received from the pipeline.
+
+      Parameters
+      ----------
+      callback : Callable[[Pipeline, str, str, dict], None]
+          The callback to add
+      """
+      self.on_data_callbacks.append(callback)
+      return
+
+    def _reset_on_data_callback(self):
+      """
+      Reset the list of callbacks that handle the data received from the pipeline.
+      """
+      self.on_data_callbacks = []
+      return
+
+    def _add_on_notification_callback(self, callback):
+      """
+      Add a new callback to the list of callbacks that handle the notifications received from the pipeline.
+
+      Parameters
+      ----------
+      callback : Callable[[Pipeline, dict], None]
+          The callback to add
+      """
+      self.on_notification_callbacks.append(callback)
+      return
+
+    def _reset_on_notification_callback(self):
+      """
+      Reset the list of callbacks that handle the notifications received from the pipeline.
+      """
+      self.on_notification_callbacks = []
+      return
+
     def __call_instance_on_data_callbacks(self, signature, instance_id, data):
       """
       Call all the `on_data` callbacks of the instance that sent the message.
