@@ -137,9 +137,10 @@ class GenericSession(BaseDecentrAIObject):
     self._verbosity = verbosity
     self.encrypt_comms = encrypt_comms
 
-    self._online_boxes: dict[str, Pipeline] = {}
+    self._dct_online_nodes_pipelines: dict[str, Pipeline] = {}
+    self._dct_online_nodes_last_heartbeat: dict[str, dict] = {}
     self._dct_can_send_to_node: dict[str, bool] = {}
-    self._last_seen_boxes = {}
+    self._dct_node_last_seen_time = {}
     self._box_addr = {}
     self.online_timeout = 60
     self.filter_workers = filter_workers
@@ -322,7 +323,7 @@ class GenericSession(BaseDecentrAIObject):
       node_id : str
           The name of the Naeural edge node that sent the message.
       """
-      self._last_seen_boxes[node_id] = tm()
+      self._dct_node_last_seen_time[node_id] = tm()
       self._box_addr[node_id] = ee_address
       return
 
@@ -367,23 +368,26 @@ class GenericSession(BaseDecentrAIObject):
         data = json.loads(str_data)
         dict_msg = {**dict_msg, **data}
 
+      self._dct_online_nodes_last_heartbeat[msg_node_id] = dict_msg
+
+      ee_address = dict_msg[HB.EE_ADDR]
+      self.__track_online_node(msg_node_id, ee_address)
+
       msg_active_configs = dict_msg.get(HB.CONFIG_STREAMS)
       if msg_active_configs is None:
         return
 
       # default action
-      if msg_node_id not in self._online_boxes:
-        self._online_boxes[msg_node_id] = {}
+      if msg_node_id not in self._dct_online_nodes_pipelines:
+        self._dct_online_nodes_pipelines[msg_node_id] = {}
       for config in msg_active_configs:
         pipeline_name = config[PAYLOAD_DATA.NAME]
-        pipeline: Pipeline = self._online_boxes[msg_node_id].get(pipeline_name, None)
+        pipeline: Pipeline = self._dct_online_nodes_pipelines[msg_node_id].get(pipeline_name, None)
         if pipeline is not None:
           pipeline.update_full_configuration({k.upper(): v for k, v in config.items()})
         else:
-          self._online_boxes[msg_node_id][pipeline_name] = self.__create_pipeline_from_config(msg_node_id, config)
-
-      ee_address = dict_msg[HB.EE_ADDR]
-      self.__track_online_node(msg_node_id, ee_address)
+          self._dct_online_nodes_pipelines[msg_node_id][pipeline_name] = self.__create_pipeline_from_config(
+            msg_node_id, config)
 
       # TODO: move this call in `__on_message_default_callback`
       if self.__maybe_ignore_message(msg_node_id):
@@ -1136,7 +1140,7 @@ class GenericSession(BaseDecentrAIObject):
           List of names of all the Naeural edge nodes that are considered online
 
       """
-      return [k for k, v in self._last_seen_boxes.items() if tm() - v < self.online_timeout]
+      return [k for k, v in self._dct_node_last_seen_time.items() if tm() - v < self.online_timeout]
 
     def get_allowed_nodes(self):
       """
@@ -1165,7 +1169,29 @@ class GenericSession(BaseDecentrAIObject):
           The key is the name of the pipeline, and the value is the entire config dictionary of that pipeline.
 
       """
-      return self._online_boxes.get(node_id, None) if node_id in self.get_active_nodes() else None
+      return self._dct_online_nodes_pipelines.get(node_id, None) if node_id in self.get_active_nodes() else None
+
+    def get_active_supervisors(self):
+      """
+      Get the list of all active supervisors
+
+      Returns
+      -------
+      list
+          List of names of all the active supervisors
+      """
+      active_nodes = self.get_active_nodes()
+
+      active_supervisors = []
+      for node in active_nodes:
+        last_hb = self._dct_online_nodes_last_heartbeat.get(node, None)
+        if last_hb is None:
+          continue
+
+        if last_hb.get(PAYLOAD_DATA.IS_SUPERVISOR, False):
+          active_supervisors.append(node)
+
+      return active_supervisors
 
     def attach_to_pipeline(self, *,
                            node_id,
@@ -1244,10 +1270,10 @@ class GenericSession(BaseDecentrAIObject):
       if not found:
         raise Exception("Unable to attach to pipeline. Node does not exist")
 
-      if name not in self._online_boxes[node_id]:
+      if name not in self._dct_online_nodes_pipelines[node_id]:
         raise Exception("Unable to attach to pipeline. Pipeline does not exist")
 
-      pipeline = self._online_boxes[node_id][name]
+      pipeline = self._dct_online_nodes_pipelines[node_id][name]
 
       self.own_pipelines.append(pipeline)
 
