@@ -912,23 +912,35 @@ class GenericSession(BaseDecentrAIObject):
             "All updates must have a plugin instance config as dict"
       self._send_command_to_box(COMMANDS.BATCH_UPDATE_PIPELINE_INSTANCE, worker, lst_updates, **kwargs)
 
-    def _send_command_pipeline_command(self, worker, pipeline_name, command, payload={}, command_params={}, **kwargs):
-      payload = {
+    def _send_command_pipeline_command(self, worker, pipeline_name, command, payload=None, command_params=None, **kwargs):
+      if isinstance(command, str):
+        command = {command: True}
+      if payload is not None:
+        command.update(payload)
+      if command_params is not None:
+        command[COMMANDS.COMMAND_PARAMS] = command_params
+
+      pipeline_command = {
         PAYLOAD_DATA.NAME: pipeline_name,
         COMMANDS.PIPELINE_COMMAND: command,
-        COMMANDS.COMMAND_PARAMS: command_params,
-        **payload,
       }
-      self._send_command_to_box(COMMANDS.PIPELINE_COMMAND, worker, payload, **kwargs)
+      self._send_command_to_box(COMMANDS.PIPELINE_COMMAND, worker, pipeline_command, **kwargs)
       return
 
-    def _send_command_instance_command(self, worker, pipeline_name, signature, instance_id, command, payload={}, command_params={}, **kwargs):
-      payload = {
-        COMMANDS.INSTANCE_COMMAND: command,
-        **payload,
-        COMMANDS.COMMAND_PARAMS: command_params,
-      }
-      self._send_command_update_instance_config(worker, pipeline_name, signature, instance_id, payload, **kwargs)
+    def _send_command_instance_command(self, worker, pipeline_name, signature, instance_id, command, payload=None, command_params=None, **kwargs):
+      if command_params is None:
+        command_params = {}
+      if isinstance(command, str):
+        command_params[command] = True
+        command = {}
+      if payload is not None:
+        command.update(payload)
+
+      command[COMMANDS.COMMAND_PARAMS] = command_params
+
+      instance_command = {COMMANDS.INSTANCE_COMMAND: command}
+      self._send_command_update_instance_config(
+        worker, pipeline_name, signature, instance_id, instance_command, **kwargs)
       return
 
     def _send_command_stop_node(self, worker, **kwargs):

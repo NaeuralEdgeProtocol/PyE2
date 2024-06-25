@@ -1183,7 +1183,7 @@ class Pipeline(object):
 
       return
 
-    def send_pipeline_command(self, command, payload={}, command_params={}, wait_confirmation=True, timeout=10) -> list[Transaction]:
+    def send_pipeline_command(self, command, payload=None, command_params=None, wait_confirmation=True, timeout=10) -> list[Transaction]:
       """
       Send a pipeline command to the Naeural edge node.
       This command can block until the command is confirmed by the Naeural edge node.
