@@ -130,6 +130,10 @@ class MQTTWrapper(object):
     return self._config.get(COMMS.EE_ID, self._config.get(COMMS.SB_ID, None))
 
   @property
+  def cfg_node_addr(self):
+    return self._config.get(COMMS.EE_ADDR)
+
+  @property
   def cfg_user(self):
     return self._config[COMMS.USER]
 
@@ -155,7 +159,7 @@ class MQTTWrapper(object):
 
   @property
   def cfg_secured(self):
-    return self._config.get(COMMS.SECURED, 0) # TODO: make 1 later on
+    return self._config.get(COMMS.SECURED, 0)  # TODO: make 1 later on
 
   @property
   def recv_channel_def(self):
@@ -164,10 +168,19 @@ class MQTTWrapper(object):
 
     cfg = self._config[self.recv_channel_name].copy()
     topic = cfg[COMMS.TOPIC]
+    lst_topics = []
     if "{}" in topic:
-      topic = topic.format(self.cfg_node_id)
+      if self.cfg_node_id is not None:
+        lst_topics.append(topic.format(self.cfg_node_id))
+      if self.cfg_node_addr is not None:
+        lst_topics.append(topic.format(self.cfg_node_addr))
+    else:
+      lst_topics.append(topic)
 
-    cfg[COMMS.TOPIC] = topic
+    if len(lst_topics) == 0:
+      raise ValueError("ERROR! No topics to subscribe to")
+
+    cfg[COMMS.TOPIC] = lst_topics
     return cfg
 
   @property
@@ -440,35 +453,39 @@ class MQTTWrapper(object):
       return
 
     nr_retry = 1
-    has_connection = False
+    has_connection = True
     exception = None
-    topic = self.recv_channel_def[COMMS.TOPIC]
+    lst_topics = self.recv_channel_def[COMMS.TOPIC]
+    for topic in lst_topics:
+      current_topic_connection = False
+      while nr_retry <= max_retries:
+        try:
+          if self._mqttc is not None:
+            self._mqttc.subscribe(
+              topic=topic,
+              qos=self.cfg_qos
+            )
+            current_topic_connection = True
+          else:
+            has_connection = False
+        except Exception as e:
+          has_connection = False
+          exception = e
 
-    while nr_retry <= max_retries:
-      try:
-        if self._mqttc is not None:
-          self._mqttc.subscribe(
-            topic=topic,
-            qos=self.cfg_qos
-          )
-          has_connection = True
-      except Exception as e:
-        exception = e
+        if current_topic_connection:
+          break
 
-      if has_connection:
-        break
+        sleep(1)
+        nr_retry += 1
+      # endwhile
 
-      sleep(1)
-      nr_retry += 1
-    # endwhile
-
-    if has_connection:
-      msg = "MQTT (Paho) subscribed to topic '{}'".format(topic)
-      msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_NORMAL
-    else:
-      msg = "MQTT (Paho) subscribe to '{}' FAILED after {} retries (reason:{})".format(topic, max_retries, exception)
-      msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_EXCEPTION
-    # endif
+      if current_topic_connection:
+        msg = "MQTT (Paho) subscribed to topic '{}'".format(topic)
+        msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_NORMAL
+      else:
+        msg = "MQTT (Paho) subscribe to '{}' FAILED after {} retries (reason:{})".format(topic, max_retries, exception)
+        msg_type = PAYLOAD_CT.STATUS_TYPE.STATUS_EXCEPTION
+      # endif
 
     dct_ret = {
       'has_connection': has_connection,
