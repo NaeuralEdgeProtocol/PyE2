@@ -1,6 +1,7 @@
 from ..const import PAYLOAD_DATA
 from .transaction import Transaction
 from .responses import PipelineOKResponse, PluginConfigOKResponse, PluginInstanceCommandOKResponse
+from time import time, sleep
 
 
 class Instance():
@@ -50,7 +51,9 @@ class Instance():
     self.__was_last_operation_successful = None
 
     self.on_data_callbacks = []
+    self.temporary_on_data_callbacks = {}
     self.on_notification_callbacks = []
+    self.temporary_on_notification_callbacks = {}
 
     if on_data:
       self.on_data_callbacks.append(on_data)
@@ -74,6 +77,8 @@ class Instance():
       """
       for callback in self.on_data_callbacks:
         callback(pipeline, data)
+      for callback in self.temporary_on_data_callbacks.values():
+        callback(pipeline, data)
       return
 
     def _on_notification(self, pipeline, data):
@@ -89,6 +94,8 @@ class Instance():
       """
       for callback in self.on_notification_callbacks:
         callback(pipeline, data)
+      for callback in self.temporary_on_notification_callbacks.values():
+        callback(pipeline, data)
       return
 
     def _add_on_data_callback(self, callback):
@@ -101,6 +108,35 @@ class Instance():
           The callback to add
       """
       self.on_data_callbacks.append(callback)
+      return
+
+    def _add_temporary_on_data_callback(self, attachment, callback):
+      """
+      Add a new temporary callback to the list of callbacks that handle the data received from the instance.
+
+      Parameters
+      ----------
+      attachment : object
+          The attachment id of the callback
+      callback : Callable[[Pipeline, dict], None]
+          The callback to add
+      """
+      # TODO: this can fail (very small chance, but still)
+      # FIXME: make add / delete happen after callbacks
+      self.temporary_on_data_callbacks[attachment] = callback
+      return
+
+    def _remove_temporary_on_data_callback(self, attachment):
+      """
+      Remove a temporary callback from the list of callbacks that handle the data received from the instance.
+
+      Parameters
+      ----------
+      attachment : object
+          The attachment id of the callback
+      """
+      if attachment in self.temporary_on_data_callbacks:
+        del self.temporary_on_data_callbacks[attachment]
       return
 
     def _reset_on_data_callback(self):
@@ -120,6 +156,33 @@ class Instance():
           The callback to add
       """
       self.on_notification_callbacks.append(callback)
+      return
+
+    def _add_temporary_on_notification_callback(self, attachment, callback):
+      """
+      Add a new temporary callback to the list of callbacks that handle the notifications received from the instance.
+
+      Parameters
+      ----------
+      attachment : object
+          The attachment id of the callback
+      callback : Callable[[Pipeline, dict], None]
+          The callback to add
+      """
+      self.temporary_on_notification_callbacks[attachment] = callback
+      return
+
+    def _remove_temporary_on_notification_callback(self, attachment):
+      """
+      Remove a temporary callback from the list of callbacks that handle the notifications received from the instance.
+
+      Parameters
+      ----------
+      attachment : object
+          The attachment id of the callback
+      """
+      if attachment in self.temporary_on_notification_callbacks:
+        del self.temporary_on_notification_callbacks[attachment]
       return
 
     def _reset_on_notification_callback(self):
@@ -370,7 +433,7 @@ class Instance():
 
       return
 
-    def send_instance_command(self, command, payload={}, command_params={}, wait_confirmation=True, timeout=10):
+    def send_instance_command(self, command, payload=None, command_params=None, wait_confirmation=True, timeout=10):
       """
       Send a command to the instance.
       This command can block until the command is confirmed by the Naeural edge node.
@@ -446,3 +509,102 @@ class Instance():
     def D(self, *args, **kwargs):
       self.log.D(*args, **kwargs)
       return
+
+    def temporary_attach(self, on_data=None, on_notification=None):
+      """
+      Attach a temporary callback to the instance.
+
+      Parameters
+      ----------
+      on_data : Callable[[Pipeline, str, str, dict], None], optional
+          Callback that handles messages received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself.
+          Defaults to None.
+      on_notification : Callable[[Pipeline, dict], None], optional
+          Callback that handles notifications received from this instance. As arguments, it has a reference to this Pipeline object, along with the payload itself.
+          Defaults to None.
+
+      Returns
+      -------
+      object
+          The attachment id of the callback
+      """
+      attachment = object()
+      if on_data:
+        self._add_temporary_on_data_callback(attachment, on_data)
+      if on_notification:
+        self._add_temporary_on_notification_callback(attachment, on_notification)
+
+      return attachment
+
+    def temporary_detach(self, attachment):
+      """
+      Detach a temporary callback from the instance.
+
+      Parameters
+      ----------
+      attachment : object
+          The attachment id of the callback
+      """
+      self._remove_temporary_on_data_callback(attachment)
+      self._remove_temporary_on_notification_callback(attachment)
+      return
+
+    def convert_to_specialized_class(self, specialized_class):
+      """
+      Convert the object to a specialized class.
+      A specialized class is a class that inherits from the Instance class and 
+      provides additional methods for ease of use.
+      """
+      self.__class__ = specialized_class
+      return self
+
+    def send_instance_command_and_wait_for_response_payload(self, command, payload=None, command_params=None, timeout=10, response_params_key="COMMAND_PARAMS"):
+      """
+      Send a command to the instance and wait for the response payload.
+
+      Parameters
+      ----------
+      command : str | dict
+          The command to send
+      payload : dict, optional
+          The payload of the command, by default {}
+      command_params : dict, optional
+          The parameters of the command, by default {}
+      timeout : int, optional
+          The timeout for the transaction, by default 10
+
+      Returns
+      -------
+      dict: dict | None
+          The payload received from the instance, or None if the command failed or if the payload was not received
+      """
+      result_payload = None
+      uid = self.log.get_uid()
+
+      def wait_payload_on_data(pipeline, data):
+        nonlocal result_payload
+        if response_params_key in data and data[response_params_key].get("SDK_REQUEST") == uid:
+          result_payload = data
+        return
+
+      attachment = self.temporary_attach(on_data=wait_payload_on_data)
+
+      if payload is None:
+        payload = {}
+      payload["SDK_REQUEST"] = uid
+
+      self.send_instance_command(
+        command=command,
+        payload=payload,
+        command_params=command_params,
+        wait_confirmation=True,
+        timeout=timeout,
+      )
+
+      self.temporary_detach(attachment)
+
+      start_time = time()
+      while time() - start_time < 3 and result_payload is None:
+        sleep(0.1)
+
+      return result_payload
