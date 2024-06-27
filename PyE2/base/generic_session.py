@@ -938,7 +938,7 @@ class GenericSession(BaseDecentrAIObject):
         command_params[command] = True
         command = {}
       if payload is not None:
-        command.update(payload)
+        command = {**command, **payload}
 
       command[COMMANDS.COMMAND_PARAMS] = command_params
 
