@@ -1,5 +1,6 @@
 import ast
 
+
 class CheckerConstants:
   """
   ASTChecker constants.
@@ -9,12 +10,13 @@ class CheckerConstants:
   var = 'var'
   attr = 'attribute'
 
+
 class ASTChecker(ast.NodeVisitor):
   """
   An Abstract Syntax Tree based checker for custom code.
   """
 
-  def __init__(self, unallowed_dict : dict, safe_imports : list):
+  def __init__(self, unallowed_dict: dict, safe_imports: list):
     """
     Constructor for the AST checker.
 
@@ -113,7 +115,7 @@ class ASTChecker(ast.NodeVisitor):
   def visit_Attribute(self, node):
     handle = self.unallowed_dict.get(node.attr)
     if handle is not None and handle[CheckerConstants.type_key] == CheckerConstants.attr:
-      self.add_error(node, handle['error'])
+      self.add_error(node, handle[CheckerConstants.error_key])
     self.generic_visit(node)
     return
 
@@ -143,8 +145,9 @@ class ASTChecker(ast.NodeVisitor):
       return self.errors
     except Exception as e:
       return {
-        f"Unable to parse code {e}" : [0]
+        f"Unable to parse code {e}": [0]
       }
+
 
 if __name__ == '__main__':
   TEST_UNALLOWED_DICT = {
@@ -248,7 +251,6 @@ def bar():
   checker = ASTChecker(TEST_UNALLOWED_DICT, safe_imports)
   print(checker.validate(code))
 
-
   # Make sure we print sane errors when parsing fails.
   code = """
   a = x + y
@@ -264,3 +266,11 @@ import fizzy
   checker = ASTChecker(TEST_UNALLOWED_DICT, safe_imports)
   print(checker.validate(code))
 
+  # Case when an user defines a method
+  code = """
+def foo():
+  import fizzy
+  return
+  """
+  checker = ASTChecker(TEST_UNALLOWED_DICT, safe_imports)
+  print(checker.validate(code))
