@@ -1523,3 +1523,108 @@ class GenericSession(BaseDecentrAIObject):
         pipeline.deploy()
 
       return pipeline, instance
+
+    def broadcast_instance_command_and_wait_for_response_payload(
+      self,
+      instances,
+      require_responses_mode="any",
+      command={},
+      payload=None,
+      command_params=None,
+      timeout=10,
+      response_params_key="COMMAND_PARAMS"
+    ):
+      # """
+      # Send a command to multiple instances and wait for the responses.
+      # This method can wait until any or all of the instances respond.
+
+      # """
+      """
+      Send a command to multiple instances and wait for the responses.
+      This method can wait until any or all of the instances respond.
+
+      Parameters
+      ----------
+
+      instances : list[Instance]
+          The list of instances to send the command to.
+      require_responses_mode : str, optional
+          The mode to wait for the responses. Can be 'any' or 'all'.
+          Defaults to 'any'.
+      command : str | dict, optional
+          The command to send. Defaults to {}.
+      payload : dict, optional
+          The payload to send. This contains metadata, not used by the Edge Node. Defaults to None.
+      command_params : dict, optional
+          The command parameters. Can be instead of `command`. Defaults to None.
+      timeout : int, optional
+          The timeout in seconds. Defaults to 10.
+      response_params_key : str, optional
+          The key in the response that contains the response parameters.
+          Defaults to 'COMMAND_PARAMS'.
+
+      Returns
+      -------
+      response_payload : Payload
+          The response payload.
+      """
+
+      if len(instances) == 0:
+        self.P("Warning! No instances provided.", color='r', verbosity=1)
+        return None
+
+      lst_result_payload = [None] * len(instances)
+      uid = self.log.get_uid()
+
+      def wait_payload_on_data(pos):
+        def custom_func(pipeline, data):
+          nonlocal lst_result_payload, pos
+          if response_params_key in data and data[response_params_key].get("SDK_REQUEST") == uid:
+            lst_result_payload[pos] = data
+          return
+        # end def custom_func
+        return custom_func
+      # end def wait_payload_on_data
+
+      lst_attachment_instance = []
+      for i, instance in enumerate(instances):
+        attachment = instance.temporary_attach(on_data=wait_payload_on_data(i))
+        lst_attachment_instance.append((attachment, instance))
+      # end for
+
+      if payload is None:
+        payload = {}
+      payload["SDK_REQUEST"] = uid
+
+      lst_instance_transactions = []
+      for instance in instances:
+        instance_transactions = instance.send_instance_command(
+          command=command,
+          payload=payload,
+          command_params=command_params,
+          wait_confirmation=False,
+          timeout=timeout,
+        )
+        lst_instance_transactions.append(instance_transactions)
+      # end for send commands
+
+      if require_responses_mode == "all":
+        self.wait_for_all_sets_of_transactions(lst_instance_transactions)
+      elif require_responses_mode == "any":
+        self.wait_for_any_set_of_transactions(lst_instance_transactions)
+
+      start_time = tm()
+
+      condition_all = any([x is None for x in lst_result_payload]) and require_responses_mode == "all"
+      condition_any = all([x is None for x in lst_result_payload]) and require_responses_mode == "any"
+      while tm() - start_time < 3 and (condition_all or condition_any):
+        sleep(0.1)
+        condition_all = any([x is None for x in lst_result_payload]) and require_responses_mode == "all"
+        condition_any = all([x is None for x in lst_result_payload]) and require_responses_mode == "any"
+      # end while
+
+      for attachment, instance in lst_attachment_instance:
+        instance.temporary_detach(attachment)
+      # end for detach
+
+      return lst_result_payload
