@@ -4,6 +4,7 @@ from ..bc.base import BCct as BC_CT
 
 SB_ID = BASE_CT.SB_ID
 EE_ID = BASE_CT.EE_ID
+EE_ADDR = 'EE_ADDR'
 
 HOST = 'HOST'
 TOPIC = 'TOPIC'
