@@ -398,6 +398,10 @@ class Instance():
       """
       return self.__was_last_operation_successful
 
+    def _sync_configuration_with_remote(self, config):
+      self.config = {**self.config, **config}
+      return
+
     def update_instance_config(self, config={}, **kwargs):
       """
       Update the configuration of the instance.

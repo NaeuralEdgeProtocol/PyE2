@@ -122,6 +122,19 @@ class Pipeline(object):
 
   # Utils
   if True:
+    def __init_instance(self, instance_id, signature, config, on_data, on_notification, is_attached):
+      instance = Instance(self.log,
+                          pipeline=self,
+                          instance_id=instance_id,
+                          signature=signature,
+                          config=config,
+                          on_data=on_data,
+                          on_notification=on_notification,
+                          is_attached=is_attached
+                          )
+      self.lst_plugin_instances.append(instance)
+      return instance
+
     def __init_plugins(self, plugins, is_attached):
       """
       Initialize the plugins list. This method is called at the creation of the pipeline and is used to create the instances of the plugins that are part of the pipeline.
@@ -143,8 +156,7 @@ class Pipeline(object):
         for dct_instance in instances:
           config = {k.upper(): v for k, v in dct_instance.items()}
           instance_id = config.pop('INSTANCE_ID')
-          instance = Instance(self.log, self, instance_id, signature, config=config, is_attached=is_attached)
-          self.lst_plugin_instances.append(instance)
+          self.__init_instance(instance_id, signature, config, None, None, is_attached=is_attached)
         # end for dct_instance
       # end for dct_signature_instances
       return
@@ -807,10 +819,26 @@ class Pipeline(object):
 
       # create the new instance and add it to the list
       config = {**config, **kwargs}
-      instance = Instance(self.log, self, instance_id, signature, on_data, on_notification, config, is_attached=False)
-
-      self.lst_plugin_instances.append(instance)
+      instance = self.__init_instance(instance_id, signature, config, on_data, on_notification, is_attached=False)
       return instance
+
+    def __remove_plugin_instance(self, instance):
+      """
+      Remove a plugin instance from this pipeline. 
+
+      Parameters
+      ----------
+      instance : Instance
+          The instance to be removed.
+      """
+      if instance is None:
+        raise Exception("The provided instance is None. Please provide a valid instance")
+
+      if instance not in self.lst_plugin_instances:
+        raise Exception("plugin  <{}/{}> does not exist on this pipeline".format(instance.signature, instance.instance_id))
+
+      self.lst_plugin_instances.remove(instance)
+      return
 
     def remove_plugin_instance(self, instance):
       """
@@ -824,14 +852,7 @@ class Pipeline(object):
 
       """
 
-      if instance is None:
-        raise Exception("The provided instance is None. Please provide a valid instance")
-
-      if instance not in self.lst_plugin_instances:
-        raise Exception("plugin  <{}/{}> does not exist on this pipeline".format(instance.signature, instance.instance_id))
-
-      # remove the instance from the list
-      self.lst_plugin_instances.remove(instance)
+      self.__remove_plugin_instance(instance)
       self.proposed_remove_instances.append(instance)
       return
 
@@ -1304,7 +1325,7 @@ class Pipeline(object):
       try:
         instance = self.attach_to_plugin_instance(signature, instance_id, on_data, on_notification)
         instance.update_instance_config(config, **kwargs)
-      except Exception:
+      except Exception as e:
         instance = self.create_plugin_instance(
           signature=signature,
           instance_id=instance_id,
@@ -1358,6 +1379,34 @@ class Pipeline(object):
         )
       return instance
 
+    def _sync_configuration_with_remote(self, config={}):
+      config.pop('NAME', None)
+      config.pop('TYPE', None)
+      plugins = config.pop('PLUGINS', {})
+
+      self.config = {**self.config, **config}
+
+      active_plugins = []
+      for dct_signature_instances in plugins:
+        signature = dct_signature_instances['SIGNATURE']
+        instances = dct_signature_instances['INSTANCES']
+        for dct_instance in instances:
+          instance_id = dct_instance.pop('INSTANCE_ID')
+          active_plugins.append((signature, instance_id))
+          instance_object = self.__get_instance_object(signature, instance_id)
+          if instance_object is None:
+            self.__init_instance(instance_id, signature, dct_instance, None, None, is_attached=True)
+          else:
+            instance_object._sync_configuration_with_remote(dct_instance)
+        # end for dct_instance
+      # end for dct_signature_instances
+
+      for instance in self.lst_plugin_instances:
+        if (instance.signature, instance.instance_id) not in active_plugins:
+          self.__remove_plugin_instance(instance)
+      # end for instance
+      return
+
     def update_full_configuration(self, config={}):
       """
       Update the full configuration of this pipeline.
@@ -1375,16 +1424,19 @@ class Pipeline(object):
       # pop the illegal to modify keys
       config.pop('NAME', None)
       config.pop('TYPE', None)
-      plugins = config.pop('PLUGINS', {})
+      plugins = config.pop('PLUGINS', None)
 
       self.update_acquisition_parameters(config)
+
+      if plugins is None:
+        return
 
       new_plugins = []
       for dct_signature_instances in plugins:
         signature = dct_signature_instances['SIGNATURE']
         instances = dct_signature_instances['INSTANCES']
         for dct_instance in instances:
-          instance_id = dct_instance['INSTANCE_ID']
+          instance_id = dct_instance.pop('INSTANCE_ID')
           new_plugins.append((signature, instance_id))
           instance_object = self.__get_instance_object(signature, instance_id)
 

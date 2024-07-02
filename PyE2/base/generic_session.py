@@ -384,7 +384,7 @@ class GenericSession(BaseDecentrAIObject):
         pipeline_name = config[PAYLOAD_DATA.NAME]
         pipeline: Pipeline = self._dct_online_nodes_pipelines[msg_node_id].get(pipeline_name, None)
         if pipeline is not None:
-          pipeline.update_full_configuration({k.upper(): v for k, v in config.items()})
+          pipeline._sync_configuration_with_remote({k.upper(): v for k, v in config.items()})
         else:
           self._dct_online_nodes_pipelines[msg_node_id][pipeline_name] = self.__create_pipeline_from_config(
             msg_node_id, config)
@@ -1347,7 +1347,7 @@ class GenericSession(BaseDecentrAIObject):
 
         possible_new_configuration = {
           **config,
-          **kwargs
+          **{k.upper(): v for k, v in kwargs.items()}
         }
 
         if len(plugins) > 0:
