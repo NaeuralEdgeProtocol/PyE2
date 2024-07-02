@@ -120,6 +120,7 @@ class InstanceGenericNotificationResponse(Response):
     payload_path = notification.get(PAYLOAD_DATA.EE_PAYLOAD_PATH)
     notification_code = notification.get("NOTIFICATION_CODE")  # TODO
     notification_message = notification.get(PAYLOAD_DATA.NOTIFICATION)
+    notification_info = notification.get(PAYLOAD_DATA.INFO)
     node = payload_path[0]
     pipeline = payload_path[1]
     signature = payload_path[2]
@@ -134,12 +135,13 @@ class InstanceGenericNotificationResponse(Response):
     notification_code_failed = notification_code == self.fail_code
 
     if same_node and same_pipeline and same_signature and same_instance_id:
-      self.D("Received notification CODE={} for <{}: {}/{}/{}>. Message: {}".format(
-        notification_code, node, pipeline, signature, instance_id, notification_message))
+      self.D("Received notification CODE={} for <{}: {}/{}/{}>. Message: {}\nInfo: {}".format(
+        notification_code, node, pipeline, signature, instance_id,
+        notification_message, notification_info))
       if notification_code_ok:
         self.success()
       elif notification_code_failed:
-        self.fail(notification_message)
+        self.fail(notification_info)
     return
 
 

@@ -1343,7 +1343,6 @@ class GenericSession(BaseDecentrAIObject):
           on_data=on_data,
           on_notification=on_notification,
           max_wait_time=max_wait_time,
-          **kwargs
         )
 
         possible_new_configuration = {
