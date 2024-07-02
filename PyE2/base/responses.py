@@ -104,7 +104,8 @@ class InstanceGenericNotificationResponse(Response):
 
     self.node = node
     self.pipeline_name = pipeline_name
-    self.signature = signature
+    if signature is not None:
+      self.signature = signature.upper()
     self.instance_id = instance_id
 
     self.success_code = success_code
@@ -124,6 +125,8 @@ class InstanceGenericNotificationResponse(Response):
     node = payload_path[0]
     pipeline = payload_path[1]
     signature = payload_path[2]
+    if signature is not None:
+      signature = signature.upper()
     instance_id = payload_path[3]
 
     # ignore session_id for now, until we decide on the behavior of the EE
