@@ -71,7 +71,10 @@ class _PluginsManagerMixin:
       candidate = loc + '.' + name
       try:
         found = importlib.util.find_spec(candidate)
-        if found is not None:
+        # if found something
+        # and that thing can be loaded
+        # and that thing is not a directory (optional check, means the same as previous one)
+        if found is not None and found.loader is not None and not os.path.isdir(found.origin):
           self.P("    Trying {}: '{}' -> FOUND!".format("[SAFE]" if safe else "[UNSAFE]", candidate))
           return candidate
         else:
