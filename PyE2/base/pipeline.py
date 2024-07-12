@@ -1115,6 +1115,8 @@ class Pipeline(object):
 
       if wait_confirmation:
         self.session.wait_for_transactions(transactions)
+      else:
+        return transactions
       return
 
     def P(self, *args, **kwargs):
