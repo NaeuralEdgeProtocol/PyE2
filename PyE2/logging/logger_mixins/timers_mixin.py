@@ -369,11 +369,15 @@ class _TimersMixin(object):
       # end while
       self.__timer_mutex = True
       
+      self.start_show_timer = time()
+      self.__dfs_stack = deque(maxlen=100)
+      
       def dfs(visited, graph, node, was_recently_seen, logs, sect):
+        self.__dfs_stack.append(node)
         elapsed_in_show = time() - self.start_show_timer
         
         if elapsed_in_show > 5:
-          raise ValueError("show_timers: Run time exceeded! DFS took longer than 5 seconds")
+          raise ValueError("show_timers: Run time exceeded! DFS took longer than 5 seconds. Stack: {}".format(self.__dfs_stack))
         
         if node not in visited:
           formatted_node = self._format_timer(
