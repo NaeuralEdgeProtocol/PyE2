@@ -1379,9 +1379,12 @@ class GenericSession(BaseDecentrAIObject):
       transactions : list[Transaction]
           The transactions to wait for.
       """
-      while any([not transaction.is_finished() for transaction in transactions]):
+      while not self.are_transactions_finished(transactions):
         sleep(0.1)
       return
+
+    def are_transactions_finished(self, transactions: list[Transaction]):
+      return all([transaction.is_finished() for transaction in transactions])
 
     def wait_for_all_sets_of_transactions(self, lst_transactions: list[list[Transaction]]):
       """
@@ -1394,8 +1397,7 @@ class GenericSession(BaseDecentrAIObject):
       """
       all_finished = False
       while not all_finished:
-        all_finished = all([all([transaction.is_finished() for transaction in transactions])
-                           for transactions in lst_transactions])
+        all_finished = all([self.are_transactions_finished(transactions) for transactions in lst_transactions])
       return
 
     def wait_for_any_set_of_transactions(self, lst_transactions: list[list[Transaction]]):
@@ -1409,9 +1411,7 @@ class GenericSession(BaseDecentrAIObject):
       """
       any_finished = False
       while not any_finished:
-        any_finished = any([all([transaction.is_finished() for transaction in transactions])
-                           for transactions in lst_transactions])
-
+        any_finished = any([self.are_transactions_finished(transactions) for transactions in lst_transactions])
       return
 
     def wait_for_any_node(self, timeout=15):
