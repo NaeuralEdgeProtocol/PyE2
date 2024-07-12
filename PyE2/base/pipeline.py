@@ -212,7 +212,7 @@ class Pipeline(object):
 
       # TODO: add different responses for different states of the plugin
       # TODO: maybe this should be introduced as "pre-defined" business plugins, based on a schema
-      #       and the suer can specify them when creating the pipeline
+      #       and the user can specify them when creating the pipeline
 
       for instance in self.lst_plugin_instances:
         if instance._is_tainted():
@@ -482,7 +482,12 @@ class Pipeline(object):
           The instance to be removed.
       """
       instance.config = None
-      self.__staged_remove_instances.remove(instance)
+      try:
+        self.__staged_remove_instances.remove(instance)
+      except:
+        self.P("Attempted to remove instance <{}:{}>, but it was not found in the staged remove list. "
+               "Most likely the instance deletion used `with_confirmation=False`".format(
+                   instance.signature, instance.instance_id), color="r")
       return
 
     def __discard_staged_remove_instance(self, instance: Instance, fail_reason: str):
@@ -498,7 +503,13 @@ class Pipeline(object):
       self.P(
         f"Discarding staged removal of instance <{instance.signature}:{instance.instance_id}>. Reason: {fail_reason}", color="r")
 
-      self.__staged_remove_instances.remove(instance)
+      try:
+        self.__staged_remove_instances.remove(instance)
+      except:
+        self.P("Attempted to remove instance <{}:{}>, but it was not found in the staged remove list. "
+               "Most likely the instance deletion used `with_confirmation=False`".format(
+                   instance.signature, instance.instance_id), color="r")
+
       self.lst_plugin_instances.append(instance)
       return
 
@@ -1011,6 +1022,8 @@ class Pipeline(object):
 
       self.P("Pipeline <{}> deployed".format(self.name), color="g")
 
+      if with_confirmation and not wait_confirmation:
+        return transactions
       return
 
     def wait_exec(self, *, plain_code: str = None, plain_code_path: str = None, config={}):
