@@ -625,7 +625,7 @@ class Pipeline(object):
 
       return transactions
 
-    def __get_base64_code(self, custom_code):
+    def _get_base64_code(self, custom_code):
       """
       Get the base64 code.
 
@@ -920,7 +920,7 @@ class Pipeline(object):
           Plugin instance already exists. 
       """
 
-      b64code = self.__get_base64_code(custom_code)
+      b64code = self._get_base64_code(custom_code)
 
       def callback(pipeline, data): return self.__custom_exec_on_data(pipeline, instance_id, on_data, data)
 
@@ -952,10 +952,10 @@ class Pipeline(object):
                                                  on_data=None,
                                                  on_notification=None,
                                                  **kwargs) -> Instance:
-      b64code_process_real_time_collected_data = self.__get_base64_code(main_node_process_real_time_collected_data)
-      b64code_finish_condition = self.__get_base64_code(main_node_finish_condition)
-      b64code_aggregate_collected_data = self.__get_base64_code(main_node_aggregate_collected_data)
-      b64code_remote_node = self.__get_base64_code(worker_node_code)
+      b64code_process_real_time_collected_data = self._get_base64_code(main_node_process_real_time_collected_data)
+      b64code_finish_condition = self._get_base64_code(main_node_finish_condition)
+      b64code_aggregate_collected_data = self._get_base64_code(main_node_aggregate_collected_data)
+      b64code_remote_node = self._get_base64_code(worker_node_code)
 
       if instance_id is None:
         instance_id = self.name + "_chain_dist_custom_exec_{}".format(self.log.get_unique_id())
