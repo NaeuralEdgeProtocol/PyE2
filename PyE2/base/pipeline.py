@@ -122,16 +122,24 @@ class Pipeline(object):
 
   # Utils
   if True:
-    def __init_instance(self, instance_id, signature, config, on_data, on_notification, is_attached):
-      instance = Instance(self.log,
-                          pipeline=self,
-                          instance_id=instance_id,
-                          signature=signature,
-                          config=config,
-                          on_data=on_data,
-                          on_notification=on_notification,
-                          is_attached=is_attached
-                          )
+    def __init_instance(self, signature, instance_id, config, on_data, on_notification, is_attached):
+      instance_class = None
+      str_signature = None
+      if isinstance(signature, str):
+        instance_class = Instance
+        str_signature = signature.upper()
+      else:
+        instance_class = signature
+        str_signature = instance_class.signature.upper()
+      instance = instance_class(self.log,
+                                pipeline=self,
+                                signature=str_signature,
+                                instance_id=instance_id,
+                                config=config,
+                                on_data=on_data,
+                                on_notification=on_notification,
+                                is_attached=is_attached
+                                )
       self.lst_plugin_instances.append(instance)
       return instance
 
@@ -156,7 +164,7 @@ class Pipeline(object):
         for dct_instance in instances:
           config = {k.upper(): v for k, v in dct_instance.items()}
           instance_id = config.pop('INSTANCE_ID')
-          self.__init_instance(instance_id, signature, config, None, None, is_attached=is_attached)
+          self.__init_instance(signature, instance_id, config, None, None, is_attached=is_attached)
         # end for dct_instance
       # end for dct_signature_instances
       return
@@ -823,14 +831,19 @@ class Pipeline(object):
       Exception
           Plugin instance already exists. 
       """
+      if isinstance(signature, str):
+        str_signature = signature.upper()
+      else:
+        plugin_template = signature
+        str_signature = plugin_template.signature.upper()
 
       for instance in self.lst_plugin_instances:
-        if instance.instance_id == instance_id and instance.signature == signature:
-          raise Exception("plugin {} with instance {} already exists".format(signature, instance_id))
+        if instance.instance_id == instance_id and instance.signature == str_signature:
+          raise Exception("plugin {} with instance {} already exists".format(str_signature, instance_id))
 
       # create the new instance and add it to the list
       config = {**config, **kwargs}
-      instance = self.__init_instance(instance_id, signature, config, on_data, on_notification, is_attached=False)
+      instance = self.__init_instance(signature, instance_id, config, on_data, on_notification, is_attached=False)
       return instance
 
     def __remove_plugin_instance(self, instance):
@@ -1167,21 +1180,30 @@ class Pipeline(object):
       """
 
       # search for the instance in the list
+      plugin_template = None
+      if isinstance(signature, str):
+        str_signature = signature.upper()
+      else:
+        plugin_template = signature
+        str_signature = plugin_template.signature.upper()
       found_instance = None
       for instance in self.lst_plugin_instances:
-        if instance.instance_id == instance_id and instance.signature == signature.upper():
+        if instance.instance_id == instance_id and instance.signature == str_signature.upper():
           found_instance = instance
           break
 
       if found_instance is None:
-        raise Exception(f"Unable to attach to instance. Instance <{signature}/{instance_id}> does not exist")
+        raise Exception(f"Unable to attach to instance. Instance <{str_signature}/{instance_id}> does not exist")
 
       # add the callbacks to the session
       if on_data is not None:
-        instance._add_on_data_callback(on_data)
+        found_instance._add_on_data_callback(on_data)
 
       if on_notification is not None:
-        instance._add_on_notification_callback(on_notification)
+        found_instance._add_on_notification_callback(on_notification)
+
+      if plugin_template is not None:
+        found_instance.convert_to_specialized_class(plugin_template)
 
       return found_instance
 
@@ -1410,7 +1432,7 @@ class Pipeline(object):
           active_plugins.append((signature, instance_id))
           instance_object = self.__get_instance_object(signature, instance_id)
           if instance_object is None:
-            self.__init_instance(instance_id, signature, dct_instance, None, None, is_attached=True)
+            self.__init_instance(signature, instance_id, dct_instance, None, None, is_attached=True)
           else:
             instance_object._sync_configuration_with_remote(dct_instance)
         # end for dct_instance

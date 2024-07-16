@@ -2,6 +2,8 @@ from ...base import Instance
 
 
 class ViewScene01(Instance):
+  signature = "VIEW_SCENE_01"
+
   def get_last_witness(self, response_params_key="COMMAND_PARAMS"):
     """
     Get the performance history of a node.

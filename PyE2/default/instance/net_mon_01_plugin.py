@@ -2,6 +2,8 @@ from ...base import Instance
 
 
 class NetMon01(Instance):
+  signature = "NET_MON_01"
+
   def get_node_history(self, node_id=None, time_window_hours=1, steps=20):
     """
     Get the performance history of a node.
