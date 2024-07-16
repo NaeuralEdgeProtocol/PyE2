@@ -238,6 +238,10 @@ class BaseCodeChecker:
     return re.search(r'\breturn\b', exec_code__code) is not None
 
   def _encapsulate_code_in_method(self, exec_code__code, exec_code__arguments):
+    for i in range(len(exec_code__arguments)):
+      __var = exec_code__arguments[i]
+      if isinstance(__var, tuple):
+        exec_code__arguments[i] = f"{__var[0]}={__var[1]}"
     exec_code__arguments = ', '.join(exec_code__arguments)
 
     if re.search(r'\breturn\b', exec_code__code) is not None:
