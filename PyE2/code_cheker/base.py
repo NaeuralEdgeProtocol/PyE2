@@ -3,6 +3,7 @@ import sys
 import base64
 import traceback
 import re
+import inspect
 
 from .checker import ASTChecker, CheckerConstants
 
@@ -165,7 +166,7 @@ class BaseCodeChecker:
   def check_code_text(self, code, safe_imports=None):
     return self._check_unsafe_code(code, safe_imports=safe_imports)
 
-  def code_to_base64(self, code, verbose=True, compress=True):
+  def code_to_base64(self, code, verbose=False, compress=True):
     if verbose:
       self.__msg("Processing:\n{}".format(code), color='y')
     errors = self._check_unsafe_code(code)
@@ -389,3 +390,32 @@ class BaseCodeChecker:
         exec_code__errors = str(e)
     # end try-except
     return exec_code__result_var, exec_code__errors, exec_code__warnings
+
+  def method_to_base64(self, func, verbose=False):
+    code = self.get_function_source_code(func)
+    return self.code_to_base64(code, verbose=verbose)
+
+  def get_function_source_code(self, func):
+    """
+    Get the source code of a function and remove the indentation.
+
+    Parameters
+    ----------
+    func : Callable
+        The function.
+
+    Returns
+    -------
+    str
+        The source code of the function.
+    """
+    plain_code = inspect.getsourcelines(func)[0]
+    plain_code = plain_code[1:]
+    first_code_line = 0
+    # ignore empty lines at the beginning, but keep them
+    while plain_code[first_code_line].strip() == '':
+      first_code_line += 1
+    indent = len(plain_code[first_code_line]) - len(plain_code[first_code_line].lstrip())
+    plain_code = '\n'.join([line.rstrip()[indent:] for line in plain_code])
+
+    return plain_code

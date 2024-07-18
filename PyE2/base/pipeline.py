@@ -2,15 +2,15 @@
 
 import os
 
+from ..code_cheker.base import BaseCodeChecker
 from ..const import PAYLOAD_DATA
-from ..utils.code import CodeUtils
+from .distributed_custom_code_presets import DistributedCustomCodePresets
 from .instance import Instance
 from .responses import PipelineArchiveResponse, PipelineOKResponse
 from .transaction import Transaction
-from .distributed_custom_code_presets import DistributedCustomCodePresets
 
 
-class Pipeline(object):
+class Pipeline(BaseCodeChecker):
   """
   A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
@@ -652,17 +652,17 @@ class Pipeline(object):
           try:
             method_name = "_DistributedCustomCodePresets__{}".format(custom_code.lower())
             preset_code = getattr(DistributedCustomCodePresets, method_name)
-            plain_code = CodeUtils().get_function_source_code(preset_code)
+            plain_code = self.get_function_source_code(preset_code)
           except:
             plain_code = custom_code
       elif callable(custom_code):
         # we have a function
-        plain_code = CodeUtils().get_function_source_code(custom_code)
+        plain_code = self.get_function_source_code(custom_code)
       else:
         raise Exception("custom_code is not a string or a callable")
       # endif get plain code
 
-      return CodeUtils().code_to_base64(plain_code, verbose=False)
+      return self.code_to_base64(plain_code, verbose=False)
 
   # Message handling
   if True:
@@ -1091,7 +1091,7 @@ class Pipeline(object):
           finished = True
         return
 
-      b64code = CodeUtils().code_to_base64(plain_code)
+      b64code = self.code_to_base64(plain_code, verbose=False)
       instance_id = self.name + "_rest_custom_exec_synchronous_0"
       config = {
           'REQUEST': {

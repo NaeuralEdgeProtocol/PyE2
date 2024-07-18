@@ -14,7 +14,6 @@ from ..base_decentra_object import BaseDecentrAIObject
 from ..io_formatter import IOFormatterWrapper
 from ..logging import Logger
 from ..utils import load_dotenv
-from ..utils.code import CodeUtils
 from .payload import Payload
 from .pipeline import Pipeline
 from .transaction import Transaction
@@ -364,7 +363,7 @@ class GenericSession(BaseDecentrAIObject):
       # extract relevant data from the message
 
       if dict_msg.get(HB.HEARTBEAT_VERSION) == HB.V2:
-        str_data = CodeUtils().decompress_text(dict_msg[HB.ENCODED_DATA])
+        str_data = self.log.decompress_text(dict_msg[HB.ENCODED_DATA])
         data = json.loads(str_data)
         dict_msg = {**dict_msg, **data}
 

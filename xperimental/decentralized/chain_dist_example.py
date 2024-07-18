@@ -1,7 +1,7 @@
 
 import os
 
-from PyE2 import Session, Payload, code_to_base64
+from PyE2 import Session, Payload
 
 
 def instance_on_data(pipeline, custom_code_data: dict, data: Payload):
@@ -47,7 +47,7 @@ if __name__ == '__main__':
           'N_WORKERS': 3,  # this will be used within plugin as `plugin.cfg_n_workers`
 
           # this will be used within plugin as `plugin.cfg_worker_code`
-          'WORKER_CODE': code_to_base64(worker_code)
+          'WORKER_CODE': pipeline.code_to_base64(worker_code)
       },
       on_data=instance_on_data,
       process_delay=0.2
