@@ -25,13 +25,13 @@ class ChainDistCustomJob01(Instance):
 
   def add_worker_node_configuration(
       self,
-      worker_node_pipeline_config: dict,
-      worker_node_plugin_config: dict,
+      worker_node_pipeline_config: dict = None,
+      worker_node_plugin_config: dict = None,
     ):
     self.update_instance_config(
       config={
-        "NODE_PIPELINE_CONFIG": worker_node_pipeline_config,
-        "NODE_PLUGIN_CONFIG": worker_node_plugin_config,
+        "NODE_PIPELINE_CONFIG": worker_node_pipeline_config or {'stream_type': "Void", },
+        "NODE_PLUGIN_CONFIG": worker_node_plugin_config or {},
       }
     )
     return
