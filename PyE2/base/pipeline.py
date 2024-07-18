@@ -945,9 +945,9 @@ class Pipeline(object):
                                                  worker_node_code: any,
                                                  nr_remote_worker_nodes: int,
                                                  instance_id=None,
-                                                 worker_pipeline_config={},
-                                                 worker_plugin_signature='CUSTOM_EXEC_01',
-                                                 worker_plugin_config={},
+                                                 worker_node_pipeline_config={},
+                                                 worker_node_plugin_signature='CUSTOM_EXEC_01',
+                                                 worker_node_plugin_config={},
                                                  config={},
                                                  on_data=None,
                                                  on_notification=None,
@@ -973,11 +973,11 @@ class Pipeline(object):
 
               'NODE_PIPELINE_CONFIG': {
                 'stream_type': "Void",
-                **worker_pipeline_config
+                **worker_node_pipeline_config
               },
-              'NODE_PLUGIN_SIGNATURE': worker_plugin_signature,
+              'NODE_PLUGIN_SIGNATURE': worker_node_plugin_signature,
               'NODE_PLUGIN_CONFIG': {
-                **worker_plugin_config
+                **worker_node_plugin_config
               },
               **config
           },
