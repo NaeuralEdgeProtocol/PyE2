@@ -201,8 +201,17 @@ class BaseCodeChecker:
   def prepare_b64code(self, str_b64code, check_for_result=True, result_vars=RESULT_VARS):
     errors, code = None, None
     code = self.base64_to_code(str_b64code)
+    to_check_code = code
     if code is not None:
-      errors = self._check_unsafe_code(code)
+      if self._can_encapsulate_code_in_method(code):
+        # we have a return statement in the code,
+        # so we need to encapsulate the code in a function
+        to_check_code = self._encapsulate_code_in_method(
+          exec_code__code=code,
+          exec_code__arguments=[]
+        )
+      # endif can encapsulate code in method
+      errors = self._check_unsafe_code(to_check_code)
     if errors is None:
       if code is None:
         errors = 'Provided ascii data is not a valid base64 object'

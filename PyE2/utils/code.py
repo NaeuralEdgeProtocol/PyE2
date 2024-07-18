@@ -98,7 +98,11 @@ class CodeUtils:
     """
     plain_code = inspect.getsourcelines(func)[0]
     plain_code = plain_code[1:]
-    indent = len(plain_code[0]) - len(plain_code[0].lstrip())
+    first_code_line = 0
+    # ignore empty lines at the beginning, but keep them
+    while plain_code[first_code_line].strip() == '':
+      first_code_line += 1
+    indent = len(plain_code[first_code_line]) - len(plain_code[first_code_line].lstrip())
     plain_code = '\n'.join([line.rstrip()[indent:] for line in plain_code])
 
     if False:
@@ -152,6 +156,7 @@ class CodeUtils:
 
 if __name__ == "__main__":
   def custom_code(plugin):
+
     frame = plugin.dataapi_image()
     inferences = plugin.dataapi_image_instance_inferences()
 
@@ -168,3 +173,4 @@ if __name__ == "__main__":
   utils = CodeUtils()
   code = utils.get_function_source_code(custom_code)
   print(code)
+  print(repr(code))

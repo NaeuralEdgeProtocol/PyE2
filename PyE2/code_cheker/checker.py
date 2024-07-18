@@ -274,3 +274,21 @@ def foo():
   """
   checker = ASTChecker(TEST_UNALLOWED_DICT, safe_imports)
   print(checker.validate(code))
+
+  # Case when the user defines a method with an empty line in body
+  code = """
+
+  return
+  """
+  checker = ASTChecker(TEST_UNALLOWED_DICT, safe_imports)
+  print(checker.validate(code))
+
+  # Case when the user defines a method with variables not defined
+  code = """
+def foo():
+
+  x = a + 1
+  return
+  """
+  checker = ASTChecker(TEST_UNALLOWED_DICT, safe_imports)
+  print(checker.validate(code))
