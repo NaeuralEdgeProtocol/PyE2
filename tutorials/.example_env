@@ -3,3 +3,4 @@ EE_PASSWORD=TODO: fill this variable
 
 EE_HOSTNAME=r9092118.ala.eu-central-1.emqxsl.com
 EE_PORT=8883
+EE_SECURED=true

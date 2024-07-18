@@ -55,6 +55,7 @@ class GenericSession(BaseDecentrAIObject):
                port=None,
                user=None,
                pwd=None,
+               secured=False,
                name='pySDK',
                encrypt_comms=False,
                config={},
@@ -86,6 +87,8 @@ class GenericSession(BaseDecentrAIObject):
         The user name. If None, it will be retrieved from the environment variable AIXP_USERNAME
     pwd : str, optional
         The password. If None, it will be retrieved from the environment variable AIXP_PASSWORD
+    secured: bool, optional
+        True if connection is secured, by default False
     name : str, optional
         The name of this connection, used to identify owned pipelines on a specific Naeural edge node.
         The name will be used as `INITIATOR_ID` and `SESSION_ID` when communicating with Naeural edge nodes, by default 'pySDK'
@@ -148,7 +151,7 @@ class GenericSession(BaseDecentrAIObject):
     pwd = pwd or kwargs.get('password', kwargs.get('pass', None))
     user = user or kwargs.get('username', None)
     host = host or kwargs.get('hostname', None)
-    self.__fill_config(host, port, user, pwd, dotenv_path)
+    self.__fill_config(host, port, user, pwd, secured, dotenv_path)
 
     self.custom_on_payload = on_payload
     self.custom_on_heartbeat = on_heartbeat
@@ -705,7 +708,7 @@ class GenericSession(BaseDecentrAIObject):
 
   # Utils
   if True:
-    def __fill_config(self, host, port, user, pwd, dotenv_path):
+    def __fill_config(self, host, port, user, pwd, secured, dotenv_path):
       """
       Fill the configuration dictionary with the credentials provided when creating this instance.
 
@@ -815,6 +818,19 @@ class GenericSession(BaseDecentrAIObject):
       cert_path = next((x for x in possible_cert_path_values if x is not None), None)
       if cert_path is not None and self._config.get(comm_ct.CERT_PATH, None) is None:
         self._config[comm_ct.CERT_PATH] = cert_path
+
+      possible_secured_values = [
+        secured,
+        os.getenv(ENVIRONMENT.AIXP_SECURED),
+        os.getenv(ENVIRONMENT.EE_SECURED),
+        self._config.get(comm_ct.SECURED),
+        False,
+      ]
+
+      secured = next((x for x in possible_secured_values if x is not None), None)
+      if secured is not None and self._config.get(comm_ct.SECURED, None) is None:
+        secured = str(secured).strip().upper() in ['TRUE', '1']
+        self._config[comm_ct.SECURED] = secured
       return
 
     def _send_command_to_box(self, command, worker, payload, show_command=False, session_id=None, **kwargs):
