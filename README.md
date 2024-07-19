@@ -320,3 +320,15 @@ session.run(wait=lambda: not finished, close_pipelines=True)
   howpublished = {\url{https://github.com/NaeuralEdgeProtocol/PyE2}},
 }
 ```
+
+```bibtex
+@misc{milik2024naeuralaios,
+      title={Naeural AI OS -- Decentralized ubiquitous computing MLOps execution engine}, 
+      author={Beatrice Milik and Stefan Saraev and Cristian Bleotiu and Radu Lupaescu and Bogdan Hobeanu and Andrei Ionut Damian},
+      year={2024},
+      eprint={2306.08708},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2306.08708}, 
+}
+```
