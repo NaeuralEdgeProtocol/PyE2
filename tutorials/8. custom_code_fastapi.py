@@ -1,5 +1,5 @@
 from PyE2 import Session, CustomPluginTemplate
-from PyE2.default.instance import CustomCodeFastAPI01
+from PyE2.default.instance import CustomWebApp01
 
 # this tutorial can be run only on the local edge node
 # because it uses ngrok to expose the fastapi server
@@ -53,8 +53,8 @@ if __name__ == "__main__":
     data_source="Void"
   )
 
-  instance: CustomCodeFastAPI01 = pipeline.create_or_attach_to_plugin_instance(
-    signature=CustomCodeFastAPI01,
+  instance: CustomWebApp01 = pipeline.create_or_attach_to_plugin_instance(
+    signature=CustomWebApp01,
     instance_id="tutorial",
     use_ngrok=True,
     ngrok_edge_label="ADD_YOUR_EDGE_LABEL_HERE",

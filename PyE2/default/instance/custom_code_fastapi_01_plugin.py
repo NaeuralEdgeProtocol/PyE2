@@ -1,7 +1,7 @@
 from ...base import Instance
 
 
-class CustomCodeFastAPI01(Instance):
+class CustomWebApp01(Instance):
   signature = "CUSTOM_CODE_FASTAPI_01"
 
   def get_proposed_endpoints(self):

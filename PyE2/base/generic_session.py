@@ -1529,6 +1529,27 @@ class GenericSession(BaseDecentrAIObject):
 
       return pipeline, instance
 
+    def create_web_app(
+      self,
+      *,
+      node,
+      name,
+      signature,
+      **kwargs
+    ):
+      pipeline: Pipeline = self.create_pipeline(
+        node_id=node,
+        name=name,
+      )
+
+      instance = pipeline.create_plugin_instance(
+        signature=signature,
+        instance_id=self.log.get_unique_id(),
+        **kwargs
+      )
+
+      return pipeline, instance
+
     def broadcast_instance_command_and_wait_for_response_payload(
       self,
       instances,
