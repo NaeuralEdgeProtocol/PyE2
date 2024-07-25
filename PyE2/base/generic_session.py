@@ -1117,18 +1117,9 @@ class GenericSession(BaseDecentrAIObject):
           A `Pipeline` object.
 
       """
-      _start = tm()
-      found = node_id in self.get_active_nodes()
-      while (tm() - _start) < max_wait_time and not found:
-        sleep(0.1)
-        avail_workers = self.get_active_nodes()
-        found = node_id in avail_workers
-      # end while
 
-      if not found:
-        self.P("WARNING: could not find worker '{}' in {:.1f}s. The job may not have a valid active worker.".format(
-            node_id, tm() - _start
-        ), color='r', verbosity=1)
+      if node_id not in self.get_active_nodes():
+        node_id = next((key for key, value in self._box_addr.items() if value == node_id), node_id)
       pipeline = Pipeline(
           self,
           self.log,
