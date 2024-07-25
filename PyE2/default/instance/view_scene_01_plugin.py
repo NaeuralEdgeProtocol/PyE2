@@ -10,13 +10,8 @@ class ViewScene01(Instance):
 
     Parameters
     ----------
-    node_id : str, optional
-        The node id, by default None
-    time_window_hours: int, optional
-        The time window in hours to retrieve, by default 1
-    steps : int, optional
-        Retrieve only each `steps` data point from the time window, by default 20
-
+    response_params_key : str
+      The key in the response payload that contains the command parameters
     Returns
     -------
     """
