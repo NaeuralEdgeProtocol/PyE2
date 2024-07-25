@@ -7,10 +7,10 @@ from threading import Thread
 from time import sleep
 from time import time as tm
 
+from ..base_decentra_object import BaseDecentrAIObject
 from ..bc import DefaultBlockEngine
 from ..const import COMMANDS, ENVIRONMENT, HB, PAYLOAD_DATA, STATUS_TYPE
 from ..const import comms as comm_ct
-from ..base_decentra_object import BaseDecentrAIObject
 from ..io_formatter import IOFormatterWrapper
 from ..logging import Logger
 from ..utils import load_dotenv
@@ -55,7 +55,7 @@ class GenericSession(BaseDecentrAIObject):
                port=None,
                user=None,
                pwd=None,
-               secured=False,
+               secured=None,
                name='pySDK',
                encrypt_comms=False,
                config={},
@@ -88,7 +88,7 @@ class GenericSession(BaseDecentrAIObject):
     pwd : str, optional
         The password. If None, it will be retrieved from the environment variable AIXP_PASSWORD
     secured: bool, optional
-        True if connection is secured, by default False
+        True if connection is secured, by default None
     name : str, optional
         The name of this connection, used to identify owned pipelines on a specific Naeural edge node.
         The name will be used as `INITIATOR_ID` and `SESSION_ID` when communicating with Naeural edge nodes, by default 'pySDK'
@@ -1051,7 +1051,7 @@ class GenericSession(BaseDecentrAIObject):
     def create_pipeline(self, *,
                         node_id,
                         name,
-                        data_source,
+                        data_source="Void",
                         config={},
                         plugins=[],
                         on_data=None,
@@ -1085,11 +1085,11 @@ class GenericSession(BaseDecentrAIObject):
           Name of the Naeural edge node that will handle this pipeline.
       name : str
           Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
-      data_source : str
-          This is the name of the DCT plugin, which resembles the desired functionality of the acquisition.
+      data_source : str, optional
+          This is the name of the DCT plugin, which resembles the desired functionality of the acquisition. Defaults to Void.
       config : dict, optional
           This is the dictionary that contains the configuration of the acquisition source, by default {}
-      plugins : list
+      plugins : list, optional
           List of dictionaries which contain the configurations of each plugin instance that is desired to run on the box.
           Defaults to []. Should be left [], and instances should be created with the api.
       on_data : Callable[[Pipeline, str, str, dict], None], optional
