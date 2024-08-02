@@ -6,13 +6,17 @@ from PyE2.default.instance import CustomWebApp01
 # and this requires an ngrok auth token
 
 
-def hello_world(plugin, name):
+def hello_world(plugin, name: str = "naeural_developer"):
   # name is a query parameter
   return f"Hello, {name}!"
 
 
 def get_uuid(plugin: CustomPluginTemplate):
   return f"New uuid: {plugin.uuid()}!"
+
+
+def get_addr(plugin: CustomPluginTemplate):
+  return plugin.node_addr
 
 
 def forecasting(plugin: CustomPluginTemplate, body=None):
@@ -43,21 +47,18 @@ def forecasting(plugin: CustomPluginTemplate, body=None):
 if __name__ == "__main__":
   sess = Session()
 
-  node = "naeural-1"
+  node = "stefan-edge-node"
 
   sess.wait_for_node(node)
 
-  pipeline = sess.create_or_attach_to_pipeline(
-    node_id=node,
-    name="custom_code_fastapi_example",
-    data_source="Void"
-  )
-
-  instance: CustomWebApp01 = pipeline.create_or_attach_to_plugin_instance(
+  pipeline, instance = sess.create_web_app(
+    node=node,
+    name="naeural_predict_app",
     signature=CustomWebApp01,
-    instance_id="tutorial",
-    use_ngrok=True,
+
     ngrok_edge_label="ADD_YOUR_EDGE_LABEL_HERE",
+    use_ngrok=False,
+    port=8080,
   )
 
   # GET request on <domain>/hello_world?name=naeural_developer
@@ -65,6 +66,9 @@ if __name__ == "__main__":
 
   # GET request on <domain>/get_uuid
   instance.add_new_endpoint(get_uuid, method="get")
+
+  # GET request on <domain>/get_addr
+  instance.add_new_endpoint(get_addr, method="get")
 
   # POST request on <domain>/forecasting (with body as json with 2 keys: series and steps)
   instance.add_new_endpoint(forecasting, method="post")

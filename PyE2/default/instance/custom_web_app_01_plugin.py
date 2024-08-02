@@ -15,7 +15,7 @@ class CustomWebApp01(Instance):
     import inspect
 
     name = method.__name__
-    args = list(inspect.signature(method).parameters.keys())[1:]
+    args = list(map(str, inspect.signature(method).parameters.values()))[1:]
     base64_code = self.pipeline._get_base64_code(method)
 
     return name, args, base64_code

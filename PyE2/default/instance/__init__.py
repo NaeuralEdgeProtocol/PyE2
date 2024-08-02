@@ -1,4 +1,4 @@
 from .net_mon_01_plugin import NetMon01
 from .view_scene_01_plugin import ViewScene01
-from .custom_code_fastapi_01_plugin import CustomWebApp01
+from .custom_web_app_01_plugin import CustomWebApp01
 from .chain_dist_custom_job_01_plugin import ChainDistCustomJob01
