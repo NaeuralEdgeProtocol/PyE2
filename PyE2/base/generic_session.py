@@ -1500,7 +1500,7 @@ class GenericSession(BaseDecentrAIObject):
         raise ValueError("Either node_id or node_addr must be provided.")
 
       if node_id is None:
-        node_id = {n_a: n_id for n_id, n_a in self._box_addr.items()}.get(node_addr, None)
+        node_id = {n_a: n_id for n_id, n_a in self._box_addr.items()}.get(node_addr, node_id)
 
       if node_id is None:
         raise ValueError("Node address not found.")

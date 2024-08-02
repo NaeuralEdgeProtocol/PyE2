@@ -9,11 +9,11 @@ class DistributedCustomCodePresets():
 
   def __process_real_time_collected_data__keep_uniques_in_aggregated_collected_data(plugin, job_id, collected_data, data):
     all_data = sum(collected_data.values(), [])
-    filtered_data = [d for d in data if d not in all_data]
+    filtered_data = list(set(d for d in data if d not in all_data))
     return filtered_data
 
   def __process_real_time_collected_data__keep_uniques_in_node_collected_data(plugin, job_id, collected_data, data):
-    filtered_data = [d for d in data if d not in collected_data[job_id]]
+    filtered_data = list(set(d for d in data if d not in collected_data[job_id]))
     return filtered_data
 
   def __process_real_time_collected_data__keep_in_node_collected_data(plugin, job_id, collected_data, data):
