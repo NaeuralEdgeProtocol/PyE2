@@ -45,19 +45,20 @@ def forecasting(plugin: CustomPluginTemplate, body=None):
 
 
 if __name__ == "__main__":
-  sess = Session()
+  session = Session()
 
-  node = "stefan-edge-node"
+  session.wait_for_any_node()
 
-  sess.wait_for_node(node)
+  node = session.get_active_nodes()[0]
 
-  pipeline, instance = sess.create_web_app(
+  pipeline, instance = session.create_web_app(
     node=node,
     name="naeural_predict_app",
     signature=CustomWebApp01,
 
     ngrok_edge_label="ADD_YOUR_EDGE_LABEL_HERE",
     use_ngrok=False,
+    ngrok_enabled=False,
     port=8080,
   )
 
@@ -75,4 +76,4 @@ if __name__ == "__main__":
 
   pipeline.deploy()
 
-  sess.run(close_pipelines=True)
+  session.run(close_pipelines=True)

@@ -1,8 +1,8 @@
 from PyE2 import Session
 
 
-def on_hb(session: Session, node_id: str, data: dict):
-  session.P("{} has a {}".format(node_id, data['CPU']))
+def on_hb(session: Session, node_addr: str, data: dict):
+  session.P("{} has a {}".format(node_addr, data['CPU']))
   return
 
 

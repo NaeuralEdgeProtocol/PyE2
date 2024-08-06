@@ -14,7 +14,7 @@ def another_instance_on_data(pipeline: Pipeline, data: Payload):
 def pipeline_on_data(pipeline: Pipeline, signature, instance, data: Payload):
   # this could refresh a UI
   pipeline.P('Received data from box {} by server {}, stream:{}, plugin: {}, instance:{}, the following data:{}'.format(
-      pipeline.node_id,
+      pipeline.node_id,  # can use pipeline.node_addr instead
       pipeline.session.server,
       pipeline.name,
       signature,
@@ -30,7 +30,7 @@ if __name__ == '__main__':
   sess = Session()
 
   pipeline: Pipeline = sess.create_pipeline(
-      node_id=node_id,
+      node=node_id,
       name='test_normal',
       data_source='VideoStream',
       config={

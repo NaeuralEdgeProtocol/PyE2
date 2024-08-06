@@ -69,17 +69,14 @@ def on_data(pipeline, result, full_payload):
 
 
 if __name__ == "__main__":
-  session = Session(config={"SECURED": True})
+  session = Session()
 
-  node = "stefan-edge-node"
-  session.wait_for_node(node)
+  session.wait_for_any_node()
 
-  # s.wait_for_any_node()
-
-  # node = s.get_active_nodes()[0]
+  node = session.get_active_nodes()[0]
 
   pipeline = session.create_or_attach_to_pipeline(
-    node_id=node,
+    node=node,
     name="run_threading_api",
     data_source="Void"
   )

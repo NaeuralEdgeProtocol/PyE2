@@ -29,7 +29,7 @@ if __name__ == '__main__':
   }
 
   pipeline = sess.create_pipeline(
-      node_id=node_id,
+      node=node_id,
       name='test_dist_jobs',
       data_source='IotQueueListener',  # this DCT allows data acquisition from MQTT brokers
       config={

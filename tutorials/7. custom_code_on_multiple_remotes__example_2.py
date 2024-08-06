@@ -119,7 +119,11 @@ def custom_code_aggregate_collected_data_from_all_workers(plugin: CustomPluginTe
   return collected_primes_so_far
 
 
+final_result = []
+
+
 def on_data(pipeline, full_payload):
+  global final_result
   progress = full_payload.get('PROGRESS')
   data = full_payload.get('DATA')
   len_data = 0
@@ -129,16 +133,22 @@ def on_data(pipeline, full_payload):
 
   pipeline.P(f"Progress: {progress} -- Found: {len_data} -- Primes: {data}\n\n")
 
+  if progress == 100:
+    pipeline.P("FINISHED\n\n")
+    final_result = data
+  return
+
 
 if __name__ == "__main__":
   s = Session()
 
-  node = "naeural-1"
-  s.wait_for_node(node)
+  s.wait_for_any_node()
+
+  node = s.get_active_nodes()[0]
 
   # This should be in #132
   p = s.create_or_attach_to_pipeline(
-    node_id=node,
+    node=node,
     name="run_distributed",
     data_source="Void"
   )
@@ -163,4 +173,7 @@ if __name__ == "__main__":
 
   p.deploy()
 
-  s.run(wait=True, close_pipelines=True)
+  # process incoming messages until the finish condition is met
+  s.run(wait=lambda: len(final_result) == 0, close_pipelines=True, close_session=True)
+
+  s.P("Final result has {} observations".format(len(final_result)), color='g')

@@ -18,7 +18,7 @@ if __name__ == '__main__':
   sess.connect()
 
   pipeline = sess.create_pipeline(
-    node_id="node_id",
+    node="node_id",
     name="test",
     data_source="VideoFile",
     config={

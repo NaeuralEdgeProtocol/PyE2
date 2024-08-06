@@ -51,7 +51,7 @@ if __name__ == '__main__':
   # first, we create a pipeline
   # we will use the video file data source, since we want to extract frames from a video
   pipeline: Pipeline = session.create_pipeline(
-    node_id=chosen_node,
+    node=chosen_node,
     name='real_time_custom_code_deploy',
     data_source='VideoFile',
     config={

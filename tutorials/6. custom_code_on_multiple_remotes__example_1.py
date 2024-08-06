@@ -70,12 +70,13 @@ def locally_process_partial_results(pipeline: Pipeline, full_payload):
 if __name__ == "__main__":
   s = Session()
 
-  node = "0xai_A8SY7lEqBtf5XaGyB6ipdk5C30vSf3HK4xELp3iplwLe"
-  s.wait_for_node(node)
+  s.wait_for_any_node()
+
+  node = s.get_active_nodes()[0]
 
   # define the job
   s.create_chain_dist_custom_job(
-    node_addr=node,
+    node=node,
     main_node_process_real_time_collected_data=Presets.PROCESS_REAL_TIME_COLLECTED_DATA__KEEP_UNIQUES_IN_AGGREGATED_COLLECTED_DATA,
     main_node_finish_condition=Presets.FINISH_CONDITION___AGGREGATED_DATA_MORE_THAN_X,
     main_node_finish_condition_kwargs={

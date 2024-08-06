@@ -8,8 +8,8 @@ In this example, we connect to the network, listen for heartbeats from
 from PyE2 import Session
 
 
-def on_heartbeat(session: Session, node_id: str, heartbeat: dict):
-  session.P("{} ({}) has a {}".format(node_id, heartbeat['EE_ADDR'], heartbeat["CPU"]))
+def on_heartbeat(session: Session, node_addr: str, heartbeat: dict):
+  session.P("{} ({}) has a {}".format(heartbeat['EE_ID'], node_addr, heartbeat["CPU"]))
   return
 
 

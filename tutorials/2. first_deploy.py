@@ -5,9 +5,7 @@ In this example, we connect to the network, choose a node and
     deploy a plugin that will extract frames from a video stream.
 """
 
-from PyE2 import Session, Pipeline, Instance, Payload
-
-from time import sleep
+from PyE2 import Instance, Payload, Pipeline, Session
 
 
 def instance_on_data(pipeline: Pipeline, data: Payload):
@@ -15,7 +13,8 @@ def instance_on_data(pipeline: Pipeline, data: Payload):
   # PIL needs to be installed for this to work
   images = data.get_images_as_PIL()
   if images is not None:
-    images[0].save('frame.jpg')
+    if len(images) > 0 and images[0] is not None:
+      images[0].save('frame.jpg')
 
 
 if __name__ == '__main__':
@@ -32,7 +31,7 @@ if __name__ == '__main__':
   # first, we create a pipeline
   # we will use the video file data source, since we want to extract frames from a video
   pipeline: Pipeline = session.create_pipeline(
-    node_id=chosen_node,
+    node=chosen_node,
     name='first_deploy',
     data_source='VideoFile',
     config={

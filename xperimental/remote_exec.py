@@ -48,10 +48,10 @@ def pipeline_on_notification(pipeline, notification: dict):
   return
 
 
-def sess_on_hb(sess, node_id, hb):
+def sess_on_hb(sess, node, hb):
   act_plug = hb['ACTIVE_PLUGINS']
   for plug in act_plug:
-    sess.P((node_id, plug['STREAM_ID'], plug['SIGNATURE'], plug['INSTANCE_ID']))
+    sess.P((node, plug['STREAM_ID'], plug['SIGNATURE'], plug['INSTANCE_ID']))
 
 
 load_dotenv()
@@ -70,7 +70,7 @@ sess = Session(
 )
 
 pipeline = sess.create_pipeline(
-    node_id=node_id,
+    node=node_id,
     name='test_mqtt',
     data_source='IotQueueListener',
     config={

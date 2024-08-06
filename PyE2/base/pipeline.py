@@ -27,7 +27,7 @@ class Pipeline(BaseCodeChecker):
     `Plugin` == `Signature`
   """
 
-  def __init__(self, session, log, *, node_id, name, config={}, plugins=[], on_data=None, on_notification=None, is_attached=False, existing_config=None, **kwargs) -> None:
+  def __init__(self, session, log, *, node_addr, name, config={}, plugins=[], on_data=None, on_notification=None, is_attached=False, existing_config=None, **kwargs) -> None:
     """
     A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
@@ -52,8 +52,8 @@ class Pipeline(BaseCodeChecker):
         A logger object which implements basic logging functionality and some other utils stuff. Can be ignored for now.
         In the future, the documentation for the Logger base class will be available and developers will be able to use
         custom-made Loggers. 
-    node_id : str
-        Name of the Naeural edge node that will handle this pipeline.  
+    node_addr : str
+        Address of the Naeural edge node that will handle this pipeline.  
     name : str
         The name of this pipeline.
     data_source : str
@@ -83,7 +83,7 @@ class Pipeline(BaseCodeChecker):
     """
     self.log = log
     self.session = session
-    self.node_id = node_id
+    self.node_addr = node_addr
     self.name = name
 
     self.config = {}
@@ -369,7 +369,7 @@ class Pipeline(BaseCodeChecker):
       Send an update pipeline configuration command to the Naeural edge node.
       """
       self.session._send_command_update_pipeline_config(
-          worker=self.node_id,
+          worker=self.node_addr,
           pipeline_config=self.__get_proposed_pipeline_config(),
           session_id=session_id
       )
@@ -396,7 +396,7 @@ class Pipeline(BaseCodeChecker):
         })
 
       self.session._send_command_batch_update_instance_config(
-        worker=self.node_id,
+        worker=self.node_addr,
         lst_updates=lst_updates,
         session_id=session_id
       )
@@ -529,7 +529,7 @@ class Pipeline(BaseCodeChecker):
         return
 
       if verbose:
-        self.P("Deployed pipeline <{}> on <{}>".format(self.name, self.node_id), color="g")
+        self.P("Deployed pipeline <{}> on <{}>".format(self.name, self.node_addr), color="g")
       self.__was_last_operation_successful = True
 
       self.config = {**self.config, **self.__staged_config}
@@ -619,7 +619,7 @@ class Pipeline(BaseCodeChecker):
       self.__was_last_operation_successful = None
 
       self.session._send_command_archive_pipeline(
-        worker=self.node_id,
+        worker=self.node_addr,
         pipeline_name=self.name,
       )
 
@@ -1318,7 +1318,7 @@ class Pipeline(BaseCodeChecker):
       self.__was_last_operation_successful = None
 
       self.session._send_command_pipeline_command(
-        worker=self.node_id,
+        worker=self.node_addr,
         pipeline_name=self.name,
         command=command,
         payload=payload,
@@ -1490,3 +1490,10 @@ class Pipeline(BaseCodeChecker):
           self.remove_plugin_instance(instance)
       # end for instance
       return
+
+    @property
+    def node_id(self):
+      """
+      Return the node id of the pipeline.
+      """
+      return self.session.get_node_name(self.node_addr)

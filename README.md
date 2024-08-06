@@ -4,7 +4,7 @@ This is the Python SDK package that allows interactions, development and deploym
 
 ## Dependencies
 
-This packet depends on the following packets: `pika`,  `paho-mqtt`, `numpy`, `pyopenssl>=23.0.0`, `cryptography>=39.0.0`, `python-dateutil`, `pyaml`.
+This packet depends on the following packets: `pika`, `paho-mqtt`, `numpy`, `pyopenssl>=23.0.0`, `cryptography>=39.0.0`, `python-dateutil`, `pyaml`.
 
 ## Installation
 
@@ -35,12 +35,11 @@ The following are the same:
 - `Plugin ~ Instance` (Only in the context of talking about a running plugin (instance); people tend to omit the word `instance`)
 - `Node == Worker` (Unless it is in the context of a distributed job, the 2 words refer to the same thing)
 
-## Hello world tutorial 
+## Hello world tutorial
 
 Below is a simple "Hello world!" style application that aims to show how simple and straightforward it is to distribute existing Python code to multiple edge node workers.
 
 To execute this code, you can check [tutorials/video_presentation/1. hello_world.ipynb](./tutorials/video_presentation/1.%20hello_world.ipynb)
-
 
 ### 1. Create `.env` file
 
@@ -69,7 +68,6 @@ To use our provided key. copy it from `tutorials/_example_pk_sdk.pem` to `local_
 We want to find all $168$ prime numbers in the interval $1$ - $1000$. For this we can run the following code on our local machine.
 
 This code has segments running on multiple threads using a ThreadPool.
-
 
 ```python
 import numpy as np
@@ -131,7 +129,7 @@ Because we want to find $168$ unique numbers, we append to the list of found pri
 
 At the end, we want to show a list of all the numbers found.
 
-### 4. Remote Execution 
+### 4. Remote Execution
 
 For this example we would like to use multiple edge nodes to find the prime numbers faster.
 
@@ -140,13 +138,12 @@ These changes are the only ones a developer has to do to deploy his own custom c
 
 For this, we will create a new method, `remote_brute_force_prime_number_generator`, which will use the exposed edge node API methods.
 
-
 ```python
 from PyE2 import CustomPluginTemplate
 
 # through the `plugin` object we get access to the edge node API
 # the CustomPluginTemplate class acts as a documentation for all the available methods and attributes
-# since we do not allow imports in the custom code due to security reasons, the `plugin` object 
+# since we do not allow imports in the custom code due to security reasons, the `plugin` object
 #   exposes common modules to the user
 def remote_brute_force_prime_number_generator(plugin: CustomPluginTemplate):
   def is_prime(n):
@@ -157,7 +154,7 @@ def remote_brute_force_prime_number_generator(plugin: CustomPluginTemplate):
       if n % i == 0:
         return False
     return True
-  
+
   # we use the `plugin.np` instead of the `np` module
   random_numbers = plugin.np.random.randint(1, 1000, 20)
 
@@ -177,14 +174,13 @@ This are all the changes we have to do to deploy this code in the network.
 Now lets connect to the network and see what nodes are online.
 We will use the `on_heartbeat` callback to print the nodes.
 
-
 ```python
 from PyE2 import Session
 from time import sleep
 
-def on_heartbeat(session: Session, node_id: str, heartbeat: dict):
+def on_heartbeat(session: Session, node: str, heartbeat: dict):
   # the `.P` method is used to print messages in the console and store them in the log file
-  session.P("{} is online".format(node_id))
+  session.P("{} is online".format(node))
   return
 
 
@@ -212,12 +208,11 @@ The available nodes in our test net are:
 
 We will send a task to this node. Since we want to distribute the task of finding prime numbers to multiple nodes, this selected node will handle distribution of tasks and collection of the results.
 
-
 ```python
 node = "0xai_A8SY7lEqBtf5XaGyB6ipdk5C30vSf3HK4xELp3iplwLe" # naeural-1
 
 # we usually wait for the node to be online before sending the task
-# but in this case we are sure that the node is online because we 
+# but in this case we are sure that the node is online because we
 # have received heartbeats from it during the sleep period
 
 # session.wait_for_node(node)
@@ -225,8 +220,7 @@ node = "0xai_A8SY7lEqBtf5XaGyB6ipdk5C30vSf3HK4xELp3iplwLe" # naeural-1
 
 Our selected node will periodically output partial results with the prime numbers found so far by the worker nodes. We want to consume these results.
 
-Thus, we need to implement a callback method that will handle this. 
-
+Thus, we need to implement a callback method that will handle this.
 
 ```python
 from PyE2 import Pipeline
@@ -251,20 +245,19 @@ def locally_process_partial_results(pipeline: Pipeline, full_payload):
 
 Now we are ready to deploy our job to the network.
 
-
 ```python
 from PyE2 import DistributedCustomCodePresets as Presets
 
 _, _ = session.create_chain_dist_custom_job(
     # this is the main node, our entrypoint
-    node_addr=node,
-    
+    node=node,
+
     # this function is executed on the main node
     # this handles what we want to do with primes found by a worker node after an iteration
     # we want to store only the unique prime numbers
     # we cam either write a custom code to pass here or we can use a preset
     main_node_process_real_time_collected_data=Presets.PROCESS_REAL_TIME_COLLECTED_DATA__KEEP_UNIQUES_IN_AGGREGATED_COLLECTED_DATA,
-    
+
     # this function is executed on the main node
     # this handles the finish condition of our distributed job
     # we want to finish when we have found 168 prime numbers
@@ -274,7 +267,7 @@ _, _ = session.create_chain_dist_custom_job(
     main_node_finish_condition_kwargs={
         "X": 167
     },
-    
+
     # this function is executed on the main node
     # this handles the final processing of the results
     # this function prepares data for the final result of the distributed job
@@ -284,7 +277,7 @@ _, _ = session.create_chain_dist_custom_job(
 
     # how many worker nodes we want to use for this task
     nr_remote_worker_nodes=2,
-    
+
     # this is the function that will be executed on the worker nodes
     # this function generates prime numbers using brute force
     # we simply pass the function reference
@@ -294,7 +287,7 @@ _, _ = session.create_chain_dist_custom_job(
     # this is the callback function that processes the partial results
     # in our case we want to print the partial results
     on_data=locally_process_partial_results,
-    
+
     # we want to deploy the job immediately
     deploy=True
 )
@@ -302,13 +295,11 @@ _, _ = session.create_chain_dist_custom_job(
 
 Last but not least, we want to close the session when the distributed job finished.
 
-
 ```python
 # we wait until the finished flag is set to True
 # we want to release the resources allocated on the selected node when the job is finished
 session.run(wait=lambda: not finished, close_pipelines=True)
 ```
-
 
 # Citation
 
@@ -323,12 +314,12 @@ session.run(wait=lambda: not finished, close_pipelines=True)
 
 ```bibtex
 @misc{milik2024naeuralaios,
-      title={Naeural AI OS -- Decentralized ubiquitous computing MLOps execution engine}, 
+      title={Naeural AI OS -- Decentralized ubiquitous computing MLOps execution engine},
       author={Beatrice Milik and Stefan Saraev and Cristian Bleotiu and Radu Lupaescu and Bogdan Hobeanu and Andrei Ionut Damian},
       year={2024},
       eprint={2306.08708},
       archivePrefix={arXiv},
       primaryClass={cs.AI},
-      url={https://arxiv.org/abs/2306.08708}, 
+      url={https://arxiv.org/abs/2306.08708},
 }
 ```

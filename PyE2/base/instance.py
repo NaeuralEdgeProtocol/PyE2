@@ -195,12 +195,12 @@ class Instance():
   # Utils
   if True:
     def __repr__(self) -> str:
-      node_id = self.pipeline.node_id
+      node_addr = self.pipeline.node_addr
       pipeline_name = self.pipeline.name
       signature = self.signature
       instance_id = self.instance_id
 
-      return f"<Instance: {node_id}/{pipeline_name}/{signature}/{instance_id}>"
+      return f"<Instance: {node_addr}/{pipeline_name}/{signature}/{instance_id}>"
 
     def _is_tainted(self):
       """
@@ -478,7 +478,7 @@ class Instance():
       transactions = self.__register_transaction_for_instance_command(timeout=timeout)
 
       self.pipeline.session._send_command_instance_command(
-        worker=self.pipeline.node_id,
+        worker=self.pipeline.node_addr,
         pipeline_name=self.pipeline.name,
         signature=self.signature,
         instance_id=self.instance_id,
