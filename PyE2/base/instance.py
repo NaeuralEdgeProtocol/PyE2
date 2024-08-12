@@ -562,7 +562,7 @@ class Instance():
       self.__class__ = specialized_class
       return self
 
-    def send_instance_command_and_wait_for_response_payload(self, command, payload=None, command_params=None, timeout=10, response_params_key="COMMAND_PARAMS"):
+    def send_instance_command_and_wait_for_response_payload(self, command, payload=None, command_params=None, timeout_command=10, timeout_response_payload=3, response_params_key="COMMAND_PARAMS"):
       """
       Send a command to the instance and wait for the response payload.
 
@@ -602,13 +602,13 @@ class Instance():
         payload=payload,
         command_params=command_params,
         wait_confirmation=True,
-        timeout=timeout,
+        timeout=timeout_command,
       )
 
-      self.temporary_detach(attachment)
-
       start_time = time()
-      while time() - start_time < 3 and result_payload is None:
+      while time() - start_time < timeout_response_payload and result_payload is None:
         sleep(0.1)
+
+      self.temporary_detach(attachment)
 
       return result_payload
