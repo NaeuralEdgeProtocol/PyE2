@@ -3,6 +3,7 @@ import sys
 import zipfile
 from time import time
 
+
 class _DownloadMixin(object):
   """
   Mixin for download functionalities that are attached to `pye2.Logger`.
@@ -17,10 +18,10 @@ class _DownloadMixin(object):
     super(_DownloadMixin, self).__init__()
     return
 
-  def maybe_download_model(self, 
-                           url, 
-                           model_file, 
-                           force_download=False, 
+  def maybe_download_model(self,
+                           url,
+                           model_file,
+                           force_download=False,
                            url_model_cfg=None,
                            **kwargs,
                            ):
@@ -61,7 +62,7 @@ class _DownloadMixin(object):
     """
     NEW VERSION: if url starts with 'minio:' the function will retrieve minio conn
                  params from **kwargs and use minio_download (if needed or forced)
-      
+
     will (maybe) download a from a given (full) url a file and save to
     target folder in `model_file`.
 
@@ -129,11 +130,11 @@ class _DownloadMixin(object):
         fns = [fns]
       if len(fns) != len(urls):
         self.raise_error("must provided same nr of urls and file names")
-    
+
     if verbose:
       str_log = "Maybe dl '{}' to '{}' from '{}'".format(fns, target, urls)
       self.P(str_log)
-    #endif
+    # endif
 
     def _print_download_progress(count, block_size, total_size):
       """
@@ -149,7 +150,7 @@ class _DownloadMixin(object):
 
       if publish_func is not None:
         if publish_only_value:
-          publish_func(round(pct_complete*100, 2))
+          publish_func(round(pct_complete * 100, 2))
         else:
           publish_func("progress:{:.1%}".format(pct_complete))
 
@@ -162,9 +163,15 @@ class _DownloadMixin(object):
         sys.stdout.flush()
       return
 
-    def _copy_file(src, dst):
+    def _copy_to_target(src, dst):
       import shutil
-      shutil.copy(src, dst)
+      if os.path.isfile(src):
+        shutil.copy(src, dst)
+      elif os.path.isdir(src):
+        if not os.path.exists(dst):
+          shutil.copytree(src, dst)
+      else:
+        self.P("ERROR: unknown source type: {}".format(src), color='error')
       return
 
     # Path for local file.
@@ -182,7 +189,7 @@ class _DownloadMixin(object):
         saved_files.append(None)
         self.P(msg, color='error')
         continue
-      ## useful if _fn is a hierarchy not a filename
+      # useful if _fn is a hierarchy not a filename
       _append_to_download_dir, _fn = os.path.split(_fn)
       _crt_download_dir = os.path.join(download_dir, _append_to_download_dir)
       save_path = os.path.join(_crt_download_dir, _fn)
@@ -208,35 +215,35 @@ class _DownloadMixin(object):
 
         if _url.startswith('minio:'):
           # handle MinIO url
-          _url = _url.replace('minio:','')
+          _url = _url.replace('minio:', '')
           file_path = self.minio_download(
             local_file_path=save_path,
             object_name=_url,
             **kwargs,
           )
-          
-        elif _url.startswith('http'):  
+
+        elif _url.startswith('http'):
           # Download the file from the internet.
           if verbose:
             self.P("Downloading {} from {}...".format(_fn, _url[:40]))
           reporthook = _print_download_progress
           import ssl
-          ssl._create_default_https_context = ssl._create_unverified_context          
+          ssl._create_default_https_context = ssl._create_unverified_context
           file_path, msg = urllib.request.urlretrieve(  # this has errors!!! if this fails, the path is none
             url=_url,
             filename=save_path,
             reporthook=reporthook
           )
-  
+
           msgs.append(msg)
           print("", flush=True)
           if verbose:
             self.P("Download done and saved in ...{}".format(file_path[-40:]))
-          # endif  
+          # endif
         elif os.path.exists(_url):
           if verbose:
             self.P("Found file in local file system at {}".format(_url))
-          _copy_file(_url, save_path)
+          _copy_to_target(_url, save_path)
           file_path = save_path
 
           if verbose:
@@ -358,7 +365,7 @@ class _DownloadMixin(object):
 
     try:
       start_up = time()
-      
+
       # if SSL_CERT_FILE is not None:
       #   os.environ['SSL_CERT_FILE'] = SSL_CERT_FILE
       cert_reqs = None
@@ -371,13 +378,12 @@ class _DownloadMixin(object):
             cert_reqs = 'CERT_REQUIRED'
         else:
           cert_reqs = 'CERT_NONE'
-          
-        
+
         timeout = timedelta(minutes=5).seconds
         http_client = urllib3.PoolManager(
           timeout=urllib3.util.Timeout(connect=timeout, read=timeout),
           maxsize=10,
-          cert_reqs=cert_reqs, 
+          cert_reqs=cert_reqs,
           ca_certs=SSL_CERT_FILE,
           retries=urllib3.Retry(
             total=5,
@@ -386,10 +392,10 @@ class _DownloadMixin(object):
           )
         )
       self.P("Downloading from Minio: <{} {} @{}>, secure:{}, SSL_CERT_FILE:'{}', cert_reqs:'{}' using http_client: {}...".format(
-        access_key, secret_key, endpoint, secure, SSL_CERT_FILE, 
+        access_key, secret_key, endpoint, secure, SSL_CERT_FILE,
         cert_reqs,
         http_client,
-        )
+      )
       )
       client = Minio(
         endpoint=endpoint,
@@ -398,7 +404,6 @@ class _DownloadMixin(object):
         secure=secure,
         http_client=http_client,
       )
-      
 
       res = client.fget_object(
         bucket_name=bucket_name,
