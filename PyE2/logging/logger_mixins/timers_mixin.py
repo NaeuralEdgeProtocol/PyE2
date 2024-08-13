@@ -15,7 +15,7 @@ DEFAULT_PERIODIC_MULTIPLIER = 3
 MAX_LAPS = 100
 ZERO_THRESHOLD = 5e-4
 
-_OBSOLETE_SECTION_TIME = 3*60 # sections older than 1 hour are archived
+_OBSOLETE_SECTION_TIME = 3600  # sections older than 1 hour are archived
 
 class _TimersMixin(object):
   """
