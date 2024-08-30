@@ -51,6 +51,7 @@ if __name__ == "__main__":
 
   node = session.get_active_nodes()[0]
 
+  instance: CustomWebApp01
   pipeline, instance = session.create_web_app(
     node=node,
     name="naeural_predict_app",
@@ -73,6 +74,13 @@ if __name__ == "__main__":
 
   # POST request on <domain>/forecasting (with body as json with 2 keys: series and steps)
   instance.add_new_endpoint(forecasting, method="post")
+
+  # add an html file to the web app, accessible at <domain>/
+  instance.add_new_html_endpoint(
+    html_path="tutorials/8. custom_code_fastapi_assets/index.html",
+    web_app_file_name="index.html",
+    endpoint_route="/",
+  )
 
   pipeline.deploy()
 
