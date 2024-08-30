@@ -166,6 +166,22 @@ class BaseCodeChecker:
   def check_code_text(self, code, safe_imports=None):
     return self._check_unsafe_code(code, safe_imports=safe_imports)
 
+  def str_to_base64(self, str, verbose=False, compress=False):
+    l_i = len(str)
+    l_c = -1
+    b_str = bytes(str, 'utf-8')
+    if compress:
+      b_str = zlib.compress(b_str, level=9)
+      l_c = sys.getsizeof(b_str)
+    b_encoded = base64.b64encode(b_str)
+    str_encoded = b_encoded.decode('utf-8')
+    l_b64 = len(str_encoded)
+    if verbose:
+      self.__msg("Initial/Compress/B64: {}/{}/{}".format(
+        l_i, l_c, l_b64), color='g'
+      )
+    return str_encoded
+
   def code_to_base64(self, code, verbose=False, compress=True):
     if verbose:
       self.__msg("Processing:\n{}".format(code), color='y')
@@ -173,18 +189,8 @@ class BaseCodeChecker:
     if errors is not None:
       self.__msg("Cannot serialize code due to: '{}'".format(errors), color='r')
       return None
-    l_i = len(code)
-    l_c = -1
-    b_code = bytes(code, 'utf-8')
-    if compress:
-      b_code = zlib.compress(b_code, level=9)
-      l_c = sys.getsizeof(b_code)
-    b_encoded = base64.b64encode(b_code)
-    str_encoded = b_encoded.decode('utf-8')
-    l_b64 = len(str_encoded)
-    self.__msg("Code checking and serialization suceeded. Initial/Compress/B64: {}/{}/{}".format(
-      l_i, l_c, l_b64), color='g'
-    )
+    self.__msg("Code checking succeeded", color='g')
+    str_encoded = self.str_to_base64(code, verbose=verbose, compress=compress)
     return str_encoded
 
   def base64_to_code(self, b64code, decompress=True):
