@@ -29,16 +29,16 @@ class GenericSession(BaseDecentrAIObject):
   """
   default_config = {
       "CONFIG_CHANNEL": {
-          "TOPIC": "lummetry/{}/config"
+          "TOPIC": "{}/{}/config"
       },
       "CTRL_CHANNEL": {
-          "TOPIC": "lummetry/ctrl"
+          "TOPIC": "{}/ctrl"
       },
       "NOTIF_CHANNEL": {
-          "TOPIC": "lummetry/notif"
+          "TOPIC": "{}/notif"
       },
       "PAYLOADS_CHANNEL": {
-          "TOPIC": "lummetry/payloads"
+          "TOPIC": "{}/payloads"
       },
       "QOS": 0,
       "CERT_PATH": None,
@@ -71,6 +71,7 @@ class GenericSession(BaseDecentrAIObject):
                blockchain_config=BLOCKCHAIN_CONFIG,
                bc_engine=None,
                formatter_plugins_locations=['plugins.io_formatters'],
+               root_topic="naeural",
                **kwargs) -> None:
     """
     A Session is a connection to a communication server which provides the channel to interact with nodes from the Naeural network.
@@ -128,10 +129,21 @@ class GenericSession(BaseDecentrAIObject):
         This flag will disable debug logs, set to 'False` for a more verbose log, by default True
     dotenv_path : str, optional
         Path to the .env file, by default None. If None, the path will be searched in the current working directory and in the directories of the files from the call stack.
+    root_topic : str, optional
+        This is the root of the topics used by the SDK. It is used to create the topics for the communication channels.
+        Defaults to "naeural"
     """
 
     # TODO: maybe read config from file?
     self._config = {**self.default_config, **config}
+
+    if root_topic is not None:
+      for key in self._config.keys():
+        if isinstance(self._config[key], dict) and 'TOPIC' in self._config[key]:
+          if isinstance(self._config[key]["TOPIC"], str) and self._config[key]["TOPIC"].startswith("{}"):
+            nr_empty = self._config[key]["TOPIC"].count("{}")
+            self._config[key]["TOPIC"] = self._config[key]["TOPIC"].format(root_topic, *(["{}"] * (nr_empty - 1)))
+    # end if root_topic
 
     self.log = log
     self.name = name
