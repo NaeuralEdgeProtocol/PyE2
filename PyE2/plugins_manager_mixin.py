@@ -53,15 +53,57 @@ class _PluginsManagerMixin:
 
     return names, modules
 
-  def _get_plugin_by_name(self, lst_plugins_locations, name, safe=False):
+  def get_package_base_path(self, package_name):
+    """
+    Return the file path of an installed package parent directory.
+    
+    :param package_name: The name of the installed package.
+    :return: The path to the package parent.
+    """
+    spec = importlib.util.find_spec(package_name)
+    if spec is not None and spec.submodule_search_locations:
+      return os.path.dirname(spec.submodule_search_locations[0])
+    else:
+      self.P("Package '{}' not found.".format(package_name), color='r')
+    return None
+
+  def _get_plugin_by_name(self, lst_plugins_locations, name, search_in_packages=None, safe=False):
     name = self.log.camel_to_snake(name)
+
+    if search_in_packages is None:
+      search_in_packages = []
+
     total_sub_locations = []
-    # First we extract all the sublocations
+    # First we extract all the sublocations for each package
+
+    for package in search_in_packages:
+      package_path = self.get_package_base_path(package)
+      if package_path is None:
+        continue
+
+      for location in lst_plugins_locations:
+        base_location_name = location.split('.')[0]
+        # if the location is not in the package we skip it (locations should begin with the package name)
+        # TODO: review this please
+        if base_location_name != package:
+          continue
+
+        root_location = location.replace('.', os.path.sep)
+        package_root_location = os.path.join(package_path, root_location)
+        sub_locations = self.log.get_all_subfolders(package_root_location, as_package=True)
+        sub_locations = [x.replace(package_path.replace(os.path.sep, '.').strip('.'), '').strip('.') for x in sub_locations]
+        sub_locations.append(location)
+        total_sub_locations += sub_locations
+      # end for package locations
+    # end for package
+
+    # Then we extract all the sublocations for local files
     for location in lst_plugins_locations:
-      root_location = location.replace('.', '/')
+      root_location = location.replace('.', os.pathsep)
       sub_locations = self.log.get_all_subfolders(root_location, as_package=True)
       total_sub_locations += sub_locations
-    # endfor
+    # endfor local
+
     # we remove duplicates
     total_sub_locations = list(set(total_sub_locations))
     lst_plugins_locations = lst_plugins_locations + total_sub_locations
@@ -126,7 +168,8 @@ class _PluginsManagerMixin:
 
   def _get_module_name_and_class(self, 
                                  locations, 
-                                 name, 
+                                 name,
+                                 search_in_packages=None,
                                  suffix=None, 
                                  verbose=1, 
                                  safety_check=False, 
@@ -153,14 +196,15 @@ class _PluginsManagerMixin:
       if not isinstance(safe_locations, list):
         safe_locations = [safe_locations]
       if len(safe_locations) > 0:
-        _safe_module_name = self._get_plugin_by_name(safe_locations, name, safe=True)
+        _safe_module_name = self._get_plugin_by_name(safe_locations, name, search_in_packages=search_in_packages, safe=True)
         
     if safe_imports is not None and not isinstance(safe_imports, list):
       safe_imports = [safe_imports]
     
     # not a safe module so we search in normal locations
     if _safe_module_name is None:
-      _user_module_name = self._get_plugin_by_name(locations, name, safe=False)
+      # in packages you should have only safe locations
+      _user_module_name = self._get_plugin_by_name(locations, name, search_in_packages=None, safe=False)
       _module_name = _user_module_name
     else:
       is_safe_plugin = True 
