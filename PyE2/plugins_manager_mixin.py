@@ -99,7 +99,7 @@ class _PluginsManagerMixin:
 
     # Then we extract all the sublocations for local files
     for location in lst_plugins_locations:
-      root_location = location.replace('.', os.pathsep)
+      root_location = location.replace('.', os.path.sep)
       sub_locations = self.log.get_all_subfolders(root_location, as_package=True)
       total_sub_locations += sub_locations
     # endfor local
