@@ -57,7 +57,7 @@ class GenericSession(BaseDecentrAIObject):
                pwd=None,
                secured=None,
                name='pySDK',
-               encrypt_comms=False,
+               encrypt_comms=True,
                config={},
                filter_workers=None,
                log: Logger = None,
@@ -192,6 +192,19 @@ class GenericSession(BaseDecentrAIObject):
     self.formatter_wrapper = IOFormatterWrapper(self.log, plugin_search_locations=self.__formatter_plugins_locations)
 
     self._connect()
+
+    if not self.encrypt_comms:
+      self.P(
+        "Warning: Emitted messages will not be encrypted.\n"
+        "This is not recommended for production environments.\n"
+        "\n"
+        "Please set `encrypt_comms` to `True` when creating the `Session` object.",
+        color='r',
+        verbosity=1,
+        boxed=True,
+        box_char='*',
+      )
+
     self.__start_main_loop_thread()
     super(GenericSession, self).startup()
 
