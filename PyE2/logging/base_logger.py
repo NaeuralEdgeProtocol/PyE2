@@ -806,22 +806,39 @@ class BaseLogger(object):
       str_msg = str(str_msg)
     print("\r" + str_msg, flush=True, end='')
 
+  def __convert_to_box(self, str_msg, box_char='#', indent=None, **kwargs):
+    lst_msg_lines = str_msg.split('\n')
+    max_line_len = max(map(len, lst_msg_lines))
+
+    center = 4 if max_line_len > 80 else 10
+    box_line_len = center + 1 + max_line_len + 1 + center
+    default_indent = 4 if box_line_len > 100 else 20
+    indent = indent if indent is not None else default_indent
+    str_indent = ' ' * indent
+
+    msg = box_char * 3 + 'IMPORTANT' + box_char * 3 + '\n\n'
+    msg += str_indent + box_char * box_line_len + '\n'
+    msg += str_indent + box_char + (box_line_len - 2) * ' ' + box_char + '\n'
+
+    for line in lst_msg_lines:
+      left_box_edge = str_indent + box_char
+      right_box_edge = box_char
+
+      left_shift = ' ' * center
+      right_shift = ' ' * (center + max_line_len - len(line)) # adjust for different line lengths
+      shifted_line = left_shift + line + right_shift
+      msg += left_box_edge + shifted_line + right_box_edge + '\n'
+    # end for
+
+    msg += str_indent + box_char + (box_line_len - 2) * ' ' + box_char + '\n'
+    msg += str_indent + box_char * box_line_len + '\n'
+
+    return msg
+
   def p(self, str_msg, show_time=False, noprefix=False, color=None, boxed=False, **kwargs):
     if boxed:
-      center = 4 if len(str_msg) > 80 else 10
-      box_char = '#' if 'box_char' not in kwargs else kwargs['box_char']
-      main = ' ' * center + str_msg + ' ' * center
-      line_len = len(main) + 2
-      default_indent = 4 if line_len > 100 else 20
-      indent = default_indent if 'indent' not in kwargs else kwargs['indent']
-      str_indent = ' ' * indent
-      msg = box_char * 3 + 'IMPORTANT' + box_char * 3 + '\n\n'
-      msg += str_indent + box_char * line_len + '\n'
-      msg += str_indent + box_char + len(main) * ' ' + box_char + '\n'
-      msg += str_indent + box_char + main + box_char + '\n'
-      msg += str_indent + box_char + len(main) * ' ' + box_char + '\n'
-      msg += str_indent + box_char * line_len + '\n'
-      self._logger(msg, show=True, noprefix=noprefix, color=color)      
+      msg = self.__convert_to_box(str_msg, **kwargs)
+      self._logger(msg, show=True, noprefix=noprefix, color=color)
     else:
       return self._logger(
         str_msg,
