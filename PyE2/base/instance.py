@@ -229,7 +229,7 @@ class Instance():
 
       return config_dict
 
-    def _get_proposed_config_dictionary(self):
+    def _get_proposed_config_dictionary(self, full=False):
       """
       Get the proposed configuration of the instance as a dictionary.
 
@@ -243,6 +243,7 @@ class Instance():
 
       proposed_config_dict = {
         'INSTANCE_ID': self.instance_id,
+        **({} if not full else self.config),
         **self.proposed_config
       }
 
@@ -437,7 +438,7 @@ class Instance():
 
       return
 
-    def send_instance_command(self, command, payload=None, command_params=None, wait_confirmation=True, timeout=10):
+    def send_instance_command(self, command, payload=None, command_params=None, wait_confirmation=True, session_id=None, timeout=10):
       """
       Send a command to the instance.
       This command can block until the command is confirmed by the Naeural edge node.
@@ -485,6 +486,7 @@ class Instance():
         command=command,
         payload=payload,
         command_params=command_params,
+        session_id=session_id,
       )
 
       if wait_confirmation:

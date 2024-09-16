@@ -6,7 +6,7 @@ class CustomWebApp01(Instance):
 
   def get_proposed_endpoints(self):
     from copy import deepcopy
-    proposed_config = self._get_proposed_config_dictionary()
+    proposed_config = self._get_proposed_config_dictionary(full=True)
     if "ENDPOINTS" in proposed_config:
       return deepcopy(proposed_config["ENDPOINTS"])
     return deepcopy(self.config.get("ENDPOINTS", []))
@@ -43,14 +43,14 @@ class CustomWebApp01(Instance):
 
   def get_proposed_assets(self):
     from copy import deepcopy
-    proposed_config = self._get_proposed_config_dictionary()
+    proposed_config = self._get_proposed_config_dictionary(full=True)
     if "ASSETS" in proposed_config:
       return deepcopy(proposed_config["ASSETS"])
     return deepcopy(self.config.get("ASSETS", {}))
 
   def get_proposed_jinja_args(self):
     from copy import deepcopy
-    proposed_config = self._get_proposed_config_dictionary()
+    proposed_config = self._get_proposed_config_dictionary(full=True)
     if "JINJA_ARGS" in proposed_config:
       return deepcopy(proposed_config["JINJA_ARGS"])
     return deepcopy(self.config.get("JINJA_ARGS", {}))

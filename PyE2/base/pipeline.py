@@ -179,22 +179,21 @@ class Pipeline(BaseCodeChecker):
           The proposed pipeline configuration dictionary.
       """
 
-      pipeline_config = self.proposed_config if self.proposed_config else self.config
-
       plugin_dict = self.__construct_plugins_dictionary(skip_instances=self.proposed_remove_instances)
 
       plugins_list = []
       for signature, instances in plugin_dict.items():
         plugins_list.append({
           'SIGNATURE': signature,
-          'INSTANCES': [instance._get_proposed_config_dictionary() for instance in instances]
+          'INSTANCES': [instance._get_proposed_config_dictionary(full=True) for instance in instances]
         })
 
       proposed_pipeline_config = {
         'NAME': self.name,
         'DEFAULT_PLUGIN': False,
         'PLUGINS': plugins_list,
-        **pipeline_config,
+        **self.config,
+        **self.proposed_config,
       }
       return proposed_pipeline_config
 
@@ -392,7 +391,7 @@ class Pipeline(BaseCodeChecker):
           PAYLOAD_DATA.NAME: self.name,
           PAYLOAD_DATA.SIGNATURE: instance.signature,
           PAYLOAD_DATA.INSTANCE_ID: instance.instance_id,
-          PAYLOAD_DATA.INSTANCE_CONFIG: instance._get_proposed_config_dictionary()
+          PAYLOAD_DATA.INSTANCE_CONFIG: instance._get_proposed_config_dictionary(full=False)
         })
 
       self.session._send_command_batch_update_instance_config(
