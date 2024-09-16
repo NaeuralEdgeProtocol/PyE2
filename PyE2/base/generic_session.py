@@ -738,6 +738,34 @@ class GenericSession(BaseDecentrAIObject):
 
       return
 
+    def sleep(self, wait=True):
+      """
+      Sleep for a given amount of time.
+
+      Parameters
+      ----------
+      wait : bool, float, callable
+          If `True`, will wait forever.
+          If `False`, will not wait at all
+          If type `float` and > 0, will wait said amount of seconds
+          If type `float` and == 0, will wait forever
+          If type `callable`, will call the function until it returns `False`
+          Defaults to `True`
+      """
+      _start_timer = tm()
+      try:
+        bool_loop_condition = isinstance(wait, bool) and wait
+        number_loop_condition = isinstance(wait, (int, float)) and (wait == 0 or (tm() - _start_timer) < wait)
+        callable_loop_condition = callable(wait) and wait()
+        while (bool_loop_condition or number_loop_condition or callable_loop_condition):
+          sleep(0.1)
+          bool_loop_condition = isinstance(wait, bool) and wait
+          number_loop_condition = isinstance(wait, (int, float)) and (wait == 0 or (tm() - _start_timer) < wait)
+          callable_loop_condition = callable(wait) and wait()
+      except KeyboardInterrupt:
+        self.P("CTRL+C detected. Stopping loop.", color='r', verbosity=1)
+      return
+
   # Utils
   if True:
     def __fill_config(self, host, port, user, pwd, secured, dotenv_path):
