@@ -1448,6 +1448,8 @@ class GenericSession(BaseDecentrAIObject):
       return
 
     def are_transactions_finished(self, transactions: list[Transaction]):
+      if transactions is None:
+        return True
       return all([transaction.is_finished() for transaction in transactions])
 
     def wait_for_all_sets_of_transactions(self, lst_transactions: list[list[Transaction]]):
