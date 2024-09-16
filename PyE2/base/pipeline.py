@@ -923,6 +923,7 @@ class Pipeline(BaseCodeChecker):
       b64code = self._get_base64_code(custom_code)
 
       def callback(pipeline, data): return self.__custom_exec_on_data(pipeline, instance_id, on_data, data)
+      callback = callback if on_data is not None else None
 
       return self.create_plugin_instance(
           signature='CUSTOM_EXEC_01',
@@ -1238,6 +1239,7 @@ class Pipeline(BaseCodeChecker):
       """
 
       def callback(pipeline, data): return self.__custom_exec_on_data(pipeline, instance_id, on_data, data)
+      callback = callback if on_data is not None else None
 
       return self.attach_to_plugin_instance("CUSTOM_EXEC_01", instance_id, callback, on_notification)
 
