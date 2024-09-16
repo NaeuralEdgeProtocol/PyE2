@@ -3,7 +3,7 @@ import os
 import traceback
 from collections import deque
 from datetime import datetime as dt
-from threading import Thread
+from threading import Lock, Thread
 from time import sleep
 from time import time as tm
 
@@ -182,6 +182,7 @@ class GenericSession(BaseDecentrAIObject):
     self.__blockchain_config = blockchain_config
 
     self.__open_transactions: list[Transaction] = []
+    self.__open_transactions_lock = Lock()
 
     self.__create_user_callback_threads()
     super(GenericSession, self).__init__(log=log, DEBUG=not silent, create_logger=True)
@@ -423,9 +424,11 @@ class GenericSession(BaseDecentrAIObject):
         return
 
       # pass the heartbeat message to open transactions
-      no_transactions = len(self.__open_transactions)
-      for idx in range(no_transactions):
-        self.__open_transactions[idx].handle_heartbeat(dict_msg)
+      with self.__open_transactions_lock:
+        open_transactions_copy = self.__open_transactions.copy()
+      # end with
+      for transaction in open_transactions_copy:
+        transaction.handle_heartbeat(dict_msg)
 
       self.D("Received hb from: {}".format(msg_node_addr), verbosity=2)
 
@@ -483,10 +486,11 @@ class GenericSession(BaseDecentrAIObject):
           break
 
       # pass the notification message to open transactions
-      no_transactions = len(self.__open_transactions)
-      for idx in range(no_transactions):
-        self.__open_transactions[idx].handle_notification(dict_msg)
-
+      with self.__open_transactions_lock:
+        open_transactions_copy = self.__open_transactions.copy()
+      # end with
+      for transaction in open_transactions_copy:
+        transaction.handle_notification(dict_msg)
       # call the custom callback, if defined
       if self.custom_on_notification is not None:
         self.custom_on_notification(self, msg_node_addr, Payload(dict_msg))
@@ -528,10 +532,11 @@ class GenericSession(BaseDecentrAIObject):
           break
 
       # pass the payload message to open transactions
-      no_transactions = len(self.__open_transactions)
-      for idx in range(no_transactions):
-        self.__open_transactions[idx].handle_payload(dict_msg)
-
+      with self.__open_transactions_lock:
+        open_transactions_copy = self.__open_transactions.copy()
+      # end with
+      for transaction in open_transactions_copy:
+        transaction.handle_payload(dict_msg)
       if self.custom_on_payload is not None:
         self.custom_on_payload(self, msg_node_addr, msg_pipeline, msg_signature, msg_instance, Payload(msg_data))
 
@@ -563,13 +568,13 @@ class GenericSession(BaseDecentrAIObject):
       return
 
     def __handle_open_transactions(self):
-      no_transactions = len(self.__open_transactions)
+      with self.__open_transactions_lock:
+        solved_transactions = [i for i, transaction in enumerate(self.__open_transactions) if transaction.is_solved()]
+        solved_transactions.reverse()
 
-      solved_transactions = [i for i in range(no_transactions) if self.__open_transactions[i].is_solved()]
-      solved_transactions.reverse()
-      for idx in solved_transactions:
-        self.__open_transactions[idx].callback()
-        self.__open_transactions.pop(idx)
+        for idx in solved_transactions:
+          self.__open_transactions[idx].callback()
+          self.__open_transactions.pop(idx)
       return
 
     @property
@@ -1060,7 +1065,8 @@ class GenericSession(BaseDecentrAIObject):
         on_failure_callback=on_failure_callback,
       )
 
-      self.__open_transactions.append(transaction)
+      with self.__open_transactions_lock:
+        self.__open_transactions.append(transaction)
       return transaction
 
     def __create_pipeline_from_config(self, node_addr, config):
