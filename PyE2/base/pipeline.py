@@ -1,6 +1,7 @@
 # TODO: for custom plugin, do the plugin verification locally too
 
 import os
+from time import sleep, time
 
 from ..code_cheker.base import BaseCodeChecker
 from ..const import PAYLOAD_DATA
@@ -1039,18 +1040,17 @@ class Pipeline(BaseCodeChecker):
         return transactions
       return
 
-    def wait_exec(self, *, plain_code: str = None, plain_code_path: str = None, config={}):
+    def wait_exec(self, *, custom_code: callable, instance_config={}, timeout=10):
       """
       Create a new REST-like custom execution instance, with a given configuration. This instance is attached to this pipeline, 
       meaning it processes data from this pipelines data source. The code used for the custom instance must be provided either as a string, or as a path to a file. Parameters can be passed either in the config dict, or as kwargs.
-      The REST-like custom plugin instance will execute only once. If one desires to execute a custom code periodically, use `start_custom_plugin`.
+      The REST-like custom plugin instance will execute only once. If one desires to execute a custom code periodically, use `create_custom_plugin_instance`.
 
       Parameters
       ----------
-      plain_code : str, optional
-          A string containing the entire code that is to be executed remotely on an Naeural edge node, by default None
-      plain_code_path : str, optional
-          A string containing the path to the code that is to be executed remotely on an Naeural edge node, by default None
+      custom_code : Callable[[CustomPluginTemplate], Any], optional
+          A string containing the entire code, a path to a file containing the code as a string or a function with the code.
+          This code will be executed remotely on an Naeural edge node. Defaults to None.
       config : dict, optional
           parameters used to customize the functionality, by default {}
 
@@ -1068,13 +1068,7 @@ class Pipeline(BaseCodeChecker):
           Plugin instance already exists. 
       """
 
-      if plain_code is None and plain_code_path is None:
-        raise Exception(
-            "Need to specify at least one of the following: plain_code, plain_code_path")
-
-      if plain_code is None:
-        with open(plain_code_path, "r") as fd:
-          plain_code = "".join(fd.readlines())
+      b64code = self._get_base64_code(custom_code)
 
       finished = False
       result = None
@@ -1085,15 +1079,14 @@ class Pipeline(BaseCodeChecker):
         nonlocal result
         nonlocal error
 
-        if 'rest_execution_result' in data['specificValue'] and 'rest_execution_error' in data['specificValue']:
-          result = data['specificValue']['rest_execution_result']
-          error = data['specificValue']['rest_execution_error']
+        if 'REST_EXECUTION_RESULT' in data and 'REST_EXECUTION_ERROR' in data:
+          result = data['REST_EXECUTION_RESULT']
+          error = data['REST_EXECUTION_ERROR']
           finished = True
         return
 
-      b64code = self.code_to_base64(plain_code, verbose=False)
-      instance_id = self.name + "_rest_custom_exec_synchronous_0"
-      config = {
+      instance_id = self.name + "_rest_custom_exec_synchronous_" + self.log.get_unique_id()
+      instance_config = {
           'REQUEST': {
               'DATA': {
                   'CODE': b64code,
@@ -1102,20 +1095,26 @@ class Pipeline(BaseCodeChecker):
           },
           'RESULT_KEY': 'REST_EXECUTION_RESULT',
           'ERROR_KEY': 'REST_EXECUTION_ERROR',
-          **config
+          **instance_config
       }
 
-      instance = self.create_plugin_instance(
+      prop_config = self.__get_proposed_pipeline_config()
+      if prop_config['TYPE'] == 'Void':
+        instance_config['ALLOW_EMPTY_INPUTS'] = True
+        instance_config['RUN_WITHOUT_IMAGE'] = True
+
+      self.create_plugin_instance(
           signature='REST_CUSTOM_EXEC_01',
           instance_id=instance_id,
-          config=config,
+          config=instance_config,
           on_data=on_data
       )
-      while not finished:
-        pass
 
-      # stop the stream
-      instance.close()
+      self.deploy()
+
+      start_time = time()
+      while not finished and time() - start_time < timeout:
+        sleep(0.1)
 
       return result, error
 
