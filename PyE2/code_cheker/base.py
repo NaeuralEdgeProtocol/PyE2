@@ -1,3 +1,4 @@
+import io
 import zlib
 import sys
 import base64
@@ -113,6 +114,7 @@ class BaseCodeChecker:
 
   def __init__(self):
     super(BaseCodeChecker, self).__init__()
+    self.printed_lines = []
     return
 
   def __msg(self, m, color='d'):
@@ -272,7 +274,16 @@ class BaseCodeChecker:
       )
     return exec_code__code
 
-  def exec_code(self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True):
+  def custom_print(self, *args, **kwargs):
+    """
+    Custom print function that will be used in the plugin code.
+    """
+    outstream = io.StringIO()
+    print(*args, file=outstream, **kwargs)
+    self.printed_lines.append(outstream.getvalue())
+    return
+
+  def exec_code(self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True, return_printed=False):
     exec_code__result_vars = result_vars
     exec_code__debug = debug
     exec_code__self_var = self_var
@@ -310,7 +321,8 @@ class BaseCodeChecker:
         )
       # endif can encapsulate code in method
 
-      exec(exec_code__code)
+      self.printed_lines = []
+      exec(exec_code__code, {'print': self.custom_print})
       if exec_code__debug:
         self.__msg("DEBUG EXEC: locals(): \n{}".format(locals()))
       for _var in exec_code__result_vars:
@@ -330,7 +342,10 @@ class BaseCodeChecker:
       else:
         exec_code__errors = str(e)
     # end try-except
-    return exec_code__result_var, exec_code__errors, exec_code__warnings
+    res = (exec_code__result_var, exec_code__errors, exec_code__warnings)
+    if return_printed:
+      res += (self.printed_lines,)
+    return res
 
   def _get_method_from_custom_code(self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True, method_arguments=[]):
     exec_code__result_vars = result_vars

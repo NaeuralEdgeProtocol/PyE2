@@ -193,7 +193,7 @@ class Pipeline(BaseCodeChecker):
         'DEFAULT_PLUGIN': False,
         'PLUGINS': plugins_list,
         **self.config,
-        **self.proposed_config,
+        **(self.proposed_config or {}),
       }
       return proposed_pipeline_config
 
