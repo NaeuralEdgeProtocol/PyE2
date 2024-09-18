@@ -184,16 +184,17 @@ class BaseCodeChecker:
       )
     return str_encoded
 
-  def code_to_base64(self, code, verbose=False, compress=True):
+  def code_to_base64(self, code, verbose=False, compress=True, return_errors=False):
     if verbose:
       self.__msg("Processing:\n{}".format(code), color='y')
     errors = self._check_unsafe_code(code)
     if errors is not None:
-      self.__msg("Cannot serialize code due to: '{}'".format(errors), color='r')
-      return None
+      err_msg = "Cannot serialize code due to: '{}'".format(errors)
+      self.__msg(err_msg, color='r')
+      return None if not return_errors else (None, err_msg)
     self.__msg("Code checking succeeded", color='g')
     str_encoded = self.str_to_base64(code, verbose=verbose, compress=compress)
-    return str_encoded
+    return str_encoded if not return_errors else (str_encoded, None)
 
   def base64_to_code(self, b64code, decompress=True):
     decoded = None
