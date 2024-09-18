@@ -126,28 +126,6 @@ class BaseCodeChecker:
       print(m)
     return
 
-  def _preprocess_code(self, code):
-    res = ''
-    in_string = False
-    for c in code:
-      if c == '"':
-        if not in_string:
-          in_string = True
-        else:
-          in_string = False
-
-      if c == "'":
-        if not in_string:
-          in_string = True
-        else:
-          in_string = False
-
-      if c == '\n' and in_string:
-        res += '\\n'
-      else:
-        res += c
-    return res
-
   def _is_safe_import(self, code, safe_imports):
     if safe_imports is None:
       return False
@@ -225,8 +203,8 @@ class BaseCodeChecker:
     if errors is None:
       if code is None:
         errors = 'Provided ascii data is not a valid base64 object'
-      else:
-        code = self._preprocess_code(code)
+      # endif no valid code provided
+    # endif no errors
     return code, errors
 
   def _add_line_after_each_line(self, code, codeline='plugin.sleep(0.001)'):
