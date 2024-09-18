@@ -15,6 +15,10 @@ jobs:
     name: Build and publish Python 🐍 distributions 📦 to PyPI
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write  # Allows the workflow to request an OIDC token
+      contents: read   # Read access to repository contents (required for checkout)
+
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
