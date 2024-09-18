@@ -278,12 +278,18 @@ class BaseCodeChecker:
     """
     Custom print function that will be used in the plugin code.
     """
+    # redirect the print to the plugin cache
     outstream = io.StringIO()
     print(*args, file=outstream, **kwargs)
-    self.printed_lines.append(outstream.getvalue())
+    printed_value = outstream.getvalue()
+    self.printed_lines.append(printed_value)
+    # print to the console
+    print(f'[CUST_CODE_PRINT]{printed_value}')
     return
 
-  def exec_code(self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True, return_printed=False):
+  def exec_code(
+      self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True, return_printed=False
+  ):
     exec_code__result_vars = result_vars
     exec_code__debug = debug
     exec_code__self_var = self_var
@@ -322,7 +328,8 @@ class BaseCodeChecker:
       # endif can encapsulate code in method
 
       self.printed_lines = []
-      exec(exec_code__code, {'print': self.custom_print})
+      locals()['print'] = self.custom_print
+      exec(exec_code__code)
       if exec_code__debug:
         self.__msg("DEBUG EXEC: locals(): \n{}".format(locals()))
       for _var in exec_code__result_vars:
