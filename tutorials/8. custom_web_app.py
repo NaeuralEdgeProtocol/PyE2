@@ -1,14 +1,16 @@
-from PyE2 import Session, CustomPluginTemplate
+from PyE2 import CustomPluginTemplate, Session
 from PyE2.default.instance import CustomWebApp01
 
 # this tutorial can be run only on the local edge node
 # because it uses ngrok to expose the fastapi server
 # and this requires an ngrok auth token
 
+# See https://naeural-013.ngrok.app/docs
+
 
 def hello_world(plugin, name: str = "naeural_developer"):
   # name is a query parameter
-  return f"Hello, {name}!"
+  return f"Hello, {name}! I am {plugin.e2_addr}"
 
 
 def get_uuid(plugin: CustomPluginTemplate):
@@ -19,26 +21,7 @@ def get_addr(plugin: CustomPluginTemplate):
   return plugin.node_addr
 
 
-def forecasting(plugin: CustomPluginTemplate, body=None):
-  # body is NOT a query parameter
-  # body is a json object (it is the body of the POST request)
-
-  # given a series of data and a number of steps,
-  # predict the next `steps` values in the series
-  if body is None:
-    return None
-
-  if not isinstance(body, dict):
-    return None
-
-  series = body.get("series", None)
-  if series is None:
-    return None
-
-  steps = body.get("steps", None)
-  if steps is None:
-    return None
-
+def predict(plugin: CustomPluginTemplate, series: list[int], steps: int) -> list:
   result = plugin.basic_ts_fit_predict(series, steps)
   result = list(map(int, result))
   return result
@@ -47,9 +30,8 @@ def forecasting(plugin: CustomPluginTemplate, body=None):
 if __name__ == "__main__":
   session = Session()
 
-  session.wait_for_any_node()
-
-  node = session.get_active_nodes()[0]
+  node = "INSERT_YOUR_NODE_ADDRESS_HERE"
+  session.wait_for_node(node)
 
   instance: CustomWebApp01
   pipeline, instance = session.create_web_app(
@@ -57,10 +39,8 @@ if __name__ == "__main__":
     name="naeural_predict_app",
     signature=CustomWebApp01,
 
-    ngrok_edge_label="ADD_YOUR_EDGE_LABEL_HERE",
-    use_ngrok=False,
-    ngrok_enabled=False,
-    port=8080,
+    ngrok_edge_label="INSERT_YOUR_NGROK_EDGE_LABEL_HERE",
+    use_ngrok=True,
   )
 
   # GET request on <domain>/hello_world?name=naeural_developer
@@ -73,7 +53,7 @@ if __name__ == "__main__":
   instance.add_new_endpoint(get_addr, method="get")
 
   # POST request on <domain>/forecasting (with body as json with 2 keys: series and steps)
-  instance.add_new_endpoint(forecasting, method="post")
+  instance.add_new_endpoint(predict, method="post")
 
   # add an html file to the web app, accessible at <domain>/
   instance.add_new_html_endpoint(
