@@ -282,7 +282,7 @@ class BaseCodeChecker:
     try:
       # Execute the code
       with self.__exec_code_lock:
-        exec(code, {}, local_vars)
+        exec(code, local_vars)
 
         # Capture result variables
         for _var in local_vars.get('exec_code__result_vars', []):
