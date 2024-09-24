@@ -304,7 +304,7 @@ class BaseCodeChecker:
         "error": traceback.format_exc()
       })
 
-  def stop_thread(self, thread):
+  def __code_exec_stop_thread(self, thread):
     """
     Stop the specified thread.
     Parameters
@@ -347,7 +347,7 @@ class BaseCodeChecker:
       # process.terminate()
       # thread.join()
       # TODO: maybe still send partial results or prints?
-      self.stop_thread(thread)
+      self.__code_exec_stop_thread(thread)
 
       return {
         "result_var": None,
