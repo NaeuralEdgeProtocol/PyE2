@@ -23,17 +23,15 @@ class _PickleSerializationMixin(object):
     @param full_filename: name of destination file
     @param myobj: object to save (has to be pickleable)
     """
-    if locking:
-      self.lock_resource(full_filename)
-    try:
-      fhandle = bz2.BZ2File(full_filename, 'wb')
-      pickle.dump(myobj, fhandle, protocol=pickle.HIGHEST_PROTOCOL)
-      fhandle.close()
-    except:
-      self.P('ERROR: File ' + full_filename + ' cannot be written!')
-      return False
-    if locking:
-      self.unlock_resource(full_filename)
+    with self.managed_lock_resource(full_filename, condition=locking):
+      try:
+        fhandle = bz2.BZ2File(full_filename, 'wb')
+        pickle.dump(myobj, fhandle, protocol=pickle.HIGHEST_PROTOCOL)
+        fhandle.close()
+      except:
+        self.P('ERROR: File ' + full_filename + ' cannot be written!')
+        return False
+    # endwith conditional lock
     return True
 
 
@@ -43,17 +41,15 @@ class _PickleSerializationMixin(object):
 
     @param full_filename: name of file to load from
     """
-    if locking:
-      self.lock_resource(full_filename)
-    try:
-      fhandle = bz2.BZ2File(full_filename, 'rb')
-      myobj = pickle.load(fhandle)
-      fhandle.close()
-    except:
-      self.P('ERROR: File ' + full_filename + ' cannot be read!')
-      return None
-    if locking:
-      self.unlock_resource(full_filename)
+    with self.managed_lock_resource(full_filename, condition=locking):
+      try:
+        fhandle = bz2.BZ2File(full_filename, 'rb')
+        myobj = pickle.load(fhandle)
+        fhandle.close()
+      except:
+        self.P('ERROR: File ' + full_filename + ' cannot be read!')
+        return None
+    # endwith conditional lock
 
     return myobj
 
@@ -102,15 +98,13 @@ class _PickleSerializationMixin(object):
         P("  FAILED compressed pickle save!")
     else:
       P("Saving uncompressed pikle (lock:{}) : {} ".format(locking, datafile))
-      if locking:
-        self.lock_resource(datafile)
-      try:
-        with open(datafile, 'wb') as fhandle:
-          pickle.dump(data, fhandle, protocol=pickle.HIGHEST_PROTOCOL)
-      except:
-        pass
-      if locking:
-        self.unlock_resource(datafile)
+      with self.managed_lock_resource(datafile, condition=locking):
+        try:
+          with open(datafile, 'wb') as fhandle:
+            pickle.dump(data, fhandle, protocol=pickle.HIGHEST_PROTOCOL)
+        except:
+          pass
+    # endwith conditional lock
       if verbose:
         P("  Saved pickle '{}' in '{}' folder".format(fn, folder))
     return datafile
@@ -239,17 +233,14 @@ class _PickleSerializationMixin(object):
           P("Loading pickle with decompression...")
         data = self._load_compressed_pickle(datafile)
       else:
-        if locking:
-          self.lock_resource(datafile)
-        try:
-          with open(datafile, "rb") as f:
-            data = pickle.load(f)
-        except Exception as _exc:
-          data = None
-          exc = _exc
-        if locking:
-          self.unlock_resource(datafile)
-        #endif locking
+        with self.managed_lock_resource(datafile, condition=locking):
+          try:
+            with open(datafile, "rb") as f:
+              data = pickle.load(f)
+          except Exception as _exc:
+            data = None
+            exc = _exc
+        # endwith conditional lock
       #endif decompress or not
       if data is None:
         P("  {} load failed with error {}".format(datafile, exc), color='r')
@@ -278,33 +269,33 @@ class _PickleSerializationMixin(object):
     if datafile is None:
       self.P("update_pickle_from_data failed due to missing {}".format(datafile), color='error')
       return False
-    self.lock_resource(datafile)
-    result = None
-    try:
-      data = self.load_pickle_from_data(
-        fn=fn,
-        decompress=decompress,
-        verbose=verbose,
-        subfolder_path=subfolder_path,
-        locking=False,
-        )
-      
-      if data is not None or force_update:
-        data = update_callback(data)
-        
-        self.save_pickle_to_data(
-          data=data, 
+
+    with self.managed_lock_resource(datafile):
+      result = None
+      try:
+        data = self.load_pickle_from_data(
           fn=fn,
-          compressed=decompress,
+          decompress=decompress,
           verbose=verbose,
           subfolder_path=subfolder_path,
           locking=False,
           )
-        result = True
-    except Exception as e:
-      self.P("update_pickle_from_data failed: {}".format(e), color='error')
-      result = False
-    
-    self.unlock_resource(datafile)
+        
+        if data is not None or force_update:
+          data = update_callback(data)
+          
+          self.save_pickle_to_data(
+            data=data, 
+            fn=fn,
+            compressed=decompress,
+            verbose=verbose,
+            subfolder_path=subfolder_path,
+            locking=False,
+            )
+          result = True
+      except Exception as e:
+        self.P("update_pickle_from_data failed: {}".format(e), color='error')
+        result = False
+    # endwith lock
     return result
       

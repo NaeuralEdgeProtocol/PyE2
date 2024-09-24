@@ -162,19 +162,17 @@ class _JSONSerializationMixin(object):
     #endif
 
     if os.path.isfile(datafile):
-      if locking:
-        self.lock_resource(datafile) 
-      try:
-        with open(datafile) as f:
-          if not numeric_keys:
-            data = json.load(f)
-          else:
-            data = json.load(f, object_hook=lambda d: {int(k) if k.isnumeric() else k: v for k, v in d.items()})
-      except Exception as e:
-        self.P("JSON load failed: {}".format(e), color='r')
-        data = None
-      if locking:
-        self.unlock_resource(datafile)
+      with self.managed_lock_resource(datafile, condition=locking):
+        try:
+          with open(datafile) as f:
+            if not numeric_keys:
+              data = json.load(f)
+            else:
+              data = json.load(f, object_hook=lambda d: {int(k) if k.isnumeric() else k: v for k, v in d.items()})
+        except Exception as e:
+          self.P("JSON load failed: {}".format(e), color='r')
+          data = None
+      # endwith conditional lock
       if isinstance(replace_environment_secrets, str) and len(replace_environment_secrets) > 0:
         matches = self.replace_secrets(data)
         if matches is not None and len(matches) > 0:
@@ -328,21 +326,19 @@ class _JSONSerializationMixin(object):
     path = os.path.join(lfld, datafile)
     os.makedirs(os.path.split(path)[0], exist_ok=True)
 
-    if locking:
-      self.lock_resource(path)
-    try:
-      with open(path, 'w') as fp:
-        json.dump(
-          data_json, 
-          fp, 
-          sort_keys=True, 
-          indent=4 if indent else None, 
-          cls=NPJson
-        )    
-    except Exception as e:
-      self.verbose_log("Exception while saving json '{}':\n{}".format(datafile, traceback.format_exc()), color='r')
-    if locking:
-      self.unlock_resource(path)
+    with self.managed_lock_resource(path, condition=locking):
+      try:
+        with open(path, 'w') as fp:
+          json.dump(
+            data_json, 
+            fp, 
+            sort_keys=True, 
+            indent=4 if indent else None, 
+            cls=NPJson
+          )    
+      except Exception as e:
+        self.verbose_log("Exception while saving json '{}':\n{}".format(datafile, traceback.format_exc()), color='r')
+    # endwith conditional locking
     return path
 
     
@@ -455,31 +451,31 @@ class _JSONSerializationMixin(object):
     if datafile is None:
       self.P("update_data_json failed due to missing {}".format(datafile), color='error')
       return False
-    self.lock_resource(datafile)
-    result = None
-    try:
-      data = self.load_data_json(
-        fname=fname,
-        verbose=verbose,
-        subfolder_path=subfolder_path,
-        locking=False,
-        )
-      
-      if data is not None:
-        data = update_callback(data)
-        
-        self.save_data_json(
-          data_json=data, 
-          fname=fname, 
+    with self.managed_lock_resource(datafile):
+      result = None
+      try:
+        data = self.load_data_json(
+          fname=fname,
           verbose=verbose,
           subfolder_path=subfolder_path,
           locking=False,
           )
-        result = True
-    except Exception as e:
-      self.P("update_data_json failed: {}".format(e), color='error')
-      result = False
-    
-    self.unlock_resource(datafile)
+        
+        if data is not None:
+          data = update_callback(data)
+          
+          self.save_data_json(
+            data_json=data, 
+            fname=fname, 
+            verbose=verbose,
+            subfolder_path=subfolder_path,
+            locking=False,
+            )
+          result = True
+      except Exception as e:
+        self.P("update_data_json failed: {}".format(e), color='error')
+        result = False
+      
+    # endwith lock
     return result
           

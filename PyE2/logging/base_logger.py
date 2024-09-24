@@ -46,16 +46,19 @@ _LOGGER_LOCK_ID = '_logger_print_lock'
 
 
 class LockResource():
-  def __init__(self, owner, resource):
+  def __init__(self, owner, resource, condition):
     self.__owner = owner
     self.__resource = resource
+    self.__condition = condition
     
   def __enter__(self):
-    self.__owner.lock_resource(self.__resource)
+    if self.__condition:
+      self.__owner.lock_resource(self.__resource)
     return self
   
   def __exit__(self, type, value, traceback):
-    self.__owner.unlock_resource(self.__resource)
+    if self.__condition:
+      self.__owner.unlock_resource(self.__resource)
     return
 
 
@@ -455,27 +458,39 @@ class BaseLogger(object):
     return self.processor_platform
     
 
-  def managed_lock_resource(self, str_res):
+  def managed_lock_resource(self, str_res, condition=True):
     """
     Managed lock resource. Will lock and unlock resource automatically. 
     To be used in a with statement.
+    The condition parameter allows users to disable the lock if desired.
 
     Parameters
     ----------
     str_res : str
       The resource to lock.
+    condition : bool, optional
+      If False the lock will not be acquired. The default is True.
 
     Returns
     -------
     LockResource
       The lock resource object.
-      
+
     Example
     -------
+    ```
     with self.managed_lock_resource('my_resource'):
       # do something
+    ```
+
+    ```
+    # will control if the following operation is locked or not based on this flag
+    locking = False
+    with self.managed_lock_resource('my_resource', condition=locking):
+      # do something
+    ```
     """
-    return LockResource(self, str_res)
+    return LockResource(self, str_res, condition)
 
   def lock_resource(self, str_res):
     """
