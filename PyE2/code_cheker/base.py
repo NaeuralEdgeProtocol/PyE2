@@ -5,6 +5,9 @@ import base64
 import traceback
 import re
 import inspect
+import ctypes
+import threading
+import queue
 
 from .checker import ASTChecker, CheckerConstants
 
@@ -106,6 +109,10 @@ UNALLOWED_DICT = {
 RESULT_VARS = ['__result', '_result', 'result']
 
 
+class CodeExecutionTimeoutError(Exception):
+  pass
+
+
 class BaseCodeChecker:
   """
   This class should be used either as a associated object for code checking or
@@ -115,6 +122,7 @@ class BaseCodeChecker:
   def __init__(self):
     super(BaseCodeChecker, self).__init__()
     self.printed_lines = []
+    self.__exec_code_lock = threading.Lock()
     return
 
   def __msg(self, m, color='d'):
@@ -253,7 +261,7 @@ class BaseCodeChecker:
       )
     return exec_code__code
 
-  def custom_print(self, *args, **kwargs):
+  def custom_print(self, print_queue, *args, **kwargs):
     """
     Custom print function that will be used in the plugin code.
     """
@@ -261,76 +269,156 @@ class BaseCodeChecker:
     outstream = io.StringIO()
     print(*args, file=outstream, **kwargs)
     printed_value = outstream.getvalue()
-    self.printed_lines.append(printed_value)
+    print_queue.put(printed_value)
     # print to the console
     print(f'[CUST_CODE_PRINT]{printed_value}')
     return
 
-  def exec_code(
-      self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True, return_printed=False
-  ):
-    exec_code__result_vars = result_vars
-    exec_code__debug = debug
-    exec_code__self_var = self_var
-    exec_code__modify = modify
-    exec_code__warnings = []
-    exec_code__code, exec_code__errors = self.prepare_b64code(
-      str_b64code,
-      result_vars=exec_code__result_vars,
-    )
+  def execute_code(self, code, local_vars, output_queue, print_queue):
     exec_code__result_var = None
-    has_result = False
-    if exec_code__errors is not None:
-      self.__msg("Cannot execute remote code: {}".format(exec_code__errors), color='r')
-      return exec_code__result_var, exec_code__errors, exec_code__warnings
+    exec_code__warnings = []
 
-    # code does not have any safety errors
-    if exec_code__modify:
-      exec_code__code = self._add_line_after_each_line(code=exec_code__code)
-    if exec_code__debug:
-      self.__msg("DEBUG EXEC: Executing: \n{}".format(exec_code__code))
-    if exec_code__self_var is not None and isinstance(exec_code__self_var, str) and len(exec_code__self_var) > 3:
-      locals()[exec_code__self_var] = self
-
+    local_vars['print'] = lambda *args, **kwargs: self.custom_print(print_queue, *args, **kwargs)
     try:
-      if self._can_encapsulate_code_in_method(exec_code__code):
-        # we have a return statement in the code,
-        # so we need to encapsulate the code in a function
-        exec_code__code = self._encapsulate_code_in_method(
-          exec_code__code=exec_code__code,
-          exec_code__arguments=[exec_code__self_var]
-        )
-        exec_code__code = "{}\n{}".format(
-          exec_code__code,
-          f"result = __exec_code__({exec_code__self_var})"
-        )
-      # endif can encapsulate code in method
+      # Execute the code
+      with self.__exec_code_lock:
+        exec(code, {}, local_vars)
 
-      self.printed_lines = []
-      locals()['print'] = self.custom_print
-      exec(exec_code__code)
-      if exec_code__debug:
-        self.__msg("DEBUG EXEC: locals(): \n{}".format(locals()))
-      for _var in exec_code__result_vars:
-        if _var in locals():
-          if exec_code__debug:
-            self.__msg("DEBUG EXEC: Extracting var '{}' from {}".format(_var, locals()))
-          exec_code__result_var = locals().get(_var)
-          has_result = True
-          break
-      if not has_result:
-        exec_code__warnings.append("No result variable is set. Possible options: {}".format(exec_code__result_vars))
+        # Capture result variables
+        for _var in local_vars.get('exec_code__result_vars', []):
+          if _var in local_vars:
+            exec_code__result_var = local_vars[_var]
+            break
+        # endfor all result vars
+      # endwith lock
+      # Put the results in the queue
+      output_queue.put({
+        "result_var": exec_code__result_var,
+        "warnings": exec_code__warnings,
+        "error": None
+      })
     except Exception as e:
-      exec_code__result_var = None
-      if hasattr(self, 'log'):
-        exec_code__errors = list(self.log.get_error_info())
-        exec_code__errors.append(traceback.format_exc())
-      else:
-        exec_code__errors = str(e)
-    # end try-except
+      output_queue.put({
+        "result_var": None,
+        "warnings": exec_code__warnings,
+        "error": traceback.format_exc()
+      })
+
+  def stop_thread(self, thread):
+    """
+    Stop the specified thread.
+    Parameters
+    ----------
+    thread : threading.Thread
+        The thread to stop.
+    """
+    tid = thread.ident
+    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), ctypes.py_object(SystemExit))
+    if res == 0:
+      raise ValueError("Invalid thread ID")
+    elif res > 1:
+      # If it modifies more than one thread, something went wrong, so revert it
+      ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), 0)
+      raise SystemError("PyThreadState_SetAsyncExc failed")
+
+  def execute_code_with_timeout(self, code, timeout, local_vars=None):
+    if local_vars is None:
+      local_vars = {}
+
+    # Queue to collect output
+    output_queue = queue.Queue()
+    print_queue = queue.Queue()
+
+    # Create a separate thread for code execution
+    thread = threading.Thread(target=self.execute_code, args=(code, local_vars, output_queue, print_queue))
+    thread.daemon = True
+    # process = multiprocessing.Process(target=self.execute_code, args=(code, local_vars, output_queue, print_queue))
+
+    # Start the process
+    # process.start()
+    thread.start()
+
+    # Wait for the process to complete or timeout
+    # process.join(timeout)
+    thread.join(timeout)
+
+    # If process is still alive after timeout, terminate it
+    if thread.is_alive():
+      # process.terminate()
+      # thread.join()
+      # TODO: maybe still send partial results or prints?
+      self.stop_thread(thread)
+
+      return {
+        "result_var": None,
+        "warnings": [],
+        "printed_lines": [],
+        "error": f"Code execution took longer than {timeout} seconds."
+      }
+    # endif process is still alive
+
+    printed_lines = []
+    while not print_queue.empty():
+      printed_lines.append(print_queue.get())
+    # Get the output from the queue
+    if not output_queue.empty():
+      exec_result = output_queue.get()
+      exec_result['printed_lines'] = printed_lines
+      return exec_result
+
+    return {
+      "result_var": None,
+      "warnings": [],
+      "printed_lines": printed_lines,
+      "error": "No result returned."
+    }
+
+  def exec_code(self, str_b64code, debug=False, result_vars=None, self_var=None, modify=True, return_printed=False, timeout=None):
+    exec_code__result_vars = result_vars or RESULT_VARS
+    exec_code__warnings = []
+    exec_code__result_var = None
+
+    # Prepare the code
+    exec_code__code, exec_code__errors = self.prepare_b64code(str_b64code, result_vars=exec_code__result_vars)
+
+    if exec_code__errors:
+        self.__msg(f"Cannot execute remote code: {exec_code__errors}", color='r')
+        return exec_code__result_var, exec_code__errors, exec_code__warnings
+
+    # Optionally modify the code
+    if modify:
+        exec_code__code = self._add_line_after_each_line(code=exec_code__code)
+
+    if debug:
+        self.__msg(f"DEBUG EXEC: Executing:\n{exec_code__code}")
+
+    # Add `self` to locals if specified
+    local_vars = locals().copy()
+    if self_var and isinstance(self_var, str) and len(self_var) > 3:
+        local_vars[self_var] = self
+
+    # Handle encapsulating the code in a method if needed
+    if self._can_encapsulate_code_in_method(exec_code__code):
+        exec_code__code = self._encapsulate_code_in_method(exec_code__code, exec_code__arguments=[self_var])
+        exec_code__code = f"{exec_code__code}\nresult = __exec_code__({self_var})"
+
+    # Prepare to capture printed output
+    self.printed_lines = []
+    local_vars['print'] = self.custom_print
+
+    # Execute the code with a timeout
+    exec_result = self.execute_code_with_timeout(exec_code__code, timeout, local_vars=local_vars)
+
+    exec_code__result_var = exec_result.get("result_var")
+    exec_code__errors = exec_result.get("error")
+    exec_code__warnings.extend(exec_result.get("warnings"))
+
+    # Collect results
     res = (exec_code__result_var, exec_code__errors, exec_code__warnings)
+
     if return_printed:
-      res += (self.printed_lines,)
+        res += (exec_result.get("printed_lines", []),)
+
     return res
 
   def _get_method_from_custom_code(self, str_b64code, debug=False, result_vars=RESULT_VARS, self_var=None, modify=True, method_arguments=[]):
