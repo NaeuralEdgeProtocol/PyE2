@@ -271,24 +271,23 @@ class _UtilsMixin(object):
     """
     self._obj_tree = OrderedDict()
     self._obj_level = 0
-    self.lock_resource('get_obj_size')
-    try:
-      result = self._helper_get_obj_size(
-        obj=obj, 
-        name='Base: {}'.format(obj.__class__.__name__),
-        excluded_obj_props=excluded_obj_props,
-        exclude_obj_props_like=exclude_obj_props_like,
-      )  
-      if return_tree:
-        if as_list:
-          tree = [v for k,v in self._obj_tree.items()]
-        else:
-          tree = self._obj_tree
-        result = result, tree
-        self._obj_tree = None
-    except:
-      result = 0
-    self.unlock_resource('get_obj_size')
+    with self.managed_lock_resource('get_obj_size'):
+      try:
+        result = self._helper_get_obj_size(
+          obj=obj, 
+          name='Base: {}'.format(obj.__class__.__name__),
+          excluded_obj_props=excluded_obj_props,
+          exclude_obj_props_like=exclude_obj_props_like,
+        )  
+        if return_tree:
+          if as_list:
+            tree = [v for k,v in self._obj_tree.items()]
+          else:
+            tree = self._obj_tree
+          result = result, tree
+          self._obj_tree = None
+      except:
+        result = 0
     return result
     
     
@@ -400,118 +399,116 @@ class _UtilsMixin(object):
     This function ignores objects of certain types for performance reasons (e.g., str, bytes, bytearray, np.ndarray), 
     and also objects of certain classes (e.g., 'lock', 'mappingproxy', 'Thread').
     """
-    self.lock_resource('get_obj_size')
-    
-    EXCLUDED_TYPES = (
-      str, bytes, bytearray, np.ndarray,
-    )
-    EXCLUDED_STRINGS = [
-      'lock', 'mappingproxy', 'Thread',
-    ]
+    with self.managed_lock_resource('get_obj_size'):
       
-    root_id = id(obj)
-  
-    # Stack for DFS traversal of object's attributes and 
-    # post-order processing (children before parents)
-    stack = [(obj, name, level, root_id, False)]
-  
-    # Info about each object, indexed by object id
-    objects_info = OrderedDict()
-  
-    # Children objects for each object, indexed by object id
-    children = defaultdict(list)
+      EXCLUDED_TYPES = (
+        str, bytes, bytearray, np.ndarray,
+      )
+      EXCLUDED_STRINGS = [
+        'lock', 'mappingproxy', 'Thread',
+      ]
+        
+      root_id = id(obj)
     
-    total_mem = 0
+      # Stack for DFS traversal of object's attributes and 
+      # post-order processing (children before parents)
+      stack = [(obj, name, level, root_id, False)]
     
-    while stack:
-      obj, name, level, obj_id, processed = stack.pop()
-  
-      if processed:
-        # All children have been processed, compute total size
-        total_size = objects_info[obj_id]['OBJ_SIZE'] + sum(objects_info[child]['SIZE'] for child in children[obj_id])
-        objects_info[obj_id]['SIZE'] = total_size
-      else:
-        class_name = obj.__class__.__name__
-  
-        obj_size = 0
-        if class_name == 'Tensor':
-          if hasattr(obj, 'device') and str(obj.device) == 'cpu':
-            obj_size = obj.nelement() * obj.element_size()
+      # Info about each object, indexed by object id
+      objects_info = OrderedDict()
+    
+      # Children objects for each object, indexed by object id
+      children = defaultdict(list)
+      
+      total_mem = 0
+      
+      while stack:
+        obj, name, level, obj_id, processed = stack.pop()
+    
+        if processed:
+          # All children have been processed, compute total size
+          total_size = objects_info[obj_id]['OBJ_SIZE'] + sum(objects_info[child]['SIZE'] for child in children[obj_id])
+          objects_info[obj_id]['SIZE'] = total_size
         else:
-          obj_size = sys.getsizeof(obj)
-        
-        total_mem += obj_size
-  
-        # Store the object's info
-        objects_info[obj_id] = {
-          'NAME': name,
-          'CLASS_NAME': obj.__class__.__name__,
-          'LEVEL': level,
-          'OBJ_SIZE': obj_size,
-          'SIZE': 0  # Will be updated later
-        }
-  
-        # Add this node back to the stack for post-order processing
-        stack.append((obj, name, level, obj_id, True))
-  
-        if class_name not in EXCLUDED_STRINGS and not isinstance(obj, EXCLUDED_TYPES):
-          new_objects = []
-  
-          if hasattr(obj, '__dict__'):
-            prop_list = list(obj.__dict__.keys())
-            for attr_name in prop_list:
-              excluded = attr_name in excluded_obj_props
-              excluded = excluded or any([x in attr_name for x in exclude_obj_props_like])        
-              if not excluded:
-                attr_value = obj.__dict__[attr_name]
-                new_objects.append((attr_value, f'{name}.{attr_name}'))
+          class_name = obj.__class__.__name__
+    
+          obj_size = 0
+          if class_name == 'Tensor':
+            if hasattr(obj, 'device') and str(obj.device) == 'cpu':
+              obj_size = obj.nelement() * obj.element_size()
+          else:
+            obj_size = sys.getsizeof(obj)
+          
+          total_mem += obj_size
+    
+          # Store the object's info
+          objects_info[obj_id] = {
+            'NAME': name,
+            'CLASS_NAME': obj.__class__.__name__,
+            'LEVEL': level,
+            'OBJ_SIZE': obj_size,
+            'SIZE': 0  # Will be updated later
+          }
+    
+          # Add this node back to the stack for post-order processing
+          stack.append((obj, name, level, obj_id, True))
+    
+          if class_name not in EXCLUDED_STRINGS and not isinstance(obj, EXCLUDED_TYPES):
+            new_objects = []
+    
+            if hasattr(obj, '__dict__'):
+              prop_list = list(obj.__dict__.keys())
+              for attr_name in prop_list:
+                excluded = attr_name in excluded_obj_props
+                excluded = excluded or any([x in attr_name for x in exclude_obj_props_like])        
+                if not excluded:
+                  attr_value = obj.__dict__[attr_name]
+                  new_objects.append((attr_value, f'{name}.{attr_name}'))
+              #endfor
+            elif isinstance(obj, (list, tuple, set, deque)):
+              list_obj = list(obj)
+              obj_len = len(list_obj)
+              for i in range(obj_len):
+                item = list_obj[i]
+                new_objects.append((item, f'{name}[{i}]'))
+              #endfor
+            elif isinstance(obj, dict):
+              key_list = list(obj.keys())
+              for k in key_list:
+                v = obj[k]
+                new_objects.append((v, f'{name}["{k}"]'))
+              #endfor  
+            for new_obj, new_name in new_objects:
+              new_id = id(new_obj)
+              if new_id not in objects_info:
+                stack.append((new_obj, new_name, level + 1, new_id, False))
+                children[obj_id].append(new_id)
             #endfor
-          elif isinstance(obj, (list, tuple, set, deque)):
-            list_obj = list(obj)
-            obj_len = len(list_obj)
-            for i in range(obj_len):
-              item = list_obj[i]
-              new_objects.append((item, f'{name}[{i}]'))
-            #endfor
-          elif isinstance(obj, dict):
-            key_list = list(obj.keys())
-            for k in key_list:
-              v = obj[k]
-              new_objects.append((v, f'{name}["{k}"]'))
-            #endfor  
-          for new_obj, new_name in new_objects:
-            new_id = id(new_obj)
-            if new_id not in objects_info:
-              stack.append((new_obj, new_name, level + 1, new_id, False))
-              children[obj_id].append(new_id)
-          #endfor
-  
-        #endif type checking
-      #endif processed checking
-    #endwhile DFS
-
-  
-    # Compute the total memory of the root object
-    root_object_total_memory = objects_info[root_id]['SIZE']
+    
+          #endif type checking
+        #endif processed checking
+      #endwhile DFS
 
     
-    if total_size != root_object_total_memory:
-      self.P("WARNING: MEMORY CALCULATION INCONSISTENCY!", color='r')
-  
-    if return_tree:
-      # List of objects info
-      objects_info_list = [
-        x for x in objects_info.values() if x['CLASS_NAME'] not in ['str', 'int', 'float']]
-  
-      # Filter objects that have at most two levels of objects beneath them and get the top 5 biggest ones
-      top_5_objects = sorted(
-        [info for obj_id, info in objects_info.items() if info['LEVEL'] >= 2],
-        key=lambda x: x['SIZE'],
-        reverse=True
-      )[:top_consumers]
+      # Compute the total memory of the root object
+      root_object_total_memory = objects_info[root_id]['SIZE']
+
+      
+      if total_size != root_object_total_memory:
+        self.P("WARNING: MEMORY CALCULATION INCONSISTENCY!", color='r')
     
-        
-    self.unlock_resource('get_obj_size')
+      if return_tree:
+        # List of objects info
+        objects_info_list = [
+          x for x in objects_info.values() if x['CLASS_NAME'] not in ['str', 'int', 'float']]
+    
+        # Filter objects that have at most two levels of objects beneath them and get the top 5 biggest ones
+        top_5_objects = sorted(
+          [info for obj_id, info in objects_info.items() if info['LEVEL'] >= 2],
+          key=lambda x: x['SIZE'],
+          reverse=True
+        )[:top_consumers]
+    # endwith lock
     
     if return_tree:
       result = root_object_total_memory, objects_info_list, top_5_objects

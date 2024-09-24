@@ -44,6 +44,21 @@ COLORS = {
 
 _LOGGER_LOCK_ID = '_logger_print_lock' 
 
+
+class LockResource():
+  def __init__(self, owner, resource):
+    self.__owner = owner
+    self.__resource = resource
+    
+  def __enter__(self):
+    self.__owner.lock_resource(self.__resource)
+    return self
+  
+  def __exit__(self, type, value, traceback):
+    self.__owner.unlock_resource(self.__resource)
+    return
+
+
 class BaseLogger(object):
 
   def __init__(self, lib_name="",
@@ -439,7 +454,29 @@ class BaseLogger(object):
   def get_processor_platform(self):
     return self.processor_platform
     
-  
+
+  def managed_lock_resource(self, str_res):
+    """
+    Managed lock resource. Will lock and unlock resource automatically. 
+    To be used in a with statement.
+
+    Parameters
+    ----------
+    str_res : str
+      The resource to lock.
+
+    Returns
+    -------
+    LockResource
+      The lock resource object.
+      
+    Example
+    -------
+    with self.managed_lock_resource('my_resource'):
+      # do something
+    """
+    return LockResource(self, str_res)
+
   def lock_resource(self, str_res):
     """
     Possible critical failure:
@@ -471,6 +508,9 @@ class BaseLogger(object):
     if str_res in self._lock_table:
       self._lock_table[str_res].release()
     return
+  
+  def managed_lock_logger(self):
+    return self.managed_lock_resource(_LOGGER_LOCK_ID)
   
   def lock_logger(self):
     self.lock_resource(_LOGGER_LOCK_ID)
@@ -582,40 +622,40 @@ class BaseLogger(object):
     """
     log processing method
     """
-    self.lock_logger()
-    # now that we have locking in place we no longer need to cancel in-thread logging    
-    # if not self.is_main_thread:
-    #   return
-    self.start_timer('_logger', section='LOGGER_internal')
+    with self.managed_lock_logger():
+      # now that we have locking in place we no longer need to cancel in-thread logging    
+      # if not self.is_main_thread:
+      #   return
+      self.start_timer('_logger', section='LOGGER_internal')
 
-    elapsed = tm() - self.last_time
+      elapsed = tm() - self.last_time
 
-    self.start_timer('_logger_add_log', section='LOGGER_internal')
-    self._add_log(
-      logstr, show=show,
-      noprefix=noprefix,
-      show_time=show_time,
-      color=color
-    )
-    self.end_timer('_logger_add_log', section='LOGGER_internal')
-
-    self.start_timer('_logger_save_log', section='LOGGER_internal')
-    if self._save_enabled:
-      self._save_log(
-        log=self.app_log,
-        log_file=self.log_file
+      self.start_timer('_logger_add_log', section='LOGGER_internal')
+      self._add_log(
+        logstr, show=show,
+        noprefix=noprefix,
+        show_time=show_time,
+        color=color
       )
-      self._save_log(
-        log=self.err_log,
-        log_file=self.log_e_file
-      )
-    self.end_timer('_logger_save_log', section='LOGGER_internal')
-    
-    self.last_time = tm()
-    self._check_log_size()
+      self.end_timer('_logger_add_log', section='LOGGER_internal')
 
-    self.end_timer('_logger', section='LOGGER_internal')    
-    self.unlock_logger()
+      self.start_timer('_logger_save_log', section='LOGGER_internal')
+      if self._save_enabled:
+        self._save_log(
+          log=self.app_log,
+          log_file=self.log_file
+        )
+        self._save_log(
+          log=self.err_log,
+          log_file=self.log_e_file
+        )
+      self.end_timer('_logger_save_log', section='LOGGER_internal')
+      
+      self.last_time = tm()
+      self._check_log_size()
+
+      self.end_timer('_logger', section='LOGGER_internal')
+    # endwith lock
     return elapsed
 
   def _normalize_path_sep(self):
