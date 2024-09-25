@@ -1,6 +1,7 @@
 from .base import Payload
 from .base import Pipeline
 from .base import Instance
+from .base import Node
 from .base import CustomPluginTemplate
 from .base import DistributedCustomCodePresets
 from .default import MqttSession as Session

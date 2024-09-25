@@ -148,7 +148,7 @@ class GenericSession(BaseDecentrAIObject):
 
     ##### LOGGING #####
     self.log = log
-    self._verbosityy = verbosity
+    self._verbosity = verbosity
     self.__show_commands = show_commands
     ##### LOGGING #####
 
@@ -163,13 +163,11 @@ class GenericSession(BaseDecentrAIObject):
     self.__open_transactions_lock = Lock()
     self.__online_timeout = 60
     self.__filter_workers = filter_workers
+
+    self.__nodes: dict[str, Node] = {}
     ##### LOGIC #####
 
     self._dct_online_nodes_pipelines: dict[str, Pipeline] = {}
-    self._dct_online_nodes_last_heartbeat: dict[str, dict] = {}
-    self._dct_can_send_to_node: dict[str, bool] = {}
-    self._dct_node_last_seen_time = {}
-    self._dct_node_addr_name = {}
 
     self.own_pipelines = []
 
@@ -294,6 +292,9 @@ class GenericSession(BaseDecentrAIObject):
         self.D("Message does not respect standard: {}".format(dict_msg), verbosity=2)
         return
 
+      if self.__maybe_ignore_message(msg_node_addr):
+        return
+
       message_callback(dict_msg_parsed, msg_node_addr, msg_pipeline, msg_signature, msg_instance)
       return
 
@@ -340,34 +341,29 @@ class GenericSession(BaseDecentrAIObject):
       """
       return self.__filter_workers is not None and node_addr not in self.__filter_workers
 
-    def __track_online_node(self, node_addr, node_id):
+    def __transactions_handle_message(self, dict_msg: dict, transaction_type: str):
       """
-      Track the last time a node was seen online.
+      Handle a message received from the communication server.
 
       Parameters
       ----------
-      node_addr : str
-          The address of the Naeural edge node that sent the message.
-      """
-      self._dct_node_last_seen_time[node_addr] = tm()
-      self._dct_node_addr_name[node_addr] = node_id
-      return
-
-    def __track_allowed_node(self, node_addr, dict_msg):
-      """
-      Track if this session is allowed to send messages to node.
-
-      Parameters
-      ----------
-      node_addr : str
-          The address of the Naeural edge node that sent the message.
       dict_msg : dict
-          The message received from the communication server.
+          The message received from the communication server
+      transaction_type : str
+          The type of transaction to handle.
       """
-      node_whitelist = dict_msg.get(HB.EE_WHITELIST, [])
-      node_secured = dict_msg.get(HB.SECURED, False)
+      with self.__open_transactions_lock:
+        open_transactions_copy = self.__open_transactions.copy()
+      # end with
 
-      self._dct_can_send_to_node[node_addr] = not node_secured or self.bc_engine.address_no_prefix in node_whitelist or self.bc_engine.address == node_addr
+      for transaction in open_transactions_copy:
+        if transaction_type == "payload":
+          transaction.handle_payload(dict_msg)
+        elif transaction_type == "notification":
+          transaction.handle_notification(dict_msg)
+        elif transaction_type == "heartbeat":
+          transaction.handle_heartbeat(dict_msg)
+      # end for transaction in open_transactions_copy
       return
 
     def __on_heartbeat(self, dict_msg: dict, msg_node_addr, msg_pipeline, msg_signature, msg_instance):
@@ -387,53 +383,27 @@ class GenericSession(BaseDecentrAIObject):
       msg_instance : str
           The name of the instance that sent the message.
       """
-      # extract relevant data from the message
 
       if dict_msg.get(HB.HEARTBEAT_VERSION) == HB.V2:
         str_data = self.log.decompress_text(dict_msg[HB.ENCODED_DATA])
         data = json.loads(str_data)
         dict_msg = {**dict_msg, **data}
+      # endif extract encoded data
 
-      self._dct_online_nodes_last_heartbeat[msg_node_addr] = dict_msg
+      if msg_node_addr not in self.__nodes:
+        self.__nodes[msg_node_addr] = Node(self, self.log, self.__online_timeout, msg_node_addr)
+      # endif
+      self.__nodes[msg_node_addr]._on_heartbeat(dict_msg)
 
-      msg_node_id = dict_msg[PAYLOAD_DATA.EE_ID]
-      self.__track_online_node(msg_node_addr, msg_node_id)
-
-      msg_active_configs = dict_msg.get(HB.CONFIG_STREAMS)
-      if msg_active_configs is None:
-        return
-
-      # default action
-      if msg_node_addr not in self._dct_online_nodes_pipelines:
-        self._dct_online_nodes_pipelines[msg_node_addr] = {}
-      for config in msg_active_configs:
-        pipeline_name = config[PAYLOAD_DATA.NAME]
-        pipeline: Pipeline = self._dct_online_nodes_pipelines[msg_node_addr].get(pipeline_name, None)
-        if pipeline is not None:
-          pipeline._sync_configuration_with_remote({k.upper(): v for k, v in config.items()})
-        else:
-          self._dct_online_nodes_pipelines[msg_node_addr][pipeline_name] = self.__create_pipeline_from_config(
-            msg_node_addr, config)
-
-      # TODO: move this call in `__on_message_default_callback`
-      if self.__maybe_ignore_message(msg_node_addr):
-        return
-
-      # pass the heartbeat message to open transactions
-      with self.__open_transactions_lock:
-        open_transactions_copy = self.__open_transactions.copy()
-      # end with
-      for transaction in open_transactions_copy:
-        transaction.handle_heartbeat(dict_msg)
-
-      self.D("Received hb from: {}".format(msg_node_addr), verbosity=2)
-
-      self.__track_allowed_node(msg_node_addr, dict_msg)
+      # pass the notification message to open transactions
+      self.__transactions_handle_message(dict_msg, "heartbeat")
 
       # call the custom callback, if defined
       if self.custom_on_heartbeat is not None:
         self.custom_on_heartbeat(self, msg_node_addr, dict_msg)
+      # endif custom_on_heartbeat is not None
 
+      self.D("Received hb from: {}".format(msg_node_addr), verbosity=2)
       return
 
     def __on_notification(self, dict_msg: dict, msg_node_addr, msg_pipeline, msg_signature, msg_instance):
@@ -453,44 +423,29 @@ class GenericSession(BaseDecentrAIObject):
       msg_instance : str
           The name of the instance that sent the message.
       """
-      # extract relevant data from the message
-      notification_type = dict_msg.get(STATUS_TYPE.NOTIFICATION_TYPE)
-      notification = dict_msg.get(PAYLOAD_DATA.NOTIFICATION)
-
-      if self.__maybe_ignore_message(msg_node_addr):
+      if msg_node_addr not in self.__nodes:
         return
 
-      color = None
-      if notification_type != STATUS_TYPE.STATUS_NORMAL:
-        color = 'r'
-      self.D("Received notification {} from <{}/{}>: {}"
-             .format(
-                notification_type,
-                msg_node_addr,
-                msg_pipeline,
-                notification),
-             color=color,
-             verbosity=2,
-             )
-
-      # call the pipeline and instance defined callbacks
-      for pipeline in self.own_pipelines:
-        if msg_node_addr == pipeline.node_addr and msg_pipeline == pipeline.name:
-          pipeline._on_notification(msg_signature, msg_instance, Payload(dict_msg))
-          # since we found the pipeline, we can stop searching
-          # because the pipelines have unique names
-          break
+      self.__nodes[msg_node_addr]._on_notification(dict_msg, msg_pipeline, msg_signature, msg_instance)
 
       # pass the notification message to open transactions
-      with self.__open_transactions_lock:
-        open_transactions_copy = self.__open_transactions.copy()
-      # end with
-      for transaction in open_transactions_copy:
-        transaction.handle_notification(dict_msg)
+      self.__transactions_handle_message(dict_msg, "notification")
+
       # call the custom callback, if defined
       if self.custom_on_notification is not None:
         self.custom_on_notification(self, msg_node_addr, Payload(dict_msg))
 
+      color = None
+      notification_type = dict_msg.get(STATUS_TYPE.NOTIFICATION_TYPE)
+      notification = dict_msg.get(PAYLOAD_DATA.NOTIFICATION)
+
+      if notification_type != STATUS_TYPE.STATUS_NORMAL:
+        color = 'r'
+      self.D(f"Received notification {notification_type} "
+             f"from <{msg_node_addr}/{msg_pipeline}>: {notification}",
+             color=color,
+             verbosity=2,
+             )
       return
 
     # TODO: maybe convert dict_msg to Payload object
@@ -513,28 +468,16 @@ class GenericSession(BaseDecentrAIObject):
       msg_instance : str
           The name of the instance that sent the message.
       """
-      # extract relevant data from the message
-      msg_data = dict_msg
-
-      if self.__maybe_ignore_message(msg_node_addr):
+      if msg_node_addr not in self.__nodes:
         return
 
-      # call the pipeline and instance defined callbacks
-      for pipeline in self.own_pipelines:
-        if msg_node_addr == pipeline.node_addr and msg_pipeline == pipeline.name:
-          pipeline._on_data(msg_signature, msg_instance, Payload(dict_msg))
-          # since we found the pipeline, we can stop searching
-          # because the pipelines have unique names
-          break
+      self.__nodes[msg_node_addr]._on_payload(dict_msg, msg_pipeline, msg_signature, msg_instance)
 
       # pass the payload message to open transactions
-      with self.__open_transactions_lock:
-        open_transactions_copy = self.__open_transactions.copy()
-      # end with
-      for transaction in open_transactions_copy:
-        transaction.handle_payload(dict_msg)
+      self.__transactions_handle_message(dict_msg, "payload")
+
       if self.custom_on_payload is not None:
-        self.custom_on_payload(self, msg_node_addr, msg_pipeline, msg_signature, msg_instance, Payload(msg_data))
+        self.custom_on_payload(self, msg_node_addr, msg_pipeline, msg_signature, msg_instance, Payload(dict_msg))
 
       return
 
@@ -938,7 +881,7 @@ class GenericSession(BaseDecentrAIObject):
       self.__fill_config_credentials(host, port, user, pwd, secured, dotenv_path, **kwargs)
       return
 
-    def __get_node_address(self, node):
+    def __get_node_address(self, node: str):
       """
       Get the address of a node. If node is an address, return it. Else, return the address of the node.
 
@@ -952,8 +895,8 @@ class GenericSession(BaseDecentrAIObject):
       str
           The address of the node.
       """
-      if node not in self.get_active_nodes():
-        node = next((key for key, value in self._dct_node_addr_name.items() if value == node), node)
+      if node not in self.__nodes:
+        node = next((node_addr for node_addr in self.__nodes if self.__nodes[node_addr].id == node))
       return node
 
     def _send_command_to_box(self, command, worker, payload, show_command=False, session_id=None, **kwargs):
@@ -1048,23 +991,6 @@ class GenericSession(BaseDecentrAIObject):
       with self.__open_transactions_lock:
         self.__open_transactions.append(transaction)
       return transaction
-
-    def __create_pipeline_from_config(self, node_addr, config):
-      pipeline_config = {k.lower(): v for k, v in config.items()}
-      name = pipeline_config.pop('name', None)
-      plugins = pipeline_config.pop('plugins', None)
-
-      pipeline = Pipeline(
-        is_attached=True,
-        session=self,
-        log=self.log,
-        node_addr=node_addr,
-        name=name,
-        plugins=plugins,
-        existing_config=pipeline_config,
-      )
-
-      return pipeline
 
   # Commands (deprecated)
   if True:
@@ -1276,7 +1202,9 @@ class GenericSession(BaseDecentrAIObject):
       str
           The name of the node.
       """
-      return self._dct_node_addr_name.get(node_addr, None)
+      if node_addr not in self.__nodes:
+        return None
+      return self.__nodes[node_addr].id
 
     def get_active_nodes(self):
       """
@@ -1288,7 +1216,7 @@ class GenericSession(BaseDecentrAIObject):
           List of names of all the Naeural edge nodes that are considered online
 
       """
-      return [k for k, v in self._dct_node_last_seen_time.items() if tm() - v < self.__online_timeout]
+      return [node for node in self.__nodes.values() if node.is_online]
 
     def get_allowed_nodes(self):
       """
@@ -1299,8 +1227,7 @@ class GenericSession(BaseDecentrAIObject):
       list[str]
           List of names of all the active Naeural edge nodes to whom this session can send messages
       """
-      active_nodes = self.get_active_nodes()
-      return [node for node in self._dct_can_send_to_node if self._dct_can_send_to_node[node] and node in active_nodes]
+      return [node for node in self.__nodes.values() if node.is_allowed]
 
     def get_active_pipelines(self, node):
       """
@@ -1318,7 +1245,9 @@ class GenericSession(BaseDecentrAIObject):
 
       """
       node_address = self.__get_node_address(node)
-      return self._dct_online_nodes_pipelines.get(node_address, None)
+      if node_address is None:
+        return None
+      return self.__nodes[node_address].active_pipelines
 
     def get_active_supervisors(self):
       """
@@ -1329,18 +1258,8 @@ class GenericSession(BaseDecentrAIObject):
       list
           List of names of all the active supervisors
       """
-      active_nodes = self.get_active_nodes()
 
-      active_supervisors = []
-      for node in active_nodes:
-        last_hb = self._dct_online_nodes_last_heartbeat.get(node, None)
-        if last_hb is None:
-          continue
-
-        if last_hb.get(PAYLOAD_DATA.IS_SUPERVISOR, False):
-          active_supervisors.append(node)
-
-      return active_supervisors
+      return [node for node in self.__nodes.values() if node.is_supervisor]
 
     def attach_to_pipeline(self, *,
                            node,
@@ -1640,7 +1559,8 @@ class GenericSession(BaseDecentrAIObject):
       bool
           True if the node is online, False otherwise.
       """
-      return node in self.get_active_nodes() or node in self._dct_node_addr_name.values()
+      node_ids = [node.id for node in self.__nodes.values()]
+      return node in self.__nodes or node in node_ids
 
     def create_chain_dist_custom_job(
       self,
@@ -1808,3 +1728,27 @@ class GenericSession(BaseDecentrAIObject):
       # end for detach
 
       return lst_result_payload
+
+  # New API
+  if True:
+    def attach_to_node(self, node, timeout=15, verbose=True):
+      """
+      Attach to a node.
+
+      Parameters
+      ----------
+      node : str
+          The address or name of the Naeural edge node.
+      timeout : int, optional
+          The timeout, by default 15
+      verbose : bool, optional
+          If True, will print messages, by default True
+
+      Returns
+      -------
+      bool
+          True if the node is online, False otherwise.
+      """
+      if not self.wait_for_node(node, timeout=timeout, verbose=verbose):
+        return None
+      return self.__nodes[self.__get_node_address(node)]
