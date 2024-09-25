@@ -14,6 +14,7 @@ from ..const import comms as comm_ct
 from ..io_formatter import IOFormatterWrapper
 from ..logging import Logger
 from ..utils import load_dotenv
+from .node import Node
 from .payload import Payload
 from .pipeline import Pipeline
 from .transaction import Transaction
@@ -134,57 +135,52 @@ class GenericSession(BaseDecentrAIObject):
         Defaults to "naeural"
     """
 
-    # TODO: maybe read config from file?
-    self._config = {**self.default_config, **config}
-
-    if root_topic is not None:
-      for key in self._config.keys():
-        if isinstance(self._config[key], dict) and 'TOPIC' in self._config[key]:
-          if isinstance(self._config[key]["TOPIC"], str) and self._config[key]["TOPIC"].startswith("{}"):
-            nr_empty = self._config[key]["TOPIC"].count("{}")
-            self._config[key]["TOPIC"] = self._config[key]["TOPIC"].format(root_topic, *(["{}"] * (nr_empty - 1)))
-    # end if root_topic
-
-    self.log = log
     self.name = name
 
-    self._verbosity = verbosity
-    self.encrypt_comms = encrypt_comms
+    ##### NETWORK CONFIGURATION #####
+    # TODO: maybe read config from file?
+    self.__fill_config(config, host, port, user, pwd, secured, dotenv_path, root_topic, **kwargs)
+    self.__encrypt_comms = encrypt_comms
+
+    self.__bc_engine = bc_engine
+    self.__blockchain_config = blockchain_config
+    ##### NETWORK CONFIGURATION #####
+
+    ##### LOGGING #####
+    self.log = log
+    self._verbosityy = verbosity
+    self.__show_commands = show_commands
+    ##### LOGGING #####
+
+    ##### CALLBACKS #####
+    self.custom_on_payload = on_payload
+    self.custom_on_heartbeat = on_heartbeat
+    self.custom_on_notification = on_notification
+    ##### CALLBACKS #####
+
+    ##### LOGIC #####
+    self.__open_transactions: list[Transaction] = []
+    self.__open_transactions_lock = Lock()
+    self.__online_timeout = 60
+    self.__filter_workers = filter_workers
+    ##### LOGIC #####
 
     self._dct_online_nodes_pipelines: dict[str, Pipeline] = {}
     self._dct_online_nodes_last_heartbeat: dict[str, dict] = {}
     self._dct_can_send_to_node: dict[str, bool] = {}
     self._dct_node_last_seen_time = {}
     self._dct_node_addr_name = {}
-    self.online_timeout = 60
-    self.filter_workers = filter_workers
-    self.__show_commands = show_commands
-
-    pwd = pwd or kwargs.get('password', kwargs.get('pass', None))
-    user = user or kwargs.get('username', None)
-    host = host or kwargs.get('hostname', None)
-    self.__fill_config(host, port, user, pwd, secured, dotenv_path)
-
-    self.custom_on_payload = on_payload
-    self.custom_on_heartbeat = on_heartbeat
-    self.custom_on_notification = on_notification
 
     self.own_pipelines = []
 
+    ##### MAIN LOOP #####
+    self.__formatter_plugins_locations = formatter_plugins_locations
     self.__running_callback_threads = False
     self.__running_main_loop_thread = False
     self.__closed_everything = False
-
-    self.sdk_main_loop_thread = Thread(target=self.__main_loop, daemon=True)
-    self.__formatter_plugins_locations = formatter_plugins_locations
-
-    self.__bc_engine = bc_engine
-    self.__blockchain_config = blockchain_config
-
-    self.__open_transactions: list[Transaction] = []
-    self.__open_transactions_lock = Lock()
-
     self.__create_user_callback_threads()
+    ##### MAIN LOOP #####
+
     super(GenericSession, self).__init__(log=log, DEBUG=not silent, create_logger=True)
     return
 
@@ -194,7 +190,7 @@ class GenericSession(BaseDecentrAIObject):
 
     self._connect()
 
-    if not self.encrypt_comms:
+    if not self.__encrypt_comms:
       self.P(
         "Warning: Emitted messages will not be encrypted.\n"
         "This is not recommended for production environments.\n"
@@ -342,7 +338,7 @@ class GenericSession(BaseDecentrAIObject):
       bool
           True if the message should be ignored, False otherwise.
       """
-      return self.filter_workers is not None and node_addr not in self.filter_workers
+      return self.__filter_workers is not None and node_addr not in self.__filter_workers
 
     def __track_online_node(self, node_addr, node_id):
       """
@@ -561,10 +557,10 @@ class GenericSession(BaseDecentrAIObject):
       return
 
     def __start_main_loop_thread(self):
-      self._main_loop_thread = Thread(target=self.__main_loop, daemon=True)
+      self.__main_loop_thread = Thread(target=self.__main_loop, daemon=True)
 
       self.__running_main_loop_thread = True
-      self._main_loop_thread.start()
+      self.__main_loop_thread.start()
       return
 
     def __handle_open_transactions(self):
@@ -768,7 +764,7 @@ class GenericSession(BaseDecentrAIObject):
 
   # Utils
   if True:
-    def __fill_config(self, host, port, user, pwd, secured, dotenv_path):
+    def __fill_config_credentials(self, host, port, user, pwd, secured, dotenv_path, **kwargs):
       """
       Fill the configuration dictionary with the credentials provided when creating this instance.
 
@@ -804,6 +800,7 @@ class GenericSession(BaseDecentrAIObject):
 
       possible_user_values = [
         user,
+        kwargs.get('username'),
         os.getenv(ENVIRONMENT.AIXP_USERNAME),
         os.getenv(ENVIRONMENT.AIXP_USER),
         os.getenv(ENVIRONMENT.EE_USERNAME),
@@ -821,6 +818,7 @@ class GenericSession(BaseDecentrAIObject):
 
       possible_password_values = [
         pwd,
+        kwargs.get('password'),
         os.getenv(ENVIRONMENT.AIXP_PASSWORD),
         os.getenv(ENVIRONMENT.AIXP_PASS),
         os.getenv(ENVIRONMENT.AIXP_PWD),
@@ -839,6 +837,7 @@ class GenericSession(BaseDecentrAIObject):
 
       possible_host_values = [
         host,
+        kwargs.get('hostname'),
         os.getenv(ENVIRONMENT.AIXP_HOSTNAME),
         os.getenv(ENVIRONMENT.AIXP_HOST),
         os.getenv(ENVIRONMENT.EE_HOSTNAME),
@@ -893,6 +892,52 @@ class GenericSession(BaseDecentrAIObject):
         self._config[comm_ct.SECURED] = secured
       return
 
+    def __fill_config_root_topic(self, root_topic):
+      """
+      Fill the configuration dictionary with the root topic.
+
+      Parameters
+      ----------
+      root_topic : str
+          The root of the topics used by the SDK.
+      """
+      if root_topic is not None:
+        for key in self._config.keys():
+          if isinstance(self._config[key], dict) and 'TOPIC' in self._config[key]:
+            if isinstance(self._config[key]["TOPIC"], str) and self._config[key]["TOPIC"].startswith("{}"):
+              nr_empty = self._config[key]["TOPIC"].count("{}")
+              self._config[key]["TOPIC"] = self._config[key]["TOPIC"].format(root_topic, *(["{}"] * (nr_empty - 1)))
+      # end if root_topic
+      return
+
+    def __fill_config(self, config, host, port, user, pwd, secured, dotenv_path, root_topic, **kwargs):
+      """
+      Fill the configuration dictionary with the values provided when creating this instance.
+
+      Parameters
+      ----------
+      config : dict
+          The configuration dictionary provided by the user.
+      host : str
+          The hostname of the server.
+      port : int
+          The port.
+      user : str
+          The user name.
+      pwd : str
+          The password.
+      secured : bool
+          The secured flag.
+      dotenv_path : str
+          Path to the .env file.
+      root_topic : str
+          The root of the topics used by the SDK.
+      """
+      self._config = {**self.default_config, **config}
+      self.__fill_config_root_topic(root_topic)
+      self.__fill_config_credentials(host, port, user, pwd, secured, dotenv_path, **kwargs)
+      return
+
     def __get_node_address(self, node):
       """
       Get the address of a node. If node is an address, return it. Else, return the address of the node.
@@ -938,7 +983,7 @@ class GenericSession(BaseDecentrAIObject):
       }
 
       # This part is duplicated with the creation of payloads
-      encrypt_payload = self.encrypt_comms
+      encrypt_payload = self.__encrypt_comms
       if encrypt_payload and worker is not None:
         # TODO: use safe_json_dumps
         str_data = json.dumps(critical_data)
@@ -970,6 +1015,59 @@ class GenericSession(BaseDecentrAIObject):
       self._send_payload(worker, msg_to_send)
       return
 
+    def _register_transaction(self, session_id: str, lst_required_responses: list = None, timeout=0, on_success_callback: callable = None, on_failure_callback: callable = None) -> Transaction:
+      """
+      Register a new transaction.
+
+      Parameters
+      ----------
+      session_id : str
+          The session id.
+      lst_required_responses : list[Response], optional
+          The list of required responses, by default None
+      timeout : int, optional
+          The timeout, by default 0
+      on_success_callback : _type_, optional
+          The on success callback, by default None
+      on_failure_callback : _type_, optional
+          The on failure callback, by default None
+      Returns
+      -------
+      Transaction
+          The transaction object
+      """
+      transaction = Transaction(
+        log=self.log,
+        session_id=session_id,
+        lst_required_responses=lst_required_responses or [],
+        timeout=timeout,
+        on_success_callback=on_success_callback,
+        on_failure_callback=on_failure_callback,
+      )
+
+      with self.__open_transactions_lock:
+        self.__open_transactions.append(transaction)
+      return transaction
+
+    def __create_pipeline_from_config(self, node_addr, config):
+      pipeline_config = {k.lower(): v for k, v in config.items()}
+      name = pipeline_config.pop('name', None)
+      plugins = pipeline_config.pop('plugins', None)
+
+      pipeline = Pipeline(
+        is_attached=True,
+        session=self,
+        log=self.log,
+        node_addr=node_addr,
+        name=name,
+        plugins=plugins,
+        existing_config=pipeline_config,
+      )
+
+      return pipeline
+
+  # Commands (deprecated)
+  if True:
     def _send_command_create_pipeline(self, worker, pipeline_config, **kwargs):
       self._send_command_to_box(COMMANDS.UPDATE_CONFIG, worker, pipeline_config, **kwargs)
       return
@@ -1062,57 +1160,6 @@ class GenericSession(BaseDecentrAIObject):
     def _send_command_delete_all(self, worker, **kwargs):
       self._send_command_to_box(COMMANDS.DELETE_CONFIG_ALL, worker, None, **kwargs)
       return
-
-    def _register_transaction(self, session_id: str, lst_required_responses: list = None, timeout=0, on_success_callback: callable = None, on_failure_callback: callable = None) -> Transaction:
-      """
-      Register a new transaction.
-
-      Parameters
-      ----------
-      session_id : str
-          The session id.
-      lst_required_responses : list[Response], optional
-          The list of required responses, by default None
-      timeout : int, optional
-          The timeout, by default 0
-      on_success_callback : _type_, optional
-          The on success callback, by default None
-      on_failure_callback : _type_, optional
-          The on failure callback, by default None
-      Returns
-      -------
-      Transaction
-          The transaction object
-      """
-      transaction = Transaction(
-        log=self.log,
-        session_id=session_id,
-        lst_required_responses=lst_required_responses or [],
-        timeout=timeout,
-        on_success_callback=on_success_callback,
-        on_failure_callback=on_failure_callback,
-      )
-
-      with self.__open_transactions_lock:
-        self.__open_transactions.append(transaction)
-      return transaction
-
-    def __create_pipeline_from_config(self, node_addr, config):
-      pipeline_config = {k.lower(): v for k, v in config.items()}
-      name = pipeline_config.pop('name', None)
-      plugins = pipeline_config.pop('plugins', None)
-
-      pipeline = Pipeline(
-        is_attached=True,
-        session=self,
-        log=self.log,
-        node_addr=node_addr,
-        name=name,
-        plugins=plugins,
-        existing_config=pipeline_config,
-      )
-
-      return pipeline
 
   # API
   if True:
@@ -1241,7 +1288,7 @@ class GenericSession(BaseDecentrAIObject):
           List of names of all the Naeural edge nodes that are considered online
 
       """
-      return [k for k, v in self._dct_node_last_seen_time.items() if tm() - v < self.online_timeout]
+      return [k for k, v in self._dct_node_last_seen_time.items() if tm() - v < self.__online_timeout]
 
     def get_allowed_nodes(self):
       """
