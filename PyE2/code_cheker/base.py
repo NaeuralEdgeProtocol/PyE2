@@ -104,6 +104,10 @@ UNALLOWED_DICT = {
     'type': CheckerConstants.var,
   },
 
+  'open': {
+    'error': 'Usage of `open()` is not allowed in plugin code ',
+    'type': CheckerConstants.var,
+  }
 }
 
 RESULT_VARS = ['__result', '_result', 'result']
