@@ -5,7 +5,7 @@ In this example, we connect to the network, choose a node and
     deploy a plugin that will extract frames from a video stream.
 """
 
-from PyE2 import Instance, Payload, Pipeline, Session
+from PyE2 import Instance, Payload, Pipeline, Session, Node
 
 
 def instance_on_data(pipeline: Pipeline, data: Payload):
@@ -22,16 +22,15 @@ if __name__ == '__main__':
   # the network credentials are read from the .env file automatically
   session: Session = Session(encrypt_comms=True)
 
-  session.wait_for_any_node()
+  # first, we attach to our node
+  node: Node = session.attach_to_node('your_node_address')
+  if node is None:
+    session.P("Node not found, exiting...")
+    exit(1)
 
-  chosen_node = session.get_active_nodes()[0]
-
-  # we have our node, let's deploy a plugin
-
-  # first, we create a pipeline
+  # next, we create a pipeline
   # we will use the video file data source, since we want to extract frames from a video
-  pipeline: Pipeline = session.create_pipeline(
-    node=chosen_node,
+  pipeline: Pipeline = node.create_pipeline(
     name='first_deploy',
     data_source='VideoFile',
     config={

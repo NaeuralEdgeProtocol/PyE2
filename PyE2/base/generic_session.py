@@ -169,8 +169,6 @@ class GenericSession(BaseDecentrAIObject):
 
     self._dct_online_nodes_pipelines: dict[str, Pipeline] = {}
 
-    self.own_pipelines = []
-
     ##### MAIN LOOP #####
     self.__formatter_plugins_locations = formatter_plugins_locations
     self.__running_callback_threads = False
@@ -535,7 +533,7 @@ class GenericSession(BaseDecentrAIObject):
         self._connect()
       return
 
-    def __close_own_pipelines(self, wait=True):
+    def __close_created_pipelines(self, wait=True):
       """
       Close all pipelines that were created by or attached to this session.
 
@@ -547,14 +545,17 @@ class GenericSession(BaseDecentrAIObject):
       # iterate through all CREATED pipelines from this session and close them
       transactions = []
 
-      for pipeline in self.own_pipelines:
-        transactions.extend(pipeline._close())
+      affected_pipelines = []
+      for node in self.__nodes.values():
+        for pipeline in node.created_pipelines:
+          affected_pipelines.append(f"`{node.address}/{pipeline.name}`")
+          transactions.extend(pipeline._close())
 
-      self.P("Closing own pipelines: {}".format([p.name for p in self.own_pipelines]))
+      self.P("Closing pipelines: {}".format(", ".join(affected_pipelines)))
 
       if wait:
         self.wait_for_transactions(transactions)
-        self.P("Closed own pipelines.")
+        self.P("Closed pipelines.")
       return
 
     def _communication_close(self):
@@ -572,13 +573,13 @@ class GenericSession(BaseDecentrAIObject):
       Parameters
       ----------
       close_pipelines : bool, optional
-          close all the pipelines created by or attached to this session (basically calling `.close_own_pipelines()` for you), by default False
+          close all the pipelines created by or attached to this session, by default False
       wait_close : bool, optional
           If `True`, will wait for the main loop thread to exit. Defaults to `False`
       """
 
       if close_pipelines:
-        self.__close_own_pipelines(wait=wait_close)
+        self.__close_created_pipelines(wait=wait_close)
 
       self.__running_main_loop_thread = False
 
