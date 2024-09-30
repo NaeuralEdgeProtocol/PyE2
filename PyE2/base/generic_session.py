@@ -1096,98 +1096,6 @@ class GenericSession(BaseDecentrAIObject):
       """
       return self._config[comm_ct.HOST]
 
-    def create_pipeline(self, *,
-                        node,
-                        name,
-                        data_source="Void",
-                        config={},
-                        plugins=[],
-                        on_data=None,
-                        on_notification=None,
-                        max_wait_time=0,
-                        **kwargs) -> Pipeline:
-      """
-      Create a new pipeline on a node. A pipeline is the equivalent of the "config file" used by the Naeural edge node team internally.
-
-      A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
-
-      A `Pipeline` contains one thread of data acquisition (which does not mean only one source of data), and many
-      processing units, usually named `Plugins`.
-
-      An `Instance` is a running thread of a `Plugin` type, and one may want to have multiple `Instances`, because each can be configured independently.
-
-      As such, one will work with `Instances`, by referring to them with the unique identifier (Pipeline, Plugin, Instance).
-
-      In the documentation, the following refer to the same thing:
-        `Pipeline` == `Stream`
-
-        `Plugin` == `Signature`
-
-      This call can busy-wait for a number of seconds to listen to heartbeats, in order to check if an Naeural edge node is online or not.
-      If the node does not appear online, a warning will be displayed at the stdout, telling the user that the message that handles the
-      creation of the pipeline will be sent, but it is not guaranteed that the specific node will receive it.
-
-      Parameters
-      ----------
-      node : str
-          Address or Name of the Naeural edge node that will handle this pipeline.
-      name : str
-          Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
-      data_source : str, optional
-          This is the name of the DCT plugin, which resembles the desired functionality of the acquisition. Defaults to Void.
-      config : dict, optional
-          This is the dictionary that contains the configuration of the acquisition source, by default {}
-      plugins : list, optional
-          List of dictionaries which contain the configurations of each plugin instance that is desired to run on the box.
-          Defaults to []. Should be left [], and instances should be created with the api.
-      on_data : Callable[[Pipeline, str, str, dict], None], optional
-          Callback that handles messages received from any plugin instance.
-          As arguments, it has a reference to this Pipeline object, the signature and the instance of the plugin
-          that sent the message and the payload itself.
-          This callback acts as a default payload processor and will be called even if for a given instance
-          the user has defined a specific callback.
-          Defaults to None.
-      on_notification : Callable[[Pipeline, dict], None], optional
-          Callback that handles notifications received from any plugin instance.
-          As arguments, it has a reference to this Pipeline object, along with the payload itself.
-          This callback acts as a default payload processor and will be called even if for a given instance
-          the user has defined a specific callback.
-          Defaults to None.
-      max_wait_time : int, optional
-          The maximum time to busy-wait, allowing the Session object to listen to node heartbeats
-          and to check if the desired node is online in the network, by default 0.
-      **kwargs :
-          The user can provide the configuration of the acquisition source directly as kwargs.
-
-      Returns
-      -------
-      Pipeline
-          A `Pipeline` object.
-
-      """
-
-      found = self.wait_for_node(node, timeout=max_wait_time, verbose=False)
-
-      if not found:
-        raise Exception("Unable to attach to pipeline. Node does not exist")
-
-      node_addr = self.__get_node_address(node)
-      pipeline = Pipeline(
-          self,
-          self.log,
-          node_addr=node_addr,
-          name=name,
-          type=data_source,
-          config=config,
-          plugins=plugins,
-          on_data=on_data,
-          on_notification=on_notification,
-          is_attached=False,
-          **kwargs
-      )
-      self.own_pipelines.append(pipeline)
-      return pipeline
-
     def get_node_name(self, node_addr):
       """
       Get the name of a node.
@@ -1261,6 +1169,93 @@ class GenericSession(BaseDecentrAIObject):
 
       return [node for node in self.__nodes.values() if node.is_supervisor]
 
+    def create_pipeline(self, *,
+                        node,
+                        name,
+                        data_source="Void",
+                        config={},
+                        plugins=[],
+                        on_data=None,
+                        on_notification=None,
+                        max_wait_time=0,
+                        **kwargs) -> Pipeline:
+      """
+      Create a new pipeline on a node. A pipeline is the equivalent of the "config file" used by the Naeural edge node team internally.
+
+      A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
+
+      A `Pipeline` contains one thread of data acquisition (which does not mean only one source of data), and many
+      processing units, usually named `Plugins`.
+
+      An `Instance` is a running thread of a `Plugin` type, and one may want to have multiple `Instances`, because each can be configured independently.
+
+      As such, one will work with `Instances`, by referring to them with the unique identifier (Pipeline, Plugin, Instance).
+
+      In the documentation, the following refer to the same thing:
+        `Pipeline` == `Stream`
+
+        `Plugin` == `Signature`
+
+      This call can busy-wait for a number of seconds to listen to heartbeats, in order to check if an Naeural edge node is online or not.
+      If the node does not appear online, a warning will be displayed at the stdout, telling the user that the message that handles the
+      creation of the pipeline will be sent, but it is not guaranteed that the specific node will receive it.
+
+      Parameters
+      ----------
+      node : str
+          Address or Name of the Naeural edge node that will handle this pipeline.
+      name : str
+          Name of the pipeline. This is good to be kept unique, as it allows multiple parties to overwrite each others configurations.
+      data_source : str, optional
+          This is the name of the DCT plugin, which resembles the desired functionality of the acquisition. Defaults to Void.
+      config : dict, optional
+          This is the dictionary that contains the configuration of the acquisition source, by default {}
+      plugins : list, optional
+          List of dictionaries which contain the configurations of each plugin instance that is desired to run on the box.
+          Defaults to []. Should be left [], and instances should be created with the api.
+      on_data : Callable[[Pipeline, str, str, dict], None], optional
+          Callback that handles messages received from any plugin instance.
+          As arguments, it has a reference to this Pipeline object, the signature and the instance of the plugin
+          that sent the message and the payload itself.
+          This callback acts as a default payload processor and will be called even if for a given instance
+          the user has defined a specific callback.
+          Defaults to None.
+      on_notification : Callable[[Pipeline, dict], None], optional
+          Callback that handles notifications received from any plugin instance.
+          As arguments, it has a reference to this Pipeline object, along with the payload itself.
+          This callback acts as a default payload processor and will be called even if for a given instance
+          the user has defined a specific callback.
+          Defaults to None.
+      max_wait_time : int, optional
+          The maximum time to busy-wait, allowing the Session object to listen to node heartbeats
+          and to check if the desired node is online in the network, by default 0.
+      **kwargs :
+          The user can provide the configuration of the acquisition source directly as kwargs.
+
+      Returns
+      -------
+      Pipeline
+          A `Pipeline` object.
+
+      """
+
+      if isinstance(node, str):
+        node = self.attach_to_node(node, timeout=max_wait_time, verbose=False)
+
+      if node is None:
+        raise Exception("Unable to attach to pipeline. Node does not exist")
+
+      return node.create_pipeline(
+          name=name,
+          data_source=data_source,
+          config=config,
+          plugins=plugins,
+          on_data=on_data,
+          on_notification=on_notification,
+          is_attached=False,
+          **kwargs
+      )
+
     def attach_to_pipeline(self, *,
                            node,
                            name,
@@ -1327,26 +1322,17 @@ class GenericSession(BaseDecentrAIObject):
           Node does not host the desired pipeline
       """
 
-      found = self.wait_for_node(node, timeout=max_wait_time, verbose=False)
+      if isinstance(node, str):
+        node = self.attach_to_node(node, timeout=max_wait_time, verbose=False)
 
-      if not found:
+      if node is None:
         raise Exception("Unable to attach to pipeline. Node does not exist")
 
-      node_addr = self.__get_node_address(node)
-
-      if name not in self._dct_online_nodes_pipelines[node_addr]:
-        raise Exception("Unable to attach to pipeline. Pipeline does not exist")
-
-      pipeline: Pipeline = self._dct_online_nodes_pipelines[node_addr][name]
-
-      if on_data is not None:
-        pipeline._add_on_data_callback(on_data)
-      if on_notification is not None:
-        pipeline._add_on_notification_callback(on_notification)
-
-      self.own_pipelines.append(pipeline)
-
-      return pipeline
+      return node.attach_to_pipeline(
+        name=name,
+        on_data=on_data,
+        on_notification=on_notification,
+      )
 
     def create_or_attach_to_pipeline(self, *,
                                      node,
@@ -1399,40 +1385,20 @@ class GenericSession(BaseDecentrAIObject):
           A `Pipeline` object.
       """
 
-      pipeline = None
-      try:
-        pipeline = self.attach_to_pipeline(
-          node=node,
-          name=name,
-          on_data=on_data,
-          on_notification=on_notification,
-          max_wait_time=max_wait_time,
-        )
+      if isinstance(node, str):
+        node = self.attach_to_node(node, timeout=max_wait_time, verbose=False)
+      if node is None:
+        raise Exception("Unable to attach to pipeline. Node does not exist")
 
-        possible_new_configuration = {
-          **config,
-          **{k.upper(): v for k, v in kwargs.items()}
-        }
-
-        if len(plugins) > 0:
-          possible_new_configuration['PLUGINS'] = plugins
-
-        if len(possible_new_configuration) > 0:
-          pipeline.update_full_configuration(config=possible_new_configuration)
-      except Exception as e:
-        self.D("Failed to attach to pipeline: {}".format(e))
-        pipeline = self.create_pipeline(
-          node=node,
-          name=name,
-          data_source=data_source,
-          config=config,
-          plugins=plugins,
-          on_data=on_data,
-          on_notification=on_notification,
-          **kwargs
-        )
-
-      return pipeline
+      return node.create_or_attach_to_pipeline(
+        name=name,
+        data_source=data_source,
+        config=config,
+        plugins=plugins,
+        on_data=on_data,
+        on_notification=on_notification,
+        **kwargs
+      )
 
     def wait_for_transactions(self, transactions: list[Transaction]):
       """

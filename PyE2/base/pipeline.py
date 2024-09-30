@@ -28,7 +28,7 @@ class Pipeline(BaseCodeChecker):
     `Plugin` == `Signature`
   """
 
-  def __init__(self, session, log, *, node_addr, name, config={}, plugins=[], on_data=None, on_notification=None, is_attached=False, existing_config=None, **kwargs) -> None:
+  def __init__(self, log, *, node, name, config={}, plugins=[], on_data=None, on_notification=None, is_attached=False, existing_config=None, **kwargs) -> None:
     """
     A `Pipeline` is a an object that encapsulates a one-to-many, data acquisition to data processing, flow of data.
 
@@ -83,8 +83,7 @@ class Pipeline(BaseCodeChecker):
         The user can provide the configuration of the acquisition source directly as kwargs.
     """
     self.log = log
-    self.session = session
-    self.node_addr = node_addr
+    self.__node = node
     self.name = name
 
     self.config = {}
@@ -369,7 +368,7 @@ class Pipeline(BaseCodeChecker):
       Send an update pipeline configuration command to the Naeural edge node.
       """
       self.session._send_command_update_pipeline_config(
-          worker=self.node_addr,
+          worker=self.node.address,
           pipeline_config=self.__get_proposed_pipeline_config(),
           session_id=session_id
       )
@@ -396,7 +395,7 @@ class Pipeline(BaseCodeChecker):
         })
 
       self.session._send_command_batch_update_instance_config(
-        worker=self.node_addr,
+        worker=self.node.address,
         lst_updates=lst_updates,
         session_id=session_id
       )
@@ -529,7 +528,7 @@ class Pipeline(BaseCodeChecker):
         return
 
       if verbose:
-        self.P("Deployed pipeline <{}> on <{}>".format(self.name, self.node_addr), color="g")
+        self.P("Deployed pipeline <{}> on <{}>".format(self.name, self.node.address), color="g")
       self.__was_last_operation_successful = True
 
       self.config = {**self.config, **self.__staged_config}
@@ -619,7 +618,7 @@ class Pipeline(BaseCodeChecker):
       self.__was_last_operation_successful = None
 
       self.session._send_command_archive_pipeline(
-        worker=self.node_addr,
+        worker=self.node.address,
         pipeline_name=self.name,
       )
 
@@ -1318,7 +1317,7 @@ class Pipeline(BaseCodeChecker):
       self.__was_last_operation_successful = None
 
       self.session._send_command_pipeline_command(
-        worker=self.node_addr,
+        worker=self.node.address,
         pipeline_name=self.name,
         command=command,
         payload=payload,
@@ -1496,4 +1495,19 @@ class Pipeline(BaseCodeChecker):
       """
       Return the node id of the pipeline.
       """
-      return self.session.get_node_name(self.node_addr)
+      return self.node.id
+
+    @property
+    def node_addr(self):
+      """
+      Return the node address of the pipeline.
+      """
+      return self.node.address
+
+    @property
+    def node(self):
+      return self.__node
+
+    @property
+    def session(self):
+      return self.node.session

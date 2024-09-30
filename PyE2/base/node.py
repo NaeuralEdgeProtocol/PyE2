@@ -87,7 +87,7 @@ class Node:
       if pipeline is not None:
         pipeline._sync_configuration_with_remote({k.upper(): v for k, v in config.items()})
       else:
-        self._dct_pipelines[pipeline_name] = self.__create_pipeline_from_config(self.node_addr, config)
+        self._dct_pipelines[pipeline_name] = self.__create_pipeline_from_config(config)
     # endfor config in msg_active_configs
     ### Sync pipeline configurations ###
 
@@ -101,18 +101,18 @@ class Node:
     ### User callbacks ###
     return
 
-  def __create_pipeline_from_config(self, node_addr, config):
+  def __create_pipeline_from_config(self, config):
     pipeline_config = {k.lower(): v for k, v in config.items()}
     name = pipeline_config.pop('name', None)
     plugins = pipeline_config.pop('plugins', None)
 
     pipeline = Pipeline(
-      is_attached=True,
-      session=self,
       log=self.log,
-      node_addr=node_addr,
+      node=self,
       name=name,
+      config={},
       plugins=plugins,
+      is_attached=True,
       existing_config=pipeline_config,
     )
 
@@ -165,6 +165,21 @@ class Node:
 
   # Public API
   if True:
+    def P(self, *args, **kwargs):
+      """
+      Print info to stdout.
+      """
+      return self.log.P(*args, **kwargs)
+
+    def D(self, *args, **kwargs):
+      """
+      Call the `Logger.D` method.
+      If using the default Logger, this call will print debug info to stdout if `silent` is set to `False`.
+      The logger object is passed from the Session object to the Pipeline object when creating
+      it with `create_pipeline` or `attach_to_pipeline`.
+      """
+      return self.session.D(*args, **kwargs)
+
     def create_pipeline(self, *,
                         name,
                         data_source="Void",
@@ -231,26 +246,26 @@ class Node:
       """
 
       pipeline = Pipeline(
-          self.__session,
           self.log,
-          node_addr=self.node_addr,
+          node=self,
           name=name,
-          type=data_source,
           config=config,
           plugins=plugins,
           on_data=on_data,
           on_notification=on_notification,
           is_attached=False,
+          type=data_source,
           **kwargs
       )
       self.created_pipelines.append(pipeline)
+      self._dct_pipelines[name] = pipeline
       return pipeline
 
     def attach_to_pipeline(self, *,
                            name,
                            on_data=None,
-                           on_notification=None,
-                           max_wait_time=0) -> Pipeline:
+                           on_notification=None
+                           ) -> Pipeline:
       """
       Create a Pipeline object and attach to an existing pipeline on an Naeural edge node.
       Useful when one wants to treat an existing pipeline as one of his own,
@@ -330,7 +345,6 @@ class Node:
                                      plugins=[],
                                      on_data=None,
                                      on_notification=None,
-                                     max_wait_time=0,
                                      **kwargs) -> Pipeline:
       """
       Create a new pipeline on a node, or attach to an existing pipeline on an Naeural edge node.
@@ -359,10 +373,7 @@ class Node:
           This callback acts as a default payload processor and will be called even if for a given instance
           the user has defined a specific callback.
           Defaults to None.
-      max_wait_time : int, optional
-          The maximum time to busy-wait, allowing the Session object to listen to node heartbeats
-          and to check if the desired node is online in the network, by default 0.
-      **kwargs :
+\      **kwargs :
           The user can provide the configuration of the acquisition source directly as kwargs.
 
       Returns
@@ -377,7 +388,6 @@ class Node:
           name=name,
           on_data=on_data,
           on_notification=on_notification,
-          max_wait_time=max_wait_time,
         )
 
         possible_new_configuration = {
