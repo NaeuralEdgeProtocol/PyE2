@@ -420,78 +420,78 @@ class Node:
 
   # Available node commands
   if True:
-    def stop(self):
+    def stop(self, **kwargs):
       """
       Stop the node.
 
       The node will return a status code indicating that the Node was stopped.
       """
-      raise NotImplementedError
+      return self.session._send_command_to_box(COMMANDS.STOP, self.address, None, **kwargs)
 
-    def restart_host(self):
+    def restart_host(self, **kwargs):
       """
       Stop the node.
 
       The node will return a status code indicating the host to restart.
       (This behavior should be implemented by the user on the host)
       """
-      raise NotImplementedError
+      return self.session._send_command_to_box(COMMANDS.RESTART, self.address, None, **kwargs)
 
-    def request_simple_heartbeat(self):
+    def request_simple_heartbeat(self, **kwargs):
       """
       Request a simple heartbeat from the node.
 
       Useful when one wants to quickly confirm that a change was made.
       """
-      raise NotImplementedError
+      self.session._send_command_to_box(COMMANDS.SIMPLE_HEARTBEAT, self.address, None, **kwargs)
 
-    def request_timers_only_heartbeat(self):
+    def request_timers_only_heartbeat(self, **kwargs):
       """
       Request a heartbeat from the node, containing timers.
 
       Useful when one wants to check the performance of the node.
       """
-      raise NotImplementedError
+      self.session._send_command_to_box(COMMANDS.TIMERS_ONLY_HEARTBEAT, self.address, None, **kwargs)
 
-    def request_full_heartbeat(self):
+    def request_full_heartbeat(self, **kwargs):
       """
       Request a full heartbeat from the node.
 
       Useful when one wants to check the logs of the node.
       """
-      raise NotImplementedError
+      self.session._send_command_to_box(COMMANDS.FULL_HEARTBEAT, self.address, None, **kwargs)
 
-    def reload_configuration_from_disk(self):
+    def reload_configuration_from_disk(self, **kwargs):
       """
       Reload the configuration of the node from disk.
 
       Useful when one edited the configuration locally and wants to reload it.
       """
-      raise NotImplementedError
+      self.session._send_command_to_box(COMMANDS.RELOAD_CONFIG_FROM_DISK, self.address, None, **kwargs)
 
-    def reset_whitelist_commands_to_default(self):
+    def reset_whitelist_commands_to_default(self, **kwargs):
       """
       Reset the whitelist commands to default.
 
       Useful when one wants to reset the whitelist commands to default.
       """
-      raise NotImplementedError
+      self.session._send_command_to_box(COMMANDS.RESET_WHITELIST_COMMANDS_TO_TEMPLATE, self.address, None, **kwargs)
 
-    def archive_all_pipelines(self):
+    def archive_all_pipelines(self, **kwargs):
       """
       Archive all pipelines on the node.
 
       Useful when one wants to stop all pipelines.
       """
-      raise NotImplementedError
+      self.session._send_command_to_box(COMMANDS.ARCHIVE_CONFIG_ALL, self.address, None, **kwargs)
 
-    def delete_all_pipelines(self):
+    def delete_all_pipelines(self, **kwargs):
       """
       Delete all pipelines on the node.
 
       Useful when one wants to stop all pipelines.
       """
-      raise NotImplementedError
+      self.session._send_command_to_box(COMMANDS.DELETE_CONFIG_ALL, self.address, None, **kwargs)
 
   # Available node plugin commands
   if True:
@@ -501,7 +501,28 @@ class Node:
 
       Useful when one wants to get resource utilization of a node.
       """
-      raise NotImplementedError
+      from ..default.instance import NetMon01
+
+      if self.__admin_pipeline is None:
+        self.P("Cannot execute this command because the admin pipeline was not found on the node.")
+        return
+
+      instance: NetMon01 = self.__admin_pipeline.attach_to_plugin_instance(
+        signature=None,  # TODO: add signature
+        instance_id=None,  # TODO: add instance_id
+      ).convert_to_specialized_class(NetMon01)  # TODO: add class
+
+      if node is None:
+        node = self
+      elif isinstance(node, str):
+        node = self.session.attach_to_node(node, timeout=0, verbose=False)
+        if node is None:
+          self.P("Node not found.")
+          return
+
+      node_addr = node.address
+
+      return instance.get_node_history(node_addr=node_addr, steps=steps, time_window_hours=time_window_hours)
 
     def get_plugin_default_configuration(self, plugin_name, plugin_type):
       """

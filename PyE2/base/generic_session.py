@@ -1253,7 +1253,6 @@ class GenericSession(BaseDecentrAIObject):
           plugins=plugins,
           on_data=on_data,
           on_notification=on_notification,
-          is_attached=False,
           **kwargs
       )
 
