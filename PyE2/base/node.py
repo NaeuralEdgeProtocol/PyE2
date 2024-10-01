@@ -417,3 +417,135 @@ class Node:
     def deploy(self, timeout=10, with_confirmation=True, wait_confirmation=True):
       # TODO: implement this
       return
+
+  # Available node commands
+  if True:
+    def stop(self):
+      """
+      Stop the node.
+
+      The node will return a status code indicating that the Node was stopped.
+      """
+      raise NotImplementedError
+
+    def restart_host(self):
+      """
+      Stop the node.
+
+      The node will return a status code indicating the host to restart.
+      (This behavior should be implemented by the user on the host)
+      """
+      raise NotImplementedError
+
+    def request_simple_heartbeat(self):
+      """
+      Request a simple heartbeat from the node.
+
+      Useful when one wants to quickly confirm that a change was made.
+      """
+      raise NotImplementedError
+
+    def request_timers_only_heartbeat(self):
+      """
+      Request a heartbeat from the node, containing timers.
+
+      Useful when one wants to check the performance of the node.
+      """
+      raise NotImplementedError
+
+    def request_full_heartbeat(self):
+      """
+      Request a full heartbeat from the node.
+
+      Useful when one wants to check the logs of the node.
+      """
+      raise NotImplementedError
+
+    def reload_configuration_from_disk(self):
+      """
+      Reload the configuration of the node from disk.
+
+      Useful when one edited the configuration locally and wants to reload it.
+      """
+      raise NotImplementedError
+
+    def reset_whitelist_commands_to_default(self):
+      """
+      Reset the whitelist commands to default.
+
+      Useful when one wants to reset the whitelist commands to default.
+      """
+      raise NotImplementedError
+
+    def archive_all_pipelines(self):
+      """
+      Archive all pipelines on the node.
+
+      Useful when one wants to stop all pipelines.
+      """
+      raise NotImplementedError
+
+    def delete_all_pipelines(self):
+      """
+      Delete all pipelines on the node.
+
+      Useful when one wants to stop all pipelines.
+      """
+      raise NotImplementedError
+
+  # Available node plugin commands
+  if True:
+    def get_performance_history(self, *, node=None, steps=1, time_window_hours=1):
+      """
+      Get the performance history of a node.
+
+      Useful when one wants to get resource utilization of a node.
+      """
+      raise NotImplementedError
+
+    def get_plugin_default_configuration(self, plugin_name, plugin_type):
+      """
+      Get the default configuration of a plugin.
+
+      Useful when one wants to know if a plugin exists on a node 
+      and get the default configuration of that plugin.
+      """
+      raise NotImplementedError
+
+    def check_update(self):
+      """
+      Check if the node has an update available.
+      """
+      raise NotImplementedError
+
+    def get_node_config(self):
+      """
+      Get the configuration of the node (the config startup).
+      """
+      raise NotImplementedError
+
+    def update_node_config(self, config):
+      """
+      Update the configuration of the node (the config startup).
+      """
+      raise NotImplementedError
+
+    def get_whitelist_addresses(self):
+      """
+      Get the whitelist addresses of the node.
+
+      The whitelist addresses are the addresses that are allowed to send commands to the node.
+      """
+      raise NotImplementedError
+
+    def enable_local_communication(self):
+      """
+      Enable local communication on the node.
+      """
+      raise NotImplementedError
+
+    def disable_local_communication(self):
+      """
+      Disable local communication on the node.
+      """
+      raise NotImplementedError
