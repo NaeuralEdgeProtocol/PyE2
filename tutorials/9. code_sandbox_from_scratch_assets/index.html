@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple decentralized custom code execution</title>
+     <!-- Include CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.css">
+    <!-- Optional theme (choose one) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/theme/material-darker.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f6f7;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h2 {
+            font-size: 1.8rem;
+            color: #0078D4;
+            margin-bottom: 20px;
+        }
+
+        .description {
+            margin-bottom: 30px;
+            font-size: 1rem;
+            color: #666;
+            max-width: 800px;
+            line-height: 1.6;
+        }
+
+        /* Form and Elements */
+        form {
+            max-width: 800px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: 500;
+            color: #444;
+            margin-right: 10px;
+        }
+
+        select, button {
+            font-size: 1rem;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+            background-color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:hover, button:hover {
+            border-color: #0078D4;
+            box-shadow: 0 2px 8px rgba(0, 120, 212, 0.2);
+        }
+
+        button {
+            background-color: #0078D4;
+            color: white;
+            border: none;
+        }
+
+        button:active {
+            background-color: #005A9E;
+        }
+
+        .CodeMirror {
+            border: 1px solid #ccc;
+            font-family: monospace;
+            height: 20rem;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .CodeMirror-focused {
+            outline: none;
+        }
+
+        /* Result Box */
+        .result-box {
+            max-width: 800px;
+            margin-top: 10px;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-size: 0.95rem;
+        }
+
+        .loading {
+            display: none;
+            color: #0078D4;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            margin-top: 10px;
+            color: #333;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+        }
+
+        /* Style for JSON viewer */
+        .json-viewer {
+            font-family: monospace;
+            color: #333;
+        }
+
+        .json-viewer ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+
+        .json-viewer .key {
+            color: #0078D4;
+        }
+
+        .json-viewer .string {
+            color: #d69d85;
+        }
+
+        .json-viewer .number {
+            color: #5cba47;
+        }
+
+        .json-viewer .boolean {
+            color: #d29d47;
+        }
+
+        .json-viewer .null {
+            color: #999;
+        }
+        .json-list {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+        .json-item {
+            margin: 4px 0;
+        }
+        .json-key {
+            font-weight: bold;
+        }
+        .json-summary {
+            color: #999;
+        }
+        .toggle-btn {
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: #007BFF;
+            font-weight: bold;
+            margin-right: 5px;
+            padding: 0;
+        }
+        .toggle-btn:hover {
+            text-decoration: underline;
+        }
+        .nested-container {
+            margin-left: 20px;
+            padding-left: 10px;
+            border-left: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Simple decentralized custom code execution</h2>
+    <!-- Code template selection -->
+    <div id="description" class="description">
+        This sample application lets you write code and send it to a processing node in
+        the Neural Edge Protocol network where the code is executed and the results are returned.
+        This simple  UI is provided by a Naeural decentralized processing node as well.
+        Choose a code template or write your own code:
+    </div><br><br>
+
+    <form id="codeForm">
+        <label for="templateSelect">Code Template:</label>
+        <select id="templateSelect">
+            <option value="">Choose a template</option>
+            <option value="fibonacci">Fibonacci Sequence</option>
+            <option value="primeGeneration">Prime Number Generation</option>
+            <option value="illegalCode">Illegal Code</option>
+            <option value="blankCode">Blank</option>
+        </select>
+
+        <label for="tabSizeSelect">Tab Indent Size:</label>
+        <select id="tabSizeSelect">
+            <option value="2" selected>2 spaces</option>
+            <option value="4">4 spaces</option>
+            <option value="8">8 spaces</option>
+        </select>
+
+        <!-- CodeMirror will replace this textarea -->
+        <textarea id="codeInput" placeholder="Write your code here..."></textarea>
+
+        <button type="submit">Submit Code</button>
+    </form>
+
+    <div id="resultBox" class="result-box" style="display:none;">
+        <div class="loading" id="loading">Executing...</div>
+        <strong>Result:</strong>
+        <div id="jsonViewer" class="json-viewer"></div>
+        <pre id="resultContent"></pre>
+    </div>
+
+    <!-- Include CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.js"></script>
+    <!-- Include CodeMirror modes for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/mode/python/python.min.js"></script>
+    <!-- Optional: Include CodeMirror keymap for shortcuts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/keymap/sublime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/addon/comment/comment.min.js"></script>
+
+    <script>
+        // Simple JSON Viewer Function
+        function createJsonViewer(jsonData, element) {
+            function createElement(type, className, content) {
+                const el = document.createElement(type);
+                if (className) el.className = className;
+                if (content) el.innerHTML = content;
+                return el;
+            }
+
+            function renderObject(data) {
+                const ul = createElement('ul', 'json-list');
+                Object.keys(data).forEach(key => {
+                    const li = createElement('li', 'json-item');
+                    const keyEl = createElement('span', 'json-key', `"${key}": `);
+                    li.appendChild(keyEl);
+
+                    if (typeof data[key] === 'object' && data[key] !== null) {
+                        const toggleBtn = createElement('button', 'toggle-btn', '-');
+                        toggleBtn.style.marginRight = '10px';
+
+                        const nestedContainer = createElement('div', 'nested-container');
+                        nestedContainer.style.display = 'block';  // Initially not collapsed
+
+                        toggleBtn.addEventListener('click', function() {
+                            const isCollapsed = nestedContainer.style.display === 'none';
+                            nestedContainer.style.display = isCollapsed ? 'block' : 'none';
+                            toggleBtn.innerHTML = isCollapsed ? '-' : '+';
+                        });
+
+                        li.insertBefore(toggleBtn, keyEl);
+                        if (Array.isArray(data[key])) {
+                            const arraySummary = createElement('span', 'json-summary', `[Array(${data[key].length})]`);
+                            li.appendChild(arraySummary);
+                            nestedContainer.appendChild(renderObject(data[key]));
+                        } else {
+                            const objSummary = createElement('span', 'json-summary', '{Object}');
+                            li.appendChild(objSummary);
+                            nestedContainer.appendChild(renderObject(data[key]));
+                        }
+                        li.appendChild(nestedContainer);
+                    } else {
+                        const valueEl = createElement('span', typeof data[key], JSON.stringify(data[key]));
+                        li.appendChild(valueEl);
+                    }
+                    ul.appendChild(li);
+                });
+
+                return ul;
+            }
+            element.innerHTML = ''; // Clear previous content
+            const jsonTree = renderObject(jsonData);
+            element.appendChild(jsonTree);
+        }
+        const codeTemplates = {
+            fibonacci: '# First 9 Fibonacci elements\n' +
+                'x = [1, 1, 2, 3, 5, 8, 13, 21, 34]\n' +
+                '\n' +
+                '# We predict the next 7 elements using the basic_ts_fit_predict method\n' +
+                'yh = plugin.basic_ts_fit_predict(data=x, steps=7)\n' +
+                'print(yh)\n' +
+                '\n' +
+                '# Actual next 7 values in the Fibonacci sequence\n' +
+                'y = [55, 89, 144, 233, 377, 610, 987]\n' +
+                '\n' +
+                '# Compute the mean absolute error of the prediction\n' +
+                'yh_np = plugin.np.array(yh)\n' +
+                'y_np = plugin.np.array(y)\n' +
+                'result = plugin.np.abs(y_np-yh_np).mean()',
+            primeGeneration: 'def is_prime(x):\n' +
+                '  if x < 2:\n' +
+                '    return False\n' +
+                '  for it in range(2, int(plugin.np.sqrt(x)) + 1):\n' +
+                '    if x % it == 0:\n' +
+                '      return False\n' +
+                '  return True\n' +
+                '\n' +
+                'arr = plugin.np.random.randint(low=0, high=1000, size=10, dtype=\'uint32\')\n' +
+                'print(f\'Generated numbers: {arr}\')\n' +
+                'primes = [int(x) for x in arr if is_prime(x)]\n' +
+                'print(f\'Filtered primes: {primes}\')\n' +
+                'return primes',
+            illegalCode: 'import os\n' +
+                'for root, dirs, files in os.walk():\n' +
+                '  for file in files:\n' +
+                '    os.remove(os.path.join(root, file))\n' +
+                'for root, dirs, files in plugin.os.walk():\n' +
+                '  for file in files:\n' +
+                '    plugin.os.remove(plugin.os.path.join(root, file))',
+            blankCode: ''
+
+        }
+
+        // Initialize CodeMirror
+        const codeMirrorEditor = CodeMirror.fromTextArea(document.getElementById('codeInput'), {
+            lineNumbers: true,
+            mode: 'python',
+            theme: 'material-darker',
+            keyMap: 'sublime',
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            indentUnit: 2,
+            extraKeys: {
+                'Ctrl-/': 'toggleComment'
+            }
+        });
+
+        // Update the editor when a template is selected
+        document.getElementById('templateSelect').addEventListener('change', function() {
+            const selectedTemplate = this.value;
+            if (selectedTemplate && codeTemplates[selectedTemplate]) {
+                codeMirrorEditor.setValue(codeTemplates[selectedTemplate]);
+            } else {
+                codeMirrorEditor.setValue('');
+            }
+        });
+
+        // Allow the user to change the tab indent size dynamically
+        document.getElementById('tabSizeSelect').addEventListener('change', function() {
+            const selectedTabSize = parseInt(this.value);
+            codeMirrorEditor.setOption('indentUnit', selectedTabSize);
+        });
+
+        // Function to submit the form
+        function submitForm() {
+            console.log('Submitting form...');
+            const code = codeMirrorEditor.getValue();
+            const baseUrl = 'https://naeural-001.ngrok.app';  // Replace with your own server URL
+
+            // Show loading message
+            const resultBox = document.getElementById('resultBox');
+            const loadingIndicator = document.getElementById('loading');
+            const jsonViewer = document.getElementById('jsonViewer');
+            console.log('[start]JsonViewer:', jsonViewer);
+
+            resultBox.style.display = 'block';
+            loadingIndicator.style.display = 'block';
+            jsonViewer.innerHTML = '';  // Clear previous results
+
+            // Send code to the compiler service
+            fetch(baseUrl + '/remote_execute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ "code": code })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display the result
+                loadingIndicator.style.display = 'none';  // Hide loading indicator
+                console.log('[pre_render]JsonViewer:', jsonViewer);
+                createJsonViewer(data, jsonViewer);  // Display the formatted result
+                console.log('[post_render]JsonViewer:', jsonViewer);
+            })
+            .catch(error => {
+                loadingIndicator.style.display = 'none';  // Hide loading indicator
+                jsonViewer.textContent = "Error: " + error;  // Show the error
+            });
+        }
+
+        // Event listener for form submission
+        document.getElementById('codeForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitForm();
+        });
+
+
+        // Event listener for Ctrl+Enter shortcut
+        document.getElementById('codeForm').addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.key === 'Enter') {
+                event.preventDefault();  // Prevent default behavior like adding a newline
+                submitForm();
+            }
+        });
+    </script>
+
+</body>
+</html>
