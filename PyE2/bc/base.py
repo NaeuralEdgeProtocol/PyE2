@@ -493,7 +493,8 @@ class BaseBlockEngine:
     lst_allowed = [x.split()[0] for x in lst_allowed if x != '']
     lst_allowed = [self._remove_prefix(x) for x in lst_allowed if x != '']
     return lst_allowed
-      
+  
+        
   def _remove_prefix(self, address):
     """
     Removes the prefix from the address
@@ -736,12 +737,30 @@ class BaseBlockEngine:
   
   @property
   def allowed_list(self):
-    """Returns the allowed senders"""
+    """Returns the allowed command senders for the current node"""
     return self._load_and_maybe_create_allowed()
   
   @property
   def whitelist(self):
+    """Returns the allowed command senders for the current node"""
     return self.allowed_list
+  
+  
+  def maybe_remove_prefix(self, address):
+    """
+    Removes the prefix from the address
+
+    Parameters
+    ----------
+    address : str
+      the text address.
+
+    Returns
+    -------
+    address : str
+      the address without the prefix.
+    """
+    return self._remove_prefix(address)  
     
   
   def dict_digest(self, dct_data, return_str=True):
