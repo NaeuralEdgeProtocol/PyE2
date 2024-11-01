@@ -301,6 +301,16 @@ Last but not least, we want to close the session when the distributed job finish
 session.run(wait=lambda: not finished, close_pipelines=True)
 ```
 
+
+# Project Financing Disclaimer
+
+This project includes open-source components that have been developed with the support of financing grants SMIS 143488 and SMIS 156084, provided by the Romanian Competitiveness Operational Programme. We are grateful for this support, which has enabled us to advance our work and share these resources with the community.
+
+The content and information provided within this repository are solely the responsibility of the authors and do not necessarily reflect the views of the funding agencies. The funding received under these grants has been instrumental in supporting specific parts of this open source project, allowing for broader dissemination and collaborative development.
+
+For any inquiries related to the funding and its impact on this project, please contact the authors directly.
+
+
 # Citation
 
 ```bibtex
